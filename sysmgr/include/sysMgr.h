@@ -199,6 +199,7 @@ typedef enum _SYSMgr_SystemState_t {
                                                  // are having some mismatches, introduced the new event
   IARM_BUS_SYSMGR_SYSSTATE_USB_DETECTED, //44
   IARM_BUS_SYSMGR_SYSSTATE_LOG_UPLOAD, //45
+  IARM_BUS_SYSMGR_SYSSTATE_RED_RECOV_UPDATE_STATE, //46
 }IARM_Bus_SYSMgr_SystemState_t;
 
 
@@ -355,6 +356,7 @@ typedef struct _IARM_Bus_SYSMgr_GetSystemStates_Param_t {
   state_property ip_mode;  
   state_property qam_ready_status;
   state_property firmware_update_state;
+  state_property red_recov_state;
 } IARM_Bus_SYSMgr_GetSystemStates_Param_t;
 
 #define IARM_BUS_SYSMGR_Intrusion_MaxLen 1024

@@ -135,6 +135,7 @@ IARM_Result_t SYSMgr_Start()
         systemStates.hdmi_edid_read = {0};
         systemStates.firmware_download = {0};
         systemStates.firmware_update_state = {0};
+        systemStates.red_recov_state = {0};
         systemStates.time_source = {0};
         systemStates.time_zone_available = {0};
         systemStates.ca_system = {0};
@@ -399,6 +400,10 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 			case   IARM_BUS_SYSMGR_SYSSTATE_FIRMWARE_UPDATE_STATE :
 				systemStates.firmware_update_state.state = state;
 				systemStates.firmware_update_state.error = error;
+				break;
+			case   IARM_BUS_SYSMGR_SYSSTATE_RED_RECOV_UPDATE_STATE :
+				systemStates.red_recov_state.state = state;
+				systemStates.red_recov_state.error = error;
 				break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_TIME_SOURCE :
 				systemStates.time_source.state = state;
