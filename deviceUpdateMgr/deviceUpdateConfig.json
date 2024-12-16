@@ -1,0 +1,26 @@
+{
+	"serverUpdatePath" : "/srv/device_update/",
+	"tempFilePath" : "/tmp/devUpdate/",
+	"forceUpdate" : "false",
+	"interactiveDownload" : "false",
+	"interactiveLoad" : "false",
+	"loadDelayType" : "1",
+	"loadTimeAfterInactive" : "0",
+	"timeToLoad" : "0",
+	"backgroundDownload" : "true",
+	"loadImageImmediately" : "false",
+	"loadBeforeHour" : 9,
+	"requestedPercentIncrement" : "10",
+	"recheckForUpdatesMin" : "0",
+	"delayTillAnnounceTimeMin" : "5",
+	"useUpdateManagerService":"false",
+	"oneAnnouncePerRun" : "true",
+
+	
+	"deviceFoldersToWatch" : [
+		"XR11v2",
+		"XR15"
+		]
+	
+	
+}

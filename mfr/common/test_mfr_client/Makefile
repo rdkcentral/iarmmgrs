@@ -1,0 +1,69 @@
+##########################################################################
+# If not stated otherwise in this file or this component's LICENSE
+# file the following copyright and licenses apply:
+#
+# Copyright 2016 RDK Management
+#
+# Licensed under the Apache License, Version 2.0 (the "License");
+# you may not use this file except in compliance with the License.
+# You may obtain a copy of the License at
+#
+# http://www.apache.org/licenses/LICENSE-2.0
+#
+# Unless required by applicable law or agreed to in writing, software
+# distributed under the License is distributed on an "AS IS" BASIS,
+# WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+# See the License for the specific language governing permissions and
+# limitations under the License.
+##########################################################################
+RM          := rm -rf 
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+
+INCLUDE     :=	-I.\
+		-I./include	\
+		-I$(IARM_PATH)/core/                            \
+		-I$(IARM_PATH)/core/include                      \
+		-I$(IARM_PATH)/template/include                 \
+		-I$(IARM_MGRS)/generic/ir/include                      \
+		-I$(IARM_MGRS)/generic/hal/include                      \
+		-I$(IARM_MGRS)/generic/power/include                      \
+		-I$(IARM_MGRS)/generic/mfr/common/include                      \
+		-I$(IARM_MGRS)/generic/sysmgr/include                      \
+		-I$(DFB_ROOT)/usr/local/include/directfb \
+		-I$(MFR_PATH)/include/ 
+
+CFLAGS      += $(INCLUDE)
+
+LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
+LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
+
+LDFLAGS += -L$(IARM_MGRS)/install/lib -lmfrcli
+LDFLAGS +=-L$(DFB_LIB) -L$(OPENSOURCE_BASE)/lib
+LDFLAGS +=-L$(DFB_LIB) -L$(OPENSOURCE_BASE)/lib -llog4c
+LDFLAGS += -L$(BUILDS_DIR)/work${COMCAST_PLATFORM}/rootfs/usr/local/lib
+
+LDFLAGS += -L$(OPENSSL_PATH)/lib -lcrypto -lrt 
+LDFLAGS +=-L$(GLIB_LIBRARY_PATH)/
+LDFLAGS +=$(GLIBS)
+
+CFLAGS += $(OPENSSL_CFLAGS)
+
+LDFLAGS += -L$(IARM_MGRS)/install/lib -lmfrcrypto
+LDFLAGS += -L$(IARM_MGRS)/install/lib -lmfrcli 
+.PHONY: $(BINARIES)
+
+BINARIES    := $(patsubst %.c,%,$(wildcard *.c))
+
+all: clean $(BINARIES)  
+	@echo "Build Finished...."
+
+$(BINARIES):
+	@echo "Building $@ ...."
+	$(CXX) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
+	
+clean:
+	@echo "Cleaning the directory..."
+	@$(RM) $(BINARIES)
+
+
+
