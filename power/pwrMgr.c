@@ -1365,9 +1365,7 @@ static int _InitSettings(const char *settingsFile)
                     LOG("PowerState is already sync'd with hardware to %d\r\n", state);
                 }
                 else {
-                    LOG(" \n PowerState before sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);
-                    if(nullptr == ux) // Since ux_controller is not supported, ports need to be set up explicitly.
-                        _SetAVPortsPowerState(pSettings->powerState);                        
+                    LOG(" \n PowerState before sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);                      
                     ret = PLAT_API_SetPowerState((PWRMgr_PowerState_t)pSettings->powerState);
                     PLAT_API_GetPowerState((PWRMgr_PowerState_t*)&state);
                     LOG(" \n PowerState after sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);
