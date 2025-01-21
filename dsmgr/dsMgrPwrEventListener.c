@@ -157,10 +157,7 @@ void initPwrEventListner()
     }
     if(nullptr == ux) // Since ux_controller is not supported, ports need to be set up explicitly.
     {
-        profile_t profileType = searchRdkProfile();
-        if (PROFILE_STB != profileType ) {
-            _SetLEDStatus(curState);
-        }
+        _SetLEDStatus(curState);
         _SetAVPortsPowerState(curState);
     }    
 }
@@ -189,11 +186,7 @@ static void _PwrEventHandler(const char *owner, IARM_EventId_t eventId, void *da
                         ux->applyPowerStateChangeConfig(newState, curState);
                     else
                     {
-                        profile_t profileType = searchRdkProfile();
-                        if (PROFILE_STB != profileType ) {
-                            _SetLEDStatus(newState);
-                        }
-
+                        _SetLEDStatus(newState);
                         _SetAVPortsPowerState(newState);
                     }
                 }

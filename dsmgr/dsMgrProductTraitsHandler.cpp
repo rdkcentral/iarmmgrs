@@ -402,16 +402,12 @@ bool ux_controller_stb_eu::applyPostRebootConfig(PWRMgr_PowerState_t target_stat
     if ((PWRMGR_POWERSTATE_ON == last_known_state) && (PWRMGR_POWERSTATE_STANDBY == target_state))
     {
         //Special handling. Although the new power state is standby, leave display and LED enabled.
-        if (PROFILE_STB != profileType ) {
-            sync_power_led_with_power_state(PWRMGR_POWERSTATE_ON);
-        }
-	   	sync_display_ports_with_power_state(PWRMGR_POWERSTATE_ON);
+        sync_power_led_with_power_state(PWRMGR_POWERSTATE_ON);
+        sync_display_ports_with_power_state(PWRMGR_POWERSTATE_ON);
     }
     else
     {
-        if (PROFILE_STB != profileType ) {
-            sync_power_led_with_power_state(target_state);
-        }
+        sync_power_led_with_power_state(target_state);
         sync_display_ports_with_power_state(target_state);
     }
 
