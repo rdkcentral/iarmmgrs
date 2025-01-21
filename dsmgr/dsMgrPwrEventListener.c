@@ -48,6 +48,7 @@
 #include "dsMgrProductTraitsHandler.h"
 #include "dsAudioSettings.h"
 #include "plat_power.h"
+#include "rdkProfile.h"
 
 #define PWRMGR_REBOOT_REASON_MAINTENANCE "MAINTENANCE_REBOOT"
 #define MAX_NUM_VIDEO_PORTS 5
@@ -86,61 +87,7 @@ static PWRMgr_PowerState_t curState = PWRMGR_POWERSTATE_OFF;
 #define PROFILE_STR_TV "TV"
 #define PROFILE_STR_STB "STB"
 
-typedef enum profile {
-    PROFILE_INVALID = -1,
-    PROFILE_STB = 0,
-    PROFILE_TV,
-    PROFILE_MAX
-}profile_t;
-
 profile_t profileType = PROFILE_INVALID;
-
-profile_t searchRdkProfile(void) {
-    INT_DEBUG("Entering [%s]\r\n", __FUNCTION__);
-    const char* devPropPath = "/etc/device.properties";
-    char line[256], *rdkProfile = NULL;
-    profile_t ret = PROFILE_INVALID;
-    FILE* file;
-
-    file = fopen(devPropPath, "r");
-    if (file == NULL) {
-        INT_ERROR("[%s]: File not found.\n", __FUNCTION__);
-        return PROFILE_INVALID;
-    }
-
-    while (fgets(line, sizeof(line), file)) {
-        rdkProfile = strstr(line, RDK_PROFILE);
-        if (rdkProfile != NULL) {
-            INT_DEBUG("[%s]: Found RDK_PROFILE\r\n", __FUNCTION__);
-            break;
-        }
-    }
-    
-    if(rdkProfile != NULL)
-    {
-        rdkProfile += strlen(RDK_PROFILE);
-        rdkProfile++; // Move past the '=' character
-        if(0 == strncmp(rdkProfile, PROFILE_STR_TV, strlen(PROFILE_STR_TV)))
-        {
-            ret = PROFILE_TV;
-            INT_DEBUG("[%s]: Found RDK_PROFILE is TV", __FUNCTION__);
-        }
-        else if (0 == strncmp(rdkProfile, PROFILE_STR_STB, strlen(PROFILE_STR_STB)))
-        {
-            ret = PROFILE_STB;
-            INT_DEBUG("[%s]: Found RDK_PROFILE is STB", __FUNCTION__);
-        }
-    }
-    else
-    {
-        INT_ERROR("[%s]: NOT FOUND RDK_PROFILE in device properties file\r\n", __FUNCTION__);
-        ret = PROFILE_INVALID;
-    }
-
-    fclose(file);
-    INT_INFO("Exit [%s]: RDK_PROFILE = %d\r\n", __FUNCTION__, ret);
-    return ret;
-}
 
 void initPwrEventListner()
 {
@@ -210,9 +157,10 @@ void initPwrEventListner()
     }
     if(nullptr == ux) // Since ux_controller is not supported, ports need to be set up explicitly.
     {
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
-        _SetLEDStatus(curState);
-#endif
+        profile_t profileType = searchRdkProfile();
+        if (PROFILE_STB != profileType ) {
+            _SetLEDStatus(curState);
+        }
         _SetAVPortsPowerState(curState);
     }    
 }
@@ -241,9 +189,10 @@ static void _PwrEventHandler(const char *owner, IARM_EventId_t eventId, void *da
                         ux->applyPowerStateChangeConfig(newState, curState);
                     else
                     {
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
-                        _SetLEDStatus(newState);
-#endif
+                        profile_t profileType = searchRdkProfile();
+                        if (PROFILE_STB != profileType ) {
+                            _SetLEDStatus(newState);
+                        }
 
                         _SetAVPortsPowerState(newState);
                     }

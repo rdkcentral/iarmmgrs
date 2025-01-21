@@ -36,6 +36,7 @@
 #include "mfrMgr.h"
 #include "libIARMCore.h"
 #include "safec_lib.h"
+#include "rdkProfile.h"
 
 /**
 * IARM call to set the FSR flag
@@ -72,16 +73,16 @@ static IARM_Result_t getSerializedData_(void *arg)
     errno_t safec_rc = -1;
     int i;
 
-#ifdef REALTEK_SPECIFIC
-    if(param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME){
-	     LOG(" Querying for sky model name ");
-         err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
-    }else{
-#endif
-        err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
-#ifdef REALTEK_SPECIFIC
+    profile_t profileType = searchRdkProfile();
+    if (PROFILE_STB == profileType ) {
+         if(param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME){
+                LOG(" Querying for sky model name ");
+             err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
+        }
     }
-#endif
+    else{
+        err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
+    }
     if(mfrERR_NONE == err)
     {
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);

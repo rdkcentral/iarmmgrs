@@ -29,6 +29,7 @@
 #include "dsMgrProductTraitsHandler.h"
 #include "frontPanelIndicator.hpp"
 #include "dsRpc.h"
+#include "rdkProfile.h"
 
 using namespace dsMgrProductTraits;
 extern bool isTVOperatingInFactory();
@@ -397,19 +398,20 @@ bool ux_controller_stb_eu::applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t c
 bool ux_controller_stb_eu::applyPostRebootConfig(PWRMgr_PowerState_t target_state, PWRMgr_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
+    profile_t profileType = searchRdkProfile();
     if ((PWRMGR_POWERSTATE_ON == last_known_state) && (PWRMGR_POWERSTATE_STANDBY == target_state))
     {
         //Special handling. Although the new power state is standby, leave display and LED enabled.
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
-        sync_power_led_with_power_state(PWRMGR_POWERSTATE_ON);
-#endif
-        sync_display_ports_with_power_state(PWRMGR_POWERSTATE_ON);
+        if (PROFILE_STB != profileType ) {
+            sync_power_led_with_power_state(PWRMGR_POWERSTATE_ON);
+        }
+	   	sync_display_ports_with_power_state(PWRMGR_POWERSTATE_ON);
     }
     else
     {
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
-        sync_power_led_with_power_state(target_state);
-#endif
+        if (PROFILE_STB != profileType ) {
+            sync_power_led_with_power_state(target_state);
+        }
         sync_display_ports_with_power_state(target_state);
     }
 
