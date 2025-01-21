@@ -202,12 +202,9 @@ IARM_Result_t DSMgr_Start()
         INT_ERROR("Fails to Create a main Loop for [%s] \r\n",IARM_BUS_DSMGR_NAME);
     }
 
-    if(!isHDMIConnected())
-    {
-        INT_ERROR("HDMI not connected at bootup -Schedule a handler to set the resolution .. \r\n");
-        _SetVideoPortResolution(); 
-    }
-	return IARM_RESULT_SUCCESS;
+    INT_INFO("Set resolution during dsMgr init .. \r\n");
+    _SetVideoPortResolution(); 
+    return IARM_RESULT_SUCCESS;
 }
 
 IARM_Result_t DSMgr_Loop()
