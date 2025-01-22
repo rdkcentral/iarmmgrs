@@ -47,9 +47,8 @@
 #include "libIARM.h"
 #include "libIBusDaemon.h"
 
-#define IARM_BUS_DSMGR_NAME		"DSMgr"
 #include <string.h>
-#if (defined(RDK_LOGGER_ENABLED) || defined(DSMGR_LOGGER_ENABLED))
+#if (defined(RDK_LOGGER_ENABLED))
 #include "rdk_debug.h"
 #include "iarmUtil.h"
 
@@ -105,11 +104,6 @@ printf(FORMAT, __VA_ARGS__);\
 
 #endif
 
-extern IARM_Bus_Daemon_SysMode_t isEAS; // Default is Normal Mode
-
-IARM_Result_t DSMgr_Start();
-IARM_Result_t DSMgr_Loop();
-IARM_Result_t DSMgr_Stop(void);
 
 
 #endif

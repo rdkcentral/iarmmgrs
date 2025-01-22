@@ -87,7 +87,7 @@ static PWRMgr_PowerState_t curState = PWRMGR_POWERSTATE_OFF;
 #define PROFILE_STR_TV "TV"
 #define PROFILE_STR_STB "STB"
 
-profile_t profileType = PROFILE_INVALID;
+static profile_t profileType = PROFILE_INVALID;
 
 void initPwrEventListner()
 {

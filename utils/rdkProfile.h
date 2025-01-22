@@ -19,10 +19,6 @@
 
 #ifndef _IARM_UTILS_
 #define _IARM_UTILS_
-#include <string.h>
-#include <pthread.h>
-#include "libIBus.h"
-#include "libIBusDaemon.h"
 
 #ifdef __cplusplus
 extern "C"

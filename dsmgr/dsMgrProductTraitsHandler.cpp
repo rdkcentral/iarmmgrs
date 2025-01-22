@@ -29,7 +29,6 @@
 #include "dsMgrProductTraitsHandler.h"
 #include "frontPanelIndicator.hpp"
 #include "dsRpc.h"
-#include "rdkProfile.h"
 
 using namespace dsMgrProductTraits;
 extern bool isTVOperatingInFactory();
@@ -398,7 +397,6 @@ bool ux_controller_stb_eu::applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t c
 bool ux_controller_stb_eu::applyPostRebootConfig(PWRMgr_PowerState_t target_state, PWRMgr_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
-    profile_t profileType = searchRdkProfile();
     if ((PWRMGR_POWERSTATE_ON == last_known_state) && (PWRMGR_POWERSTATE_STANDBY == target_state))
     {
         //Special handling. Although the new power state is standby, leave display and LED enabled.

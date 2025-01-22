@@ -324,8 +324,6 @@ static gboolean deep_sleep_delay_timer_fn(gpointer data)
     if ((stat("/lib/systemd/system/lxc.service", &buf) == 0) && (stat("/opt/lxc_service_disabled",&buf) !=0)) {
         system("systemctl stop lxc.service");
         isLxcRestart = 1;
-    } else {
-        LOG("Skiping Stopping of services\n");
     }
     bool userWakeup = 0;
     status = PLAT_DS_SetDeepSleep(deep_sleep_wakeup_timer,&userWakeup, false);

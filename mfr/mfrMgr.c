@@ -63,6 +63,8 @@ static mfrUpgradeStatusNotify_t notifyStruct;
 
 static mfrUpgradeStatus_t lastStatus;
 
+static profile_t profileType = PROFILE_INVALID;
+
 static IARM_Result_t getSerializedData_(void *arg)
 {
 
@@ -72,16 +74,15 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrSerializedData_t data;
     errno_t safec_rc = -1;
     int i;
-
-    profile_t profileType = searchRdkProfile();
-    if (PROFILE_STB == profileType ) {
-         if(param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME){
-                LOG(" Querying for sky model name ");
-             err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
-        }
+    if (PROFILE_INVALID == profileType){
+        profileType = searchRdkProfile();
     }
-    else{
-        err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
+    if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
+          (PROFILE_STB == profileType)){
+        LOG(" Querying for sky model name ");
+        err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
+    } else {
+         err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
     }
     if(mfrERR_NONE == err)
     {

@@ -269,11 +269,9 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                         }
                         else
                         {
-			   LOG("Skipping Stopping service while entering DEEPSLEEP.\n");
 			   LOG("Update the Deepsleep marker to splunk.\n");
 			   system("sh /lib/rdk/alertSystem.sh deepSleepMgrMain SYST_INFO_devicetoDS");
 
-			   LOG("Skipping Unmounting SDcard partition.\r\n");
                         }
 #ifdef ENABLE_DEEPSLEEP_FPLED_HANDLING
                         __TIMESTAMP();LOG("FrontPanelConfig::fPTerm\n");
@@ -396,11 +394,6 @@ static IARM_Result_t _DeepSleepWakeup(void *arg)
                 system("systemctl restart lxc.service");
                 isLxcRestart = 0;
             }
-            else
-            {
-		LOG("Skipping restart of Services\n");
-
-            }
         }
         IsDeviceInDeepSleep = DeepSleepStatus_NotStarted;
     
@@ -443,9 +436,6 @@ static gboolean deep_sleep_delay_timer_fn(gpointer data)
     {
         system("systemctl stop lxc.service");
         isLxcRestart = 1;
-    }
-    else {
-      LOG("Skiping Stopping of services\n");
     }
     bool userWakeup = 0;
     status = PLAT_DS_SetDeepSleep(deep_sleep_wakeup_timer,&userWakeup, false);
