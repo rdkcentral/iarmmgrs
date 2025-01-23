@@ -208,6 +208,7 @@ static void SetPwrMgrDeepSleepMode(void *data)
                         sleep(5);
                         retryCount++;
                         if(retryCount >= 5) {
+                            IsDeviceInDeepSleep = DeepSleepStatus_Failed;
                             LOG(" ERROR: Device failed to enter into Deep sleep Mode.  Set Power state newState= %d\n", pwr_param.newState);
                             LOG("calling _SetPowerState() with  newState= %d\n", pwr_param.newState);
                             retCode = _SetPowerState((void *)&pwr_param);

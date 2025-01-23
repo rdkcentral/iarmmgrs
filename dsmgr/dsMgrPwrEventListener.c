@@ -210,9 +210,7 @@ void initPwrEventListner()
     }
     if(nullptr == ux) // Since ux_controller is not supported, ports need to be set up explicitly.
     {
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
         _SetLEDStatus(curState);
-#endif
         _SetAVPortsPowerState(curState);
     }    
 }
@@ -241,10 +239,7 @@ static void _PwrEventHandler(const char *owner, IARM_EventId_t eventId, void *da
                         ux->applyPowerStateChangeConfig(newState, curState);
                     else
                     {
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
                         _SetLEDStatus(newState);
-#endif
-
                         _SetAVPortsPowerState(newState);
                     }
                 }
