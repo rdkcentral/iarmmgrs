@@ -22,7 +22,6 @@ install_dir := ../install/bin
 install_lib_dir := ../install/lib
 
 # List of Executable
-exe_ir              := ir/
 exe_power           := power/
 exe_pwrstate        := pwrstate/
 exe_sysmgr          := sysmgr/
@@ -37,9 +36,9 @@ exe_platform_pwrstate  := ../soc/${PLATFORM_SOC}/pwrstate
 exe_platform_fp     := ../soc/${PLATFORM_SOC}/fp
 
 ifneq ($(MFR_MGR_SUPPORT),nomfrmgr)
-executable := $(exe_platform_ir) $(exe_platform_power) $(exe_platform_fp) $(exe_ir) $(exe_power) $(exe_platform_pwrstate) $(exe_pwrstate) $(exe_sysmgr) $(exe_tr69Bus) $(exe_test) $(exe_mfr) $(exe_ds)
+executable := $(exe_platform_ir) $(exe_platform_power) $(exe_platform_fp) $(exe_power) $(exe_platform_pwrstate) $(exe_pwrstate) $(exe_sysmgr) $(exe_tr69Bus) $(exe_test) $(exe_mfr) $(exe_ds)
 else	
-executable := $(exe_platform_ir) $(exe_platform_power) $(exe_platform_fp) $(exe_ir) $(exe_power) $(exe_platform_pwrstate) $(exe_pwrstate) $(exe_sysmgr) $(exe_tr69Bus) $(exe_test) $(exe_ds)
+executable := $(exe_platform_ir) $(exe_platform_power) $(exe_platform_fp) $(exe_power) $(exe_platform_pwrstate) $(exe_pwrstate) $(exe_sysmgr) $(exe_tr69Bus) $(exe_test) $(exe_ds)
 endif	
 
 
@@ -58,7 +57,6 @@ install:
 	cp $(exe_sysmgr)/*Main $(install_dir)
 	cp $(exe_power)/*Main $(install_dir)
 	cp $(exe_pwrstate)/pwrstate_notifier $(install_dir)
-	cp $(exe_ir)/*Main $(install_dir)
 	cp $(exe_ds)/*Main $(install_dir)
 	cp $(exe_tr69Bus)/*Main $(install_dir)
 	cp $(exe_ds)/*Main $(install_dir)
