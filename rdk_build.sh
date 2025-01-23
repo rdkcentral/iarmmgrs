@@ -173,10 +173,8 @@ function install()
 
     cd $IARMMGRSINSTALL_PATH
 
-	cp -v lib/libirInput.so ${RDK_FSROOT_PATH}lib
 	cp -v lib/libPwrMgr.so ${RDK_FSROOT_PATH}lib
 
-		cp -v bin/irMgrMain ${RDK_FSROOT_PATH}mnt/nfs/env
 		cp -v bin/pwrMgrMain ${RDK_FSROOT_PATH}mnt/nfs/env    
 		cp -v bin/sysMgrMain ${RDK_FSROOT_PATH}mnt/nfs/env
 		cp -v bin/dsMgrMain  ${RDK_FSROOT_PATH}mnt/nfs/env

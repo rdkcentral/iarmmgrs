@@ -25,8 +25,8 @@ fi
 
 if type systemctl >/dev/null 2>/dev/null; then
 	if [ -z "$D" ]; then
-		systemctl stop diskmgr.service irmgr.service pwrmgr.service dsmgr.service sysmgr.service tr69bus.service deviceupdatemgr.service mfrmgr.service
+		systemctl stop diskmgr.service pwrmgr.service dsmgr.service sysmgr.service tr69bus.service deviceupdatemgr.service mfrmgr.service
 	fi
 
-	systemctl $OPTS disable diskmgr.service irmgr.service pwrmgr.service dsmgr.service sysmgr.service tr69bus.service deviceupdatemgr.service mfrmgr.service
+	systemctl $OPTS disable diskmgr.service pwrmgr.service dsmgr.service sysmgr.service tr69bus.service deviceupdatemgr.service mfrmgr.service
 fi
