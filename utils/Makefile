@@ -16,25 +16,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-#
-
 RM          := rm -rf
 CFLAGS      := -g -fPIC -D_REENTRANT -Wall
-LIBNAME     := MAF
-LIBNAMEFULL := lib$(LIBNAME).so
+OBJS        := $(patsubst %.c,%.o,rdkProfile.c)
 CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
-EXECUTABLE  := mfrMgrMain
-
-#Plase make setting LINUXKDIR configuratble
-
+LDFLAGS     += -shared
+LIBRARY_NAME = libiarmUtils.so
 
 INCLUDE     =	-I.\
-                -I./include \
-		-I$(MFR_PATH)/include	\
-		-I$(IARM_PATH)/core/   \
-		-I$(IARM_PATH)/core/include \
-		-I$(DFB_ROOT)/usr/local/include/directfb \
-		 -I$(UTILS_PATH)/ 
 
 
 
@@ -47,33 +36,31 @@ endif
 
 CFLAGS      += $(INCLUDE) 
 
-
-CROSS_COMPILE=mipsel-linux-
-CC=$(CROSS_COMPILE)gcc
-CXX=$(CROSS_COMPILE)g++
-
-LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
-LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus -lnexus
-
-LDFLAGS += -L${WORK_DIR}/${MFR_LIB_PATH} $(MFR_LIB_NAME) -L$(UTILS_PATH)/ -liarmUtils 
-LDFLAGS += -L$(OPENSSL_PATH)/lib -lcrypto -lrt 
+CFLAGS += $(_ENABLE_WAKEUP_KEY)
+CFLAGS += $(RF4CE_API)
 
 
-all:clean executable
+LDFLAGS+=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
+
+
+LDFLAGS+=  -L$(CROSS_TOOLCHAIN)/lib
+
+all:clean objs library
 	@echo "Build Finished...."
 
-library: mfrMgr.o 
-	@echo "Building $(LIBNAMEFULL) ...."
+objs: $(OBJS)
 
-executable: mfrMgrMain.o mfrMgr.o
-	@echo "Building $(EXECUTABLE) ...."
-	$(CC) $(CFLAGS) $(LDFLAGS) $(MFR_LDFLAGS) mfrMgr.o mfrMgrMain.o -o $(EXECUTABLE)
-
-%.o: %.c
+%.o: %.c 
 	@echo "Building $@ ...."
-	$(CC) -c $<  $(CFLAGS) -o $@
+	$(CXX) -c $<  $(CFLAGS) -o $@
+
+%.o: %.cpp
+	@echo "Building $@ ...."
+	$(CXX) -c $<  $(CFLAGS) -o $@
+
+library: $(OBJS)
+	$(CC) -fPIC $(CFLAGS) -shared -Wl,-soname,$(LIBRARY_NAME).0.0.0 $(OBJS) -o $(LIBRARY_NAME) $(LDFLAGS)
 
 clean:
 	@echo "Cleaning the directory..."
-	@$(RM) *.o $(LIBNAMEFULL) 
-
+	@$(RM) $(OBJS) $(LIBNAMEFULL) $(LIBRARY_NAME)

@@ -28,6 +28,7 @@ export DS_PATH=$BUILDS_DIR/devicesettings
 export IARM_PATH=$BUILDS_DIR/iarmbus
 export IARM_MGRS=$BUILDS_DIR/iarmmgrs
 export LOGGER_PATH=$BUILDS_DIR/logger
+export UTILS_PATH=$BUILDS_DIR/utils
 
 export TOOLCHAIN_DIR=$COMBINED_ROOT/sdk/toolchain/staging_dir
 export CROSS_TOOLCHAIN=$TOOLCHAIN_DIR
