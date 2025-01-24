@@ -30,6 +30,7 @@ INCLUDE     =   -I. \
                 -I$(DS_PATH)/rpc/include \
 				-I$(DS_PATH)/hal/include \
 		        -I$(DS_PATH)/ds/include \
+				-I$(UTILS_PATH)/ \
 				-I$(DS_PATH)/hal/src \
 				-I$(GLIB_HEADER_PATH)/ \
 				-I$(GLIB_HEADER_PATH)/glib/ \
@@ -57,7 +58,7 @@ CFLAGS += $(_INIT_RESN_SETTINGS)
 
 LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
-LDFLAGS += -L$(INSTALL)/lib -ldshalcli -lds       
+LDFLAGS += -L$(INSTALL)/lib -ldshalcli -lds -L$(UTILS_PATH)/ -liarmUtils 
 
 INTEL_SHLIBS=   \
                                 -lismd_core \

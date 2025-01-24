@@ -187,11 +187,9 @@ static void SetPwrMgrDeepSleepMode(void *data)
                 while(retryCount< 5) {
                     LOG("Device entering Deep sleep Mode.. \r\n");
                     userWakeup = 0;
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
                     nwStandbyMode_gs = param->data.state.nwStandbyMode;
                     LOG("\nCalling PLAT_DS_SetDeepSleep with nwStandbyMode: %s\n",
                         nwStandbyMode_gs?("Enabled"):("Disabled"));
-#endif
                     LOG("Device entered to Deep sleep Mode.. \r\n");
                     status = PLAT_DS_SetDeepSleep(deep_sleep_wakeup_timer,&userWakeup, nwStandbyMode_gs);
                     LOG("Device resumed from Deep sleep Mode.status :%d  \r\n",status);
@@ -327,12 +325,6 @@ static gboolean deep_sleep_delay_timer_fn(gpointer data)
     if ((stat("/lib/systemd/system/lxc.service", &buf) == 0) && (stat("/opt/lxc_service_disabled",&buf) !=0)) {
         system("systemctl stop lxc.service");
         isLxcRestart = 1;
-    } else {
-#ifndef ENABLE_LLAMA_PLATCO_SKY_XIONE
-        system("systemctl stop wpeframework.service");
-#else
-        LOG("Skiping Stopping of services\n");
-#endif
     }
     bool userWakeup = 0;
     status = PLAT_DS_SetDeepSleep(deep_sleep_wakeup_timer,&userWakeup, false);

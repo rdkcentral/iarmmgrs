@@ -36,6 +36,7 @@
 #include "mfrMgr.h"
 #include "libIARMCore.h"
 #include "safec_lib.h"
+#include "rdkProfile.h"
 
 /**
 * IARM call to set the FSR flag
@@ -62,6 +63,8 @@ static mfrUpgradeStatusNotify_t notifyStruct;
 
 static mfrUpgradeStatus_t lastStatus;
 
+static profile_t profileType = PROFILE_INVALID;
+
 static IARM_Result_t getSerializedData_(void *arg)
 {
 
@@ -71,17 +74,16 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrSerializedData_t data;
     errno_t safec_rc = -1;
     int i;
-
-#ifdef REALTEK_SPECIFIC
-    if(param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME){
-	     LOG(" Querying for sky model name ");
-         err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
-    }else{
-#endif
-        err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
-#ifdef REALTEK_SPECIFIC
+    if (PROFILE_INVALID == profileType){
+        profileType = searchRdkProfile();
     }
-#endif
+    if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
+          (PROFILE_STB == profileType)){
+        LOG(" Querying for sky model name ");
+        err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
+    } else {
+         err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
+    }
     if(mfrERR_NONE == err)
     {
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);

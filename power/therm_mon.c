@@ -289,19 +289,11 @@ int PLAT_API_GetClockSpeed(uint32_t *speed)
 {
     FILE* fp = NULL;
 
-#ifdef ENABLE_LLAMA_PLATCO
     fp = fopen ("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq", "r");
     if (fp == 0) {
         LOG("[%s:%d] Unable to open '/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq' for writing\n", __FUNCTION__, __LINE__);
         return 0;
     }
-#else
-    fp = fopen ("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq", "r");
-    if (fp == 0) {
-        LOG("[%s:%d] Unable to open '/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq' for writing\n", __FUNCTION__, __LINE__);
-        return 0;
-    }
-#endif
 
     if(0 >= fscanf(fp, "%u", speed)) {
         LOG("[%s:%d] Unable to get the speed \n", __FUNCTION__, __LINE__);
