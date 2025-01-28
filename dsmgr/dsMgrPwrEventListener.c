@@ -66,22 +66,20 @@ extern void _setEASAudioMode();
 
 static DSMgr_Standby_Video_State_t g_standby_video_port_setting[MAX_NUM_VIDEO_PORTS];
 static dsMgrProductTraits::ux_controller * ux = nullptr;
-static pthread_mutex_t dsLock = PTHREAD_MUTEX_INITIALIZER;
 
 static bool get_video_port_standby_setting(const char * port);
-static void _PwrEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
-static int _SetLEDStatus(PWRMgr_PowerState_t powerState);
-int _SetAVPortsPowerState(PWRMgr_PowerState_t powerState);
+static void _PwrEventHandler(const PowerManager_PowerState_t currentState,
+                             const PowerManager_PowerState_t newState,
+                             void *userdata);
+static int _SetLEDStatus(PowerManager_PowerState_t powerState);
+int _SetAVPortsPowerState(PowerManager_PowerState_t powerState);
 static IARM_Result_t _SetStandbyVideoState(void *arg);
 static IARM_Result_t _GetStandbyVideoState(void *arg);
 static IARM_Result_t _SetAvPortState(void *arg);
 static IARM_Result_t _SetLEDState(void *arg);
 static IARM_Result_t _SetRebootConfig(void *arg);
 
-static PWRMgr_PowerState_t curState = PWRMGR_POWERSTATE_OFF;
-
-#define IARM_BUS_Lock(lock) pthread_mutex_lock(&dsLock)
-#define IARM_BUS_Unlock(lock) pthread_mutex_unlock(&dsLock)
+static PowerManager_PowerState_t curState = POWER_STATE_OFF;
 
 #define RDK_PROFILE "RDK_PROFILE"
 #define PROFILE_STR_TV "TV"
@@ -91,9 +89,11 @@ static profile_t profileType = PROFILE_INVALID;
 
 void initPwrEventListner()
 {
+    PowerManager_PowerState_t _curState = POWER_STATE_UNKNOWN;
+    PowerManager_PowerState_t _prevState = POWER_STATE_UNKNOWN;
+    PowerManager_PowerState_t powerStateBeforeReboot = POWER_STATE_STANDBY;
+
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
-    IARM_Bus_PWRMgr_GetPowerState_Param_t param;
-    PWRMgr_PowerState_t beforeRebootPowerState = PWRMGR_POWERSTATE_STANDBY;
     
     profileType = searchRdkProfile();
 
@@ -122,91 +122,69 @@ void initPwrEventListner()
     }
     catch (...){
         INT_DEBUG("Exception Caught during [device::Manager::load]\r\n");
-    }   
-    IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME,IARM_BUS_PWRMGR_EVENT_MODECHANGED,_PwrEventHandler);
+    }
+
+    PowerManager_RegisterPowerModeChangedCallback(_PwrEventHandler, nullptr);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetStandbyVideoState, _SetStandbyVideoState);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_GetStandbyVideoState, _GetStandbyVideoState);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetAvPortState, _SetAvPortState);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetLEDStatus, _SetLEDState);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetRebootConfig, _SetRebootConfig);
-   /*  Read the Device Power State on startup... */
-    IARM_Result_t ret = IARM_Bus_Call(IARM_BUS_PWRMGR_NAME, IARM_BUS_PWRMGR_API_GetPowerState, (void *)&param, sizeof(param));
-    if(ret == IARM_RESULT_SUCCESS)
-    {
-        INT_DEBUG("Deep Sleep Manager Init with Power State %d\r\n",param.curState);
-        curState = (PWRMgr_PowerState_t)param.curState;
-    }
-    IARM_Bus_PWRMgr_GetPowerStateBeforeReboot_Param_t preParam;
-    IARM_Result_t res = IARM_Bus_Call(IARM_BUS_PWRMGR_NAME,
-                              IARM_BUS_PWRMGR_API_GetPowerStateBeforeReboot, (void *)&preParam,
-                              sizeof(preParam));
 
-    if(ret == IARM_RESULT_SUCCESS)
+    /*  Read the Device Power State on startup... */
+    if (POWER_MANAGER_ERROR_NONE == PowerManager_GetPowerState(&_curState, &_prevState))
     {
-        INT_DEBUG("Deep Sleep Manager Init with Previous  Power State before reboot %s\r\n",preParam.powerStateBeforeReboot);
-        if (0==strncmp("ON", preParam.powerStateBeforeReboot, 2)){
-            beforeRebootPowerState = PWRMGR_POWERSTATE_ON;
-        }
+        INT_DEBUG("Deep Sleep Manager Init with Power State %d\r\n", _curState);
+        curState = _curState;
     }
 
-    if(nullptr != ux)
-                ux->applyPostRebootConfig(curState, beforeRebootPowerState); // This will set up ports, lights and bootloader pattern internally.
-    else
+    if (POWER_MANAGER_ERROR_NONE != PowerManager_GetPowerStateBeforeReboot(&powerStateBeforeReboot))
     {
-        //Sync Port with Power state TODO:
+        INT_ERROR("DSMgr GetPowerStateBeforeReboot Failed\r\n");
     }
-    if(nullptr == ux) // Since ux_controller is not supported, ports need to be set up explicitly.
+
+    if (nullptr != ux)
+    {
+        // This will set up ports, lights and bootloader pattern internally
+        ux->applyPostRebootConfig(curState, powerStateBeforeReboot);
+    } else {
+        // Sync Port with Power state TODO:
+    }
+
+    if (nullptr == ux) // Since ux_controller is not supported, ports need to be set up explicitly.
     {
         _SetLEDStatus(curState);
         _SetAVPortsPowerState(curState);
-    }    
-}
-
-
-static void _PwrEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
-{
-    INT_INFO("Entering [%s]\r\n", __FUNCTION__);
-    PWRMgr_PowerState_t newState;
-    PWRMgr_PowerState_t curState;
-    
-    /*Handle only Sys Manager Events */
-    if (strcmp(owner, IARM_BUS_PWRMGR_NAME)  == 0) 
-    {
-        /* Only handle state events */
-        switch (eventId) {
-            case IARM_BUS_PWRMGR_EVENT_MODECHANGED:
-                {
-
-                    IARM_Bus_PWRMgr_EventData_t *eventData = (IARM_Bus_PWRMgr_EventData_t *)data;
-                       
-                    INT_DEBUG("[%s] Got MODCHANGED Event from %d to %d  \r\n",__FUNCTION__, eventData->data.state.curState, eventData->data.state.newState);
-                    newState = (PWRMgr_PowerState_t)eventData->data.state.newState;     
-                    curState = (PWRMgr_PowerState_t)eventData->data.state.curState;     
-                    if (nullptr != ux) //If ux_controller is supported, it will set up AV ports and LEDs in the below call.
-                        ux->applyPowerStateChangeConfig(newState, curState);
-                    else
-                    {
-                        _SetLEDStatus(newState);
-                        _SetAVPortsPowerState(newState);
-                    }
-                }
-                break;
-            default:
-                break;
-            }
     }
 }
 
-static int _SetLEDStatus(PWRMgr_PowerState_t powerState)
+static void _PwrEventHandler(const PowerManager_PowerState_t currentState,
+    const PowerManager_PowerState_t newState,
+    void* userdata)
+{
+    INT_INFO("Entering [%s]\r\n", __FUNCTION__);
+
+    if (nullptr != ux) {
+        // If ux_controller is supported, it will set up AV ports and LEDs in the below call.
+        ux->applyPowerStateChangeConfig(newState, currentState);
+    } else {
+#ifndef DISABLE_LED_SYNC_IN_BOOTUP
+        _SetLEDStatus(newState);
+#endif
+        _SetAVPortsPowerState(newState);
+    }
+}
+
+static int _SetLEDStatus(PowerManager_PowerState_t powerState)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
     try {
-        
+
         dsFPDStateParam_t param;
 
         param.eIndicator = dsFPD_INDICATOR_POWER;
 
-        if( powerState != PWRMGR_POWERSTATE_ON )
+        if( POWER_STATE_ON  != powerState )
         {
             if(PROFILE_TV == profileType)
             {
@@ -234,15 +212,15 @@ static int _SetLEDStatus(PWRMgr_PowerState_t powerState)
     return 0;
 }
 
-int _SetAVPortsPowerState(PWRMgr_PowerState_t powerState)
+int _SetAVPortsPowerState(PowerManager_PowerState_t powerState)
 {
     INT_INFO("Entering [%s] powerState:%d \r\n", __FUNCTION__,powerState);
 
     try
     {
-        if (powerState != PWRMGR_POWERSTATE_ON)
+        if (POWER_STATE_ON != powerState)
         {
-            if (PWRMGR_POWERSTATE_OFF != powerState)
+            if (POWER_STATE_OFF != powerState)
             {
                 INT_INFO("[%s] POWERSTATE %d \r\n", __FUNCTION__, powerState);
                 // We're in one of the standby modes. Certain ports may have to be left on.
@@ -428,7 +406,7 @@ static IARM_Result_t _SetStandbyVideoState(void *arg)
     try
     {
         device::VideoOutputPort &vPort = device::Host::getInstance().getVideoOutputPort(param->port);
-        if((PWRMGR_POWERSTATE_ON != curState) && (PWRMGR_POWERSTATE_OFF != curState))
+        if((POWER_STATE_ON != curState) && (POWER_STATE_OFF != curState))
         {
             /*We're currently in one of the standby states. This new setting needs to be applied right away.*/
             INT_DEBUG("[%s] Setting standby %s port status to %s.\n", __FUNCTION__, param->port, ((1 == param->isEnabled)? "enabled" : "disabled"));
@@ -476,17 +454,45 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
     return IARM_RESULT_SUCCESS;
 }
 
+static PowerManager_PowerState_t PWRMgrToPowerManager_PowerState(PWRMgr_PowerState_t _state)
+{
+    PowerManager_PowerState_t powerState = POWER_STATE_UNKNOWN;
+    switch (_state) {
+    case PWRMGR_POWERSTATE_OFF:
+        powerState = POWER_STATE_OFF;
+        break;
+    case PWRMGR_POWERSTATE_STANDBY:
+        powerState = POWER_STATE_STANDBY;
+        break;
+    case PWRMGR_POWERSTATE_ON:
+        powerState = POWER_STATE_ON;
+        break;
+    case PWRMGR_POWERSTATE_STANDBY_LIGHT_SLEEP:
+        powerState = POWER_STATE_STANDBY_LIGHT_SLEEP;
+        break;
+    case PWRMGR_POWERSTATE_STANDBY_DEEP_SLEEP:
+        powerState = POWER_STATE_STANDBY_DEEP_SLEEP;
+        break;
+    default:
+        /* powerState is already UNKNOWN */
+        break;
+    }
+    return powerState;
+}
+
 static IARM_Result_t _SetAvPortState(void *arg)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
-    dsMgrAVPortStateParam_t *param = (dsMgrAVPortStateParam_t *)arg;
-    if(NULL == param)
-    {
+    dsMgrAVPortStateParam_t* param = (dsMgrAVPortStateParam_t*)arg;
+    if (NULL == param) {
         INT_DEBUG("Bad Parameter.\n");
         return IARM_RESULT_SUCCESS;
     }
 
-    _SetAVPortsPowerState((PWRMgr_PowerState_t)param->avPortPowerState);
+    PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param->avPortPowerState;
+    PowerManager_PowerState_t powerState = PWRMgrToPowerManager_PowerState(pwrState);
+
+    _SetAVPortsPowerState(powerState);
     param->result = 0;
     return IARM_RESULT_SUCCESS;
 }
@@ -501,7 +507,10 @@ static IARM_Result_t _SetLEDState(void *arg)
         return IARM_RESULT_SUCCESS;
     }
 
-    _SetLEDStatus((PWRMgr_PowerState_t)param->ledState);
+    PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param->ledState;
+    PowerManager_PowerState_t powerState = PWRMgrToPowerManager_PowerState(pwrState);
+
+    _SetLEDStatus(powerState);
     param->result = 0;
     return IARM_RESULT_SUCCESS;
 }
@@ -518,10 +527,13 @@ static IARM_Result_t _SetRebootConfig(void *arg)
     param->reboot_reason_custom[sizeof(param->reboot_reason_custom) - 1] = '\0'; //Just to be on the safe side.
     if(nullptr != ux)
     {
+        PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param->powerState;
+        PowerManager_PowerState_t powerState = PWRMgrToPowerManager_PowerState(pwrState);
+
         if(0 == strncmp(PWRMGR_REBOOT_REASON_MAINTENANCE, param->reboot_reason_custom, sizeof(param->reboot_reason_custom)))
-            ux->applyPreMaintenanceRebootConfig((PWRMgr_PowerState_t)param->powerState);
+            ux->applyPreMaintenanceRebootConfig(powerState);
         else
-            ux->applyPreRebootConfig((PWRMgr_PowerState_t)param->powerState);
+            ux->applyPreRebootConfig(powerState);
     }
 
     param->result = 0;

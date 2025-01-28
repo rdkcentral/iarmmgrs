@@ -24,7 +24,8 @@
 #include "mfrTypes.h"
 #include "libIBus.h"
 #include "libIBusDaemon.h"
-#include "plat_power.h"
+#include "powermanager_client.h"
+
 
 namespace dsMgrProductTraits
 {
@@ -94,8 +95,8 @@ protected:
     static ux_controller * singleton;
 
     void initialize_safe_defaults();
-    void sync_power_led_with_power_state(PWRMgr_PowerState_t state) const;
-    inline void sync_display_ports_with_power_state(PWRMgr_PowerState_t state) const;
+    void sync_power_led_with_power_state(PowerManager_PowerState_t state) const;
+    inline void sync_display_ports_with_power_state(PowerManager_PowerState_t state) const;
     bool _set_bootloader_pattern(mfrBlPattern_t pattern) const;
     void _set_bootloader_pattern_async(mfrBlPattern_t pattern) const;
     bool set_bootloader_pattern(mfrBlPattern_t pattern);
@@ -107,19 +108,19 @@ public:
     ux_controller(unsigned int in_id, const std::string &in_name, deviceType_t in_device_type);
     virtual ~ux_controller() {}
 
-    virtual bool applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) {
+    virtual bool applyPowerStateChangeConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) {
         return false;
     };
-    virtual bool applyPreRebootConfig(PWRMgr_PowerState_t current_state) const {
+    virtual bool applyPreRebootConfig(PowerManager_PowerState_t current_state) const {
         return false;
     }
-    virtual bool applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state) {
+    virtual bool applyPreMaintenanceRebootConfig(PowerManager_PowerState_t current_state) {
         return false;
     }
-    virtual bool applyPostRebootConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) {
+    virtual bool applyPostRebootConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) {
         return false;
     }
-    virtual PWRMgr_PowerState_t getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const {
+    virtual PowerManager_PowerState_t getPreferredPostRebootPowerState(PowerManager_PowerState_t prev_state) const {
         return prev_state;
     }
     virtual void sync_display_ports_with_reboot_reason(reboot_type_t type) {};
@@ -131,33 +132,33 @@ class ux_controller_tv_eu : public ux_controller
 {
 public:
     ux_controller_tv_eu(unsigned int in_id, const std::string &in_name);
-    virtual bool applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) override;
-    virtual bool applyPreRebootConfig(PWRMgr_PowerState_t current_state) const override;
-    virtual bool applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state) override;
-    virtual bool applyPostRebootConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) override;
-    virtual PWRMgr_PowerState_t getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const override;
+    virtual bool applyPowerStateChangeConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) override;
+    virtual bool applyPreRebootConfig(PowerManager_PowerState_t current_state) const override;
+    virtual bool applyPreMaintenanceRebootConfig(PowerManager_PowerState_t current_state) override;
+    virtual bool applyPostRebootConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) override;
+    virtual PowerManager_PowerState_t getPreferredPostRebootPowerState(PowerManager_PowerState_t prev_state) const override;
 };
 
 class ux_controller_stb_eu : public ux_controller
 {
 public:
     ux_controller_stb_eu(unsigned int in_id, const std::string &in_name);
-    virtual bool applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) override;
-    virtual bool applyPreRebootConfig(PWRMgr_PowerState_t current_state) const override;
-    virtual bool applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state) override;
-    virtual bool applyPostRebootConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) override;
-    virtual PWRMgr_PowerState_t getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const override;
+    virtual bool applyPowerStateChangeConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) override;
+    virtual bool applyPreRebootConfig(PowerManager_PowerState_t current_state) const override;
+    virtual bool applyPreMaintenanceRebootConfig(PowerManager_PowerState_t current_state) override;
+    virtual bool applyPostRebootConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) override;
+    virtual PowerManager_PowerState_t getPreferredPostRebootPowerState(PowerManager_PowerState_t prev_state) const override;
 };
 
 class ux_controller_tv : public ux_controller
 {
 public:
     ux_controller_tv(unsigned int in_id, const std::string &in_name);
-    virtual bool applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) override;
-    virtual bool applyPreRebootConfig(PWRMgr_PowerState_t current_state) const override;
-    virtual bool applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state) override;
-    virtual bool applyPostRebootConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) override;
-    virtual PWRMgr_PowerState_t getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const override;
+    virtual bool applyPowerStateChangeConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) override;
+    virtual bool applyPreRebootConfig(PowerManager_PowerState_t current_state) const override;
+    virtual bool applyPreMaintenanceRebootConfig(PowerManager_PowerState_t current_state) override;
+    virtual bool applyPostRebootConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) override;
+    virtual PowerManager_PowerState_t getPreferredPostRebootPowerState(PowerManager_PowerState_t prev_state) const override;
     virtual void sync_display_ports_with_reboot_reason(reboot_type_t type) override;
 };
 
@@ -165,11 +166,11 @@ class ux_controller_stb : public ux_controller
 {
 public:
     ux_controller_stb(unsigned int in_id, const std::string &in_name);
-    virtual bool applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) override;
-    virtual bool applyPreRebootConfig(PWRMgr_PowerState_t current_state) const override;
-    virtual bool applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state) override;
-    virtual bool applyPostRebootConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state) override;
-    virtual PWRMgr_PowerState_t getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const override;
+    virtual bool applyPowerStateChangeConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) override;
+    virtual bool applyPreRebootConfig(PowerManager_PowerState_t current_state) const override;
+    virtual bool applyPreMaintenanceRebootConfig(PowerManager_PowerState_t current_state) override;
+    virtual bool applyPostRebootConfig(PowerManager_PowerState_t new_state, PowerManager_PowerState_t prev_state) override;
+    virtual PowerManager_PowerState_t getPreferredPostRebootPowerState(PowerManager_PowerState_t prev_state) const override;
 };
 }
 #endif
