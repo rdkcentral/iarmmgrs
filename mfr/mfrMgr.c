@@ -55,6 +55,33 @@ static IARM_Result_t setFSRflag_(void *arg);
 */
 static IARM_Result_t getFSRflag_(void *arg);
 
+#ifdef MFR_TEMP_CLOCK_READ
+/**
+*  IARM call to return current thermal state and temperature
+*/
+static IARM_Result_t getTemperature_(void *arg);
+/**
+* IARM call to set temperature thresholds
+*/
+static IARM_Result_t setTemperatureThresholds_(void *arg);
+/**
+* IARM call to get temperature thresholds
+*/
+static IARM_Result_t getTemperatureThresholds_(void *arg);
+/**
+* IARM call to determine cpu clock speed
+*/
+static IARM_Result_t searchCPUClockSpeeds_(void *arg);
+/**
+* IARM call to set the cpu clock speed
+*/
+static IARM_Result_t setCPUClockSpeed_(void *arg);
+/**
+* IARM call to get the cpu clock speed
+*/
+static IARM_Result_t getCPUClockSpeed_(void *arg);
+#endif
+
 static int is_connected = 0;
 
 static char writeImageCbModule[MAX_BUF] = "";
@@ -828,6 +855,187 @@ static IARM_Result_t mfrClearBlSplashScreen_(void *arg)
 #endif
 }
 
+#ifdef MFR_TEMP_CLOCK_READ
+static IARM_Result_t getTemperature_(void *arg)
+{
+       IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
+       mfrError_t err = mfrERR_NONE;
+
+       if(NULL != arg)
+       {
+               IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *param = (IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *)arg;
+               IARM_Bus_MFRLib_CurThermalState_t state;
+               int temperatureValue, wifiTempValue;
+
+               err = mfrGetTemperature(&state, &temperatureValue, &wifiTempValue);
+
+               if(mfrERR_NONE == err)
+               {
+                       retCode = IARM_RESULT_SUCCESS;
+                       param->curState = state;
+                       param->curSoCTemperature = temperatureValue;
+                       param->curWiFiTemperature = wifiTempValue;
+
+                      /* Reducing thermal temperature logs which occurs at every 30 seconds */
+                      #if 0
+                       LOG("[mfrMgr] thermal current state is queried: returning %d \n", param->curState);
+                       LOG("[mfrMgr] thermal SoC temperature is queried: returning %d \n", param->curSoCTemperature);
+                       LOG("[mfrMgr] WiFi temperature is queried: returning %d \n", param->curWiFiTemperature);
+                      #endif
+               }
+       }
+       else
+       {
+               LOG("[mfrMgr] mfrGetTemperature : IARM_RESULT_INVALID_PARAM \n");
+               retCode = IARM_RESULT_INVALID_PARAM;
+       }
+       return retCode;
+}
+
+static IARM_Result_t setTemperatureThresholds_(void *arg)
+{
+       IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
+       mfrError_t err = mfrERR_NONE;
+
+       if(NULL != arg)
+       {
+               IARM_Bus_MFRLib_ThermalSoCTemp_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *) arg;
+
+               err = mfrSetTempThresholds(param->highTemp ,param->criticalTemp);
+               if (mfrERR_NONE == err)
+               {
+                       retCode = IARM_RESULT_SUCCESS;
+                       LOG("[mfrMgr] New Thermal threshold : High = %0.6f , Critical = %0.6f \n",(float)param->highTemp ,(float)param->criticalTemp);
+               }
+       }
+       else
+       {
+               LOG("[mfrMgr] mfrSetTempThresholds : IARM_RESULT_INVALID_PARAM \n");
+               retCode = IARM_RESULT_INVALID_PARAM;
+       }
+       return retCode;
+
+}
+
+static IARM_Result_t getTemperatureThresholds_(void *arg)
+{
+       IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
+       mfrError_t err = mfrERR_NONE;
+
+       if(NULL != arg)
+       {
+               IARM_Bus_MFRLib_ThermalSoCTemp_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *) arg;
+               int high, critical;
+
+               err = mfrGetTempThresholds(&high, &critical);
+               if (mfrERR_NONE == err)
+               {
+                       retCode = IARM_RESULT_SUCCESS;
+                      param->highTemp = high;
+                       param->criticalTemp = critical;
+                       LOG("[mfrMgr] Current thermal threshold : High = %0.6f , Critical = %0.6f \n",(float)param->highTemp ,(float)param->criticalTemp);
+               }
+       }
+       else
+       {
+               LOG("[mfrMgr] mfrGetTempThresholds : IARM_RESULT_INVALID_PARAM \n");
+               retCode = IARM_RESULT_INVALID_PARAM;
+       }
+       return retCode;
+}
+
+static IARM_Result_t searchCPUClockSpeeds_(void *arg)
+{
+       IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
+       mfrError_t err = mfrERR_NONE;
+
+       if(NULL != arg)
+       {
+               IARM_Bus_MFRLib_ThermalSoCFreq_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCFreq_Param_t *) arg;
+               uint32_t cpu_clock_Normal ,cpu_clock_Scaled ,cpu_clock_Minimal;
+
+               err = mfrDetemineClockSpeeds(&cpu_clock_Normal ,&cpu_clock_Scaled ,&cpu_clock_Minimal);
+               if(mfrERR_NONE == err)
+               {
+                       retCode = IARM_RESULT_SUCCESS;
+                       param->cpu_rate_Normal   =  cpu_clock_Normal;
+                       param->cpu_rate_Scaled   =  cpu_clock_Scaled;
+                       param->cpu_rate_Minimal  =  cpu_clock_Minimal;
+                       LOG("[mfrMgr] Available CPU Clocks - Normal:%u Scaled:%u Minimal:%u\n",param->cpu_rate_Normal ,param->cpu_rate_Scaled ,param->cpu_rate_Minimal);
+               }
+               else
+               {
+                       LOG("Calling mfrDetemineClockSpeeds returned err %d\r\n", err);
+               }
+       }
+       else
+       {
+               LOG("[mfrMgr] mfrDetemineClockSpeeds : IARM_RESULT_INVALID_PARAM \n");
+               retCode = IARM_RESULT_INVALID_PARAM;
+       }
+       return retCode;
+}
+
+static IARM_Result_t setCPUClockSpeed_(void *arg)
+{
+       IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
+       mfrError_t err = mfrERR_NONE;
+
+       if(NULL != arg)
+       {
+               IARM_Bus_MFRLib_ThermalSoCFreq_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCFreq_Param_t *) arg;
+
+               err = mfrSetClockSpeed(param->cpu_clock_speed);
+               if(mfrERR_NONE == err)
+               {
+                       retCode = IARM_RESULT_SUCCESS;
+                       LOG("[mfrMgr] CPU Clock Speed Set to [%u]\n",param->cpu_clock_speed);
+               }
+               else
+               {
+                       LOG("Calling mfrDetemineClockSpeeds returned err %d\r\n", err);
+               }
+       }
+       else
+       {
+               LOG("[mfrMgr] mfrSetClockSpeed : IARM_RESULT_INVALID_PARAM \n");
+               retCode = IARM_RESULT_INVALID_PARAM;
+       }
+       return retCode;
+}
+
+static IARM_Result_t getCPUClockSpeed_(void *arg)
+{
+       IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
+       mfrError_t err = mfrERR_NONE;
+
+       if(NULL != arg)
+       {
+               IARM_Bus_MFRLib_ThermalSoCFreq_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCFreq_Param_t *) arg;
+               uint32_t clock_speed;
+
+               err = mfrGetClockSpeed(&clock_speed);
+               if(mfrERR_NONE == err)
+               {
+                       retCode = IARM_RESULT_SUCCESS;
+                       param->cpu_clock_speed = clock_speed;
+                       LOG("[mfrMgr] Getting CPU Clock Speed as [%u]\n",param->cpu_clock_speed);
+               }
+               else
+               {
+                       LOG("Calling mfrGetClockSpeed returned err %d\r\n", err);
+               }
+       }
+       else
+       {
+               LOG("[mfrMgr] mfrGetClockSpeed : IARM_RESULT_INVALID_PARAM \n");
+               retCode = IARM_RESULT_INVALID_PARAM;
+       }
+       return retCode;
+}
+
+#endif
+
 IARM_Result_t MFRLib_Start(void)
 {
     IARM_Result_t err = IARM_RESULT_SUCCESS;
@@ -981,9 +1189,55 @@ IARM_Result_t MFRLib_Start(void)
         LOG("Error registering call(mfrGetFSRflag) in IARM.. error code : %d\n",err);
         break;
     }
+#ifdef MFR_TEMP_CLOCK_READ
+    err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_GetTemperature, getTemperature_);
 
+    if(IARM_RESULT_SUCCESS != err)
+    {
+        LOG("Error registering call(mfrGetTemperature) in IARM.. error code : %d\n",err);
+        break;
+    }
 
+    err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_SetTemperatureThresholds, setTemperatureThresholds_);
 
+    if(IARM_RESULT_SUCCESS != err)
+    {
+        LOG("Error registering call(mfrSetTempThresholds) in IARM.. error code : %d\n",err);
+        break;
+    }
+
+    err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_GetTemperatureThresholds, getTemperatureThresholds_);
+
+    if(IARM_RESULT_SUCCESS != err)
+    {
+         LOG("Error registering call(mfrGetTempThresholds) in IARM.. error code : %d\n",err);
+         break;
+    }
+
+    err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_SearchCPUClockSpeeds, searchCPUClockSpeeds_);
+
+    if(IARM_RESULT_SUCCESS != err)
+    {
+         LOG("Error registering call(mfrDetemineClockSpeeds) in IARM.. error code : %d\n",err);
+         break;
+    }
+
+    err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_SetCPUClockSpeed, setCPUClockSpeed_);
+
+    if(IARM_RESULT_SUCCESS != err)
+    {
+         LOG("Error registering call(mfrSetClockSpeed) in IARM.. error code : %d\n",err);
+         break;
+    }
+
+    err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_GetCPUClockSpeed, getCPUClockSpeed_);
+
+    if(IARM_RESULT_SUCCESS != err)
+    {
+         LOG("Error registering call(mfrGetClockSpeed) in IARM.. error code : %d\n",err);
+         break;
+    }
+#endif
 	LOG("All IARM Bus calls and events registered successfully\n");
     }while(0);
 
