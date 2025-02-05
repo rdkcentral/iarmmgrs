@@ -70,7 +70,7 @@ extern "C"
 #define RFC_DATA_ThermalProtection_DECLOCK_GRACE_INTERVAL
 #define RFC_DATA_ThermalProtection_DECLOCK_SAFE_THRESHOLD
 
-#ifndef REALTEK_SPECIFIC
+#ifndef MFR_TEMP_CLOCK_READ
 /* Temperature (in celcus) at which box will ALWAYS be rebooted */
 static int thermal_reboot_critical_threshold        = 120;
 /* Temperature (in celcus) at which box will be rebooted after grace_interval has passed
@@ -113,7 +113,7 @@ static int thermal_declock_grace_interval           = 60;
 // the interval at which temperature will be polled from lower layers
 static int thermal_poll_interval        = 30; //in seconds
 // the interval after which reboot will happen if the temperature goes above reboot threshold
-#else //REALTEK_SPECIFIC
+#else //MFR_TEMP_CLOCK_READ
 #define REBOOT_CRITICAL    110
 #define REBOOT_CONCERN     102
 #define REBOOT_SAFE        100
@@ -173,7 +173,7 @@ static int thermal_declock_grace_interval           = DECLOCK_GRACE_INTERVAL;
 static int thermal_poll_interval        = POLL_INTERVAL; //in seconds
 // the interval after which reboot will happen if the temperature goes above reboot threshold
  
-#endif //REALTEK_SPECIFIC
+#endif //MFR_TEMP_CLOCK_READ
 
 
 //Did we already read config params once ?

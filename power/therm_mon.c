@@ -54,7 +54,7 @@ int uint32_compare( const void* a, const void* b)
     else return 1;
 }
 
-#ifdef REALTEK_SPECIFIC
+#ifdef MFR_TEMP_CLOCK_READ
 int PLAT_API_DetemineClockSpeeds(uint32_t *cpu_rate_Normal, uint32_t *cpu_rate_Scaled, uint32_t *cpu_rate_Minimal)
 {
 	int retValue = 0;
@@ -239,7 +239,7 @@ int PLAT_API_GetTempThresholds(float *tempHigh, float *tempCritical)
 	return result;
 }
 
-#else //REALTEK_SPECIFIC
+#else //MFR_TEMP_CLOCK_READ
 int PLAT_API_DetemineClockSpeeds(uint32_t *cpu_rate_Normal, uint32_t *cpu_rate_Scaled, uint32_t *cpu_rate_Minimal)
 {
     FILE * fp;
@@ -289,19 +289,11 @@ int PLAT_API_GetClockSpeed(uint32_t *speed)
 {
     FILE* fp = NULL;
 
-#ifdef ENABLE_LLAMA_PLATCO
     fp = fopen ("/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq", "r");
     if (fp == 0) {
         LOG("[%s:%d] Unable to open '/sys/devices/system/cpu/cpu0/cpufreq/scaling_cur_freq' for writing\n", __FUNCTION__, __LINE__);
         return 0;
     }
-#else
-    fp = fopen ("/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq", "r");
-    if (fp == 0) {
-        LOG("[%s:%d] Unable to open '/sys/devices/system/cpu/cpu0/cpufreq/cpuinfo_cur_freq' for writing\n", __FUNCTION__, __LINE__);
-        return 0;
-    }
-#endif
 
     if(0 >= fscanf(fp, "%u", speed)) {
         LOG("[%s:%d] Unable to get the speed \n", __FUNCTION__, __LINE__);
@@ -422,7 +414,7 @@ int PLAT_API_GetTempThresholds(float *tempHigh, float *tempCritical)
 
     return result;
 }
-#endif //REALTEK_SPECIFIC
+#endif //MFR_TEMP_CLOCK_READ
 #endif //ENABLE_THERMAL_PROTECTION
 #ifdef __cplusplus
 }

@@ -121,7 +121,8 @@ function build()
     export IARM_MGRS=$BUILDS_DIR/iarmmgrs
     export LOGGER_PATH=$BUILDS_DIR/logger
     export CEC_PATH=$BUILDS_DIR/hdmicec
-    export FULL_VERSION_NAME_VALUE="\"$IMAGE_NAME\""
+	export UTILS_PATH=$BUILDS_DIR/utils
+	export FULL_VERSION_NAME_VALUE="\"$IMAGE_NAME\""
 	export SDK_FSROOT=$COMBINED_ROOT/sdk/fsroot/ramdisk
 
 	export TOOLCHAIN_DIR=$COMBINED_ROOT/sdk/toolchain/staging_dir
