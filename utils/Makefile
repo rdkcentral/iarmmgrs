@@ -16,24 +16,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-#
 RM          := rm -rf
 CFLAGS      := -g -fPIC -D_REENTRANT -Wall
-UINPUT      := uinput 
-OBJS        := $(patsubst %.c,%.o,$(filter-out uinput.c,$(wildcard *.c)))
-OBJS_uinput := $(patsubst %.c,%.o,uinput.c)
-CPPLAGS      := -g -fPIC -D_REENTRANT -Wall
-UILIB        = libuinput
+OBJS        := $(patsubst %.c,%.o,rdkProfile.c)
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
+LDFLAGS     += -shared
+LIBRARY_NAME = libiarmUtils.so
 
 INCLUDE     =	-I.\
-		-I$(IARM_PATH)/core/include	\
-		-I../ir	\
-		-I../ir/include \
-		-I../sysmgr/include \
-		-I../hal/include \
-		-I$(DFB_ROOT)/usr/local/include/directfb \
-		-I$(RF4CE_PATH)/include 
-		
+
+
+
 ifeq ($(RDK_LOGGER_ENABLED),y)
 INCLUDE     += -I$(COMBINED_ROOT)/rdklogger/include
 LDFLAGS     += -L$(COMBINED_ROOT)/rdklogger/build/lib -lrdkloggers
@@ -41,39 +34,33 @@ CFLAGS      += -DRDK_LOGGER_ENABLED
 CPPLAGS     += -DRDK_LOGGER_ENABLED
 endif
 
-
 CFLAGS      += $(INCLUDE) 
+
+CFLAGS += $(_ENABLE_WAKEUP_KEY)
 CFLAGS += $(RF4CE_API)
 
-LDFLAGS     +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
+
+LDFLAGS+=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 
 
+LDFLAGS+=  -L$(CROSS_TOOLCHAIN)/lib
 
-LDFLAGS     += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
-CFLAGS      += $(INCLUDE) 
-CFLAGS += -I$(SDK_FSROOT)/usr/local/include/nspr
-CFLAGS += -I$(SDK_FSROOT)/usr/include/nspr
-MAF_LIBS=-lnspr4 -losal -lrt -lMAF_StackAdapter -lMAF_InputHandler -lMAF_ConfigMgmt -lMAF_DbusAdapter -lfusiondale
-LDFLAGS += -L$(SDK_FSROOT)/usr/lib $(MAF_LIBS)
-
-LDFLAGS +=-L$(IARM_MGRS)/install/lib -lirInput
-
-
-all:clean objs executable
+all:clean objs library
 	@echo "Build Finished...."
 
 objs: $(OBJS)
 
-%.o: %.c
+%.o: %.c 
 	@echo "Building $@ ...."
 	$(CXX) -c $<  $(CFLAGS) -o $@
 
-executable: $(OBJS) $(UILIB).so
-	$(CXX) $(CFLAGS) $(OBJS) -o irMgrMain -L./  -l$(UINPUT) $(LDFLAGS)
+%.o: %.cpp
+	@echo "Building $@ ...."
+	$(CXX) -c $<  $(CFLAGS) -o $@
 
-$(UILIB).so: $(OBJS_uinput)
-	$(CC) -fPIC $(CFLAGS) -shared -Wl,-soname,$@.0.0.0 $(OBJS_uinput) -o $@ $(LDFLAGS)
+library: $(OBJS)
+	$(CC) -fPIC $(CFLAGS) -shared -Wl,-soname,$(LIBRARY_NAME).0.0.0 $(OBJS) -o $(LIBRARY_NAME) $(LDFLAGS)
 
 clean:
 	@echo "Cleaning the directory..."
-	@$(RM) $(OBJS) 
+	@$(RM) $(OBJS) $(LIBNAMEFULL) $(LIBRARY_NAME)

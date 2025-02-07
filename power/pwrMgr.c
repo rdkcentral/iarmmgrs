@@ -97,9 +97,7 @@ typedef struct _PWRMgr_Settings_t {
 #ifdef ENABLE_DEEP_SLEEP
     uint32_t deep_sleep_timeout;
 #endif
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
     bool nwStandbyMode;
-#endif
     char padding[PADDING_SIZE];
 } PWRMgr_Settings_t;
 
@@ -197,9 +195,7 @@ static guint dsleep_bootup_event_src = 0;
 static time_t timeAtDeepSleep = 0;
 #endif  // END OF #ifdef ENABLE_DEEP_SLEEP
 
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
 static bool nwStandbyMode_gs = false;
-#endif
 #ifdef OFFLINE_MAINT_REBOOT
 gint64 standby_time = 0;
 static bool rfcUpdated = false;
@@ -684,22 +680,6 @@ IARM_Result_t _SetPowerState(void *arg)
 
         pSettings->powerState = newState;
         _WriteSettings(m_settingsFile);
-#ifndef ENABLE_LLAMA_PLATCO
-        if (newState != PWRMGR_POWERSTATE_ON) {
-            time(&xre_timer); // Hack to fix DELIA-11393
-            LOG("Invoking clean up script\r\n");
-            if(param->keyCode != KED_FP_POWER)
-            {
-                system("/lib/rdk/standbyCleanup.sh");
-            }
-            else
-            {
-                __TIMESTAMP();
-                LOG("Standby operation due to KED_FP_POWER key press, Invoking script with forceShutdown \r\n");
-                system("/lib/rdk/standbyCleanup.sh --forceShutdown");
-            }
-        }
-#endif
         /* Independent of Deep sleep */
         PLAT_API_SetPowerState(newState);
         /*  * Power Change Event
@@ -733,9 +713,7 @@ IARM_Result_t _SetPowerState(void *arg)
                 pwrModeEventData->data.state.deep_sleep_timeout = deep_sleep_wakeup_timeout_sec;
             }
 
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
             pwrModeEventData->data.state.nwStandbyMode = nwStandbyMode_gs;
-#endif
 
             /* Start a Deep sleep Wakeup Time source
              * Reboot the box after elapse of user configured / Calculated  Timeout.
@@ -750,7 +728,6 @@ IARM_Result_t _SetPowerState(void *arg)
                    - To handle this, the handler is called every 30 sec and check for expiry of deep sleep wakeup timeout.
                    */
                 time(&timeAtDeepSleep);
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
 #ifndef USE_WAKEUP_TIMER_EVT
                 wakeup_event_src = g_timeout_add_seconds ((guint)1, deep_sleep_wakeup_fn, pwrMgr_Gloop);
 #else
@@ -759,9 +736,6 @@ IARM_Result_t _SetPowerState(void *arg)
 #endif
                 __TIMESTAMP();
                 LOG("Networkstandbymode for Source %d is: %s \r\n",wakeup_event_src, (nwStandbyMode_gs?("Enabled"):("Disabled")));
-#else
-                wakeup_event_src = g_timeout_add_seconds ((guint)30, deep_sleep_wakeup_fn, pwrMgr_Gloop);
-#endif
                 __TIMESTAMP();
                 LOG("Added Deep Sleep Wakeup Time Source %d for %d Sec \r\n",wakeup_event_src,deep_sleep_wakeup_timeout_sec);
 
@@ -1160,9 +1134,7 @@ static int _InitSettings(const char *settingsFile)
 #ifdef ENABLE_DEEP_SLEEP
                     pSettings->deep_sleep_timeout = deep_sleep_wakeup_timeout_sec;
 #endif
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
                     pSettings->nwStandbyMode = nwStandbyMode_gs;
-#endif
                     lseek(fd, 0, SEEK_SET);
                     write(fd, pSettings, pSettings->length);
 
@@ -1195,13 +1167,11 @@ static int _InitSettings(const char *settingsFile)
                         __TIMESTAMP();
                         LOG("Persisted deep_sleep_delay = %d Secs \r\n",deep_sleep_wakeup_timeout_sec);
 #endif
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
                         nwStandbyMode_gs = pSettings->nwStandbyMode;
                         PLAT_API_SetWakeupSrc(PWRMGR_WAKEUPSRC_LAN,nwStandbyMode_gs);
                         PLAT_API_SetWakeupSrc(PWRMGR_WAKEUPSRC_WIFI,nwStandbyMode_gs);
                         __TIMESTAMP();
                         LOG("Persisted network standby mode is: %s \r\n", nwStandbyMode_gs?("Enabled"):("Disabled"));
-#endif
 #ifdef PLATCO_BOOTTO_STANDBY
                         if(stat("/tmp/pwrmgr_restarted",&buf) != 0)
                         {
@@ -1234,9 +1204,7 @@ static int _InitSettings(const char *settingsFile)
 #ifdef ENABLE_DEEP_SLEEP
                         pSettings->deep_sleep_timeout = deep_sleep_wakeup_timeout_sec;
 #endif
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
                         pSettings->nwStandbyMode = nwStandbyMode_gs;
-#endif
 #ifdef PLATCO_BOOTTO_STANDBY
                         if(stat("/tmp/pwrmgr_restarted",&buf) != 0) {
                             pSettings->powerState = PWRMGR_POWERSTATE_STANDBY;
@@ -1326,9 +1294,7 @@ static int _InitSettings(const char *settingsFile)
 #ifdef ENABLE_DEEP_SLEEP
             pSettings->deep_sleep_timeout = deep_sleep_wakeup_timeout_sec;
 #endif
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
             pSettings->nwStandbyMode = nwStandbyMode_gs;
-#endif
 #ifdef PLATCO_BOOTTO_STANDBY
             if(stat("/tmp/pwrmgr_restarted",&buf) != 0)
                 pSettings->powerState = PWRMGR_POWERSTATE_STANDBY;
@@ -1365,14 +1331,10 @@ static int _InitSettings(const char *settingsFile)
                     LOG("PowerState is already sync'd with hardware to %d\r\n", state);
                 }
                 else {
-                    int loopCount = 0;
-                    LOG("PowerState sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);
-                    do {
-                        loopCount++;
-                        ret = PLAT_API_SetPowerState(pSettings->powerState);
-                        sleep(1);
-                        PLAT_API_GetPowerState(&state);
-                    } while(state != pSettings->powerState && loopCount < 10);
+                    LOG(" \n PowerState before sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);                      
+                    ret = PLAT_API_SetPowerState((PWRMgr_PowerState_t)pSettings->powerState);
+                    PLAT_API_GetPowerState((PWRMgr_PowerState_t*)&state);
+                    LOG(" \n PowerState after sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);
 
                     if (state != pSettings->powerState) {
                         LOG("CRITICAL ERROR: PowerState sync failed \r\n");
@@ -1433,7 +1395,7 @@ static int _InitSettings(const char *settingsFile)
 static int _WriteSettings(const char *settingsFile)
 {
     PWRMgr_Settings_t *pSettings = &m_settings;
-    int fd = open(settingsFile, O_WRONLY);
+    int fd = open(settingsFile, O_CREAT|O_WRONLY);
     int ret = fd;
 
     if (fd >= 0) {
@@ -1783,7 +1745,6 @@ static IARM_Result_t _SetNetworkStandbyMode(void *arg)
     uint32_t uiTimeout = 3; /*Timeout in seconds*/
     if(param != NULL)
     {
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
         nwStandbyMode_gs = param->bStandbyMode;
         PLAT_API_SetWakeupSrc(PWRMGR_WAKEUPSRC_LAN, param->bStandbyMode);
         PLAT_API_SetWakeupSrc(PWRMGR_WAKEUPSRC_WIFI, param->bStandbyMode);
@@ -1795,9 +1756,6 @@ static IARM_Result_t _SetNetworkStandbyMode(void *arg)
         _eventData.data.bNetworkStandbyMode = (IARM_Bus_PowerState_t)m_settings.nwStandbyMode;
 
         IARM_Bus_BroadcastEvent( IARM_BUS_PWRMGR_NAME, IARM_BUS_PWRMGR_EVENT_NETWORK_STANDBYMODECHANGED, (void *)&_eventData, sizeof(_eventData));
-#else
-        LOG ("\nError _SetNetworkStandbyMode not implemented. standbyMode: %s", param->bStandbyMode?("Enabled"):("Disabled"));
-#endif
         return IARM_RESULT_SUCCESS;
     }
     return IARM_RESULT_IPCCORE_FAIL;
@@ -1809,12 +1767,8 @@ static IARM_Result_t _GetNetworkStandbyMode(void *arg)
 
     if(param != NULL)
     {
-#ifdef ENABLE_LLAMA_PLATCO_SKY_XIONE
         param->bStandbyMode = m_settings.nwStandbyMode;
         LOG("Network standbyMode is: %s \r\n", param->bStandbyMode?("Enabled"):("Disabled"));
-#else
-        LOG ("\nError _GetNetworkStandbyMode not implemented.");
-#endif
         return IARM_RESULT_SUCCESS;
     }
     return IARM_RESULT_IPCCORE_FAIL;

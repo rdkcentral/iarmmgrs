@@ -548,6 +548,11 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				systemStates.rf_connected.error = error;
 				LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_RF_CONNECTED,State = %d, Error = %d\n", systemStates.rf_connected.state,systemStates.rf_connected.error );
 				break;
+            case   IARM_BUS_SYSMGR_SYSSTATE_PARTNERID_CHANGE:
+				systemStates.partnerid_changed.state = state;
+				systemStates.partnerid_changed.error = error;
+				LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_PARTNERID_CHANGE ,State = %d, Error = %d\n", systemStates.partnerid_changed.state,systemStates.partnerid_changed.error );
+				break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_IP_MODE:
 				systemStates.ip_mode.state=state;
 				systemStates.ip_mode.error =error;

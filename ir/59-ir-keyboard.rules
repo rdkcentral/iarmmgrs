@@ -1,1 +1,0 @@
-SUBSYSTEM=="input", NAME="uinput-remote" ENV{ID_INPUT_KEYBOARD}="1"

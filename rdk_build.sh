@@ -121,7 +121,8 @@ function build()
     export IARM_MGRS=$BUILDS_DIR/iarmmgrs
     export LOGGER_PATH=$BUILDS_DIR/logger
     export CEC_PATH=$BUILDS_DIR/hdmicec
-    export FULL_VERSION_NAME_VALUE="\"$IMAGE_NAME\""
+	export UTILS_PATH=$BUILDS_DIR/utils
+	export FULL_VERSION_NAME_VALUE="\"$IMAGE_NAME\""
 	export SDK_FSROOT=$COMBINED_ROOT/sdk/fsroot/ramdisk
 
 	export TOOLCHAIN_DIR=$COMBINED_ROOT/sdk/toolchain/staging_dir
@@ -172,10 +173,8 @@ function install()
 
     cd $IARMMGRSINSTALL_PATH
 
-	cp -v lib/libirInput.so ${RDK_FSROOT_PATH}lib
 	cp -v lib/libPwrMgr.so ${RDK_FSROOT_PATH}lib
 
-		cp -v bin/irMgrMain ${RDK_FSROOT_PATH}mnt/nfs/env
 		cp -v bin/pwrMgrMain ${RDK_FSROOT_PATH}mnt/nfs/env    
 		cp -v bin/sysMgrMain ${RDK_FSROOT_PATH}mnt/nfs/env
 		cp -v bin/dsMgrMain  ${RDK_FSROOT_PATH}mnt/nfs/env

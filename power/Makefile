@@ -37,7 +37,8 @@ INCLUDE     =	-I.\
 		-I$(GLIB_HEADER_PATH)/ \
 		-I$(GLIB_HEADER_PATH)/glib/ \
 		-I$(GLIB_CONFIG_PATH)/../lib/glib-2.0/include/ \
-		-I$(RF4CE_PATH)/include 
+		-I$(RF4CE_PATH)/include \
+		-I$(UTILS_PATH)/
 
 
 ifeq ($(RDK_LOGGER_ENABLED),y)
@@ -63,7 +64,7 @@ LDFLAGS += -lIARMBus -lrt -L$(DS_PATH)/install/lib -lnspr4 -losal -lrt -lMAF_Sta
 LDFLAGS += $(ISMD_LIBS)
 LDFLAGS += $(GDL_LIBS)
 
-LDFLAGS += -L$(DS_PATH)/install/lib -lds -ldshalcli
+LDFLAGS += -L$(DS_PATH)/install/lib -lds -ldshalcli -L$(UTILS_PATH)/ -liarmUtils
 LDFLAGS += -L$(IARM_MGRS)/install/lib -lPwrMgr
 
 

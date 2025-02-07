@@ -34,6 +34,7 @@ INCLUDE     =	-I.\
 		-I$(IARM_PATH)/core/   \
 		-I$(IARM_PATH)/core/include \
 		-I$(DFB_ROOT)/usr/local/include/directfb \
+		 -I$(UTILS_PATH)/ 
 
 
 
@@ -54,7 +55,7 @@ CXX=$(CROSS_COMPILE)g++
 LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus -lnexus
 
-LDFLAGS += -L${WORK_DIR}/${MFR_LIB_PATH} $(MFR_LIB_NAME)
+LDFLAGS += -L${WORK_DIR}/${MFR_LIB_PATH} $(MFR_LIB_NAME) -L$(UTILS_PATH)/ -liarmUtils 
 LDFLAGS += -L$(OPENSSL_PATH)/lib -lcrypto -lrt 
 
 
