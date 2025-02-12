@@ -862,14 +862,41 @@ static IARM_Result_t getTemperature_(void *arg)
 {
        IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
        mfrError_t err = mfrERR_NONE;
+       typedef mfrError_t (*mfrGetTemperature_t)(IARM_Bus_MFRLib_CurThermalState_t*, int*, int*);
+       static mfrGetTemperature_t func = 0;
 
-       if(NULL != arg)
+        if (func == 0)
+        {
+            void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+            if (dllib)
+            {
+                func = (mfrGetTemperature_t) dlsym(dllib, "mfrGetTemperature");
+                if (func)
+                {
+                    LOG("mfrGetTemperature is defined and loaded\r\n");
+                }
+                else
+                {
+                    LOG("mfrGetTemperature is not defined\r\n");
+                    dlclose(dllib);
+                    return IARM_RESULT_INVALID_STATE;
+                }
+                dlclose(dllib);
+            }
+            else
+            {
+                LOG("Opening RDK_MFRLIB_NAME [%s] failed\r\n", RDK_MFRLIB_NAME);
+                return IARM_RESULT_INVALID_STATE;
+            }
+        }
+
+       if(NULL != arg && func)
        {
                IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *param = (IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *)arg;
                IARM_Bus_MFRLib_CurThermalState_t state;
                int temperatureValue, wifiTempValue;
 
-               err = mfrGetTemperature(&state, &temperatureValue, &wifiTempValue);
+               err = func(&state, &temperatureValue, &wifiTempValue);
 
                if(mfrERR_NONE == err)
                {
@@ -898,12 +925,39 @@ static IARM_Result_t setTemperatureThresholds_(void *arg)
 {
        IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
        mfrError_t err = mfrERR_NONE;
+       typedef mfrError_t (*mfrSetTempThresholds_t)(int, int);
+       static mfrSetTempThresholds_t func = 0;
 
-       if(NULL != arg)
+         if (func == 0)
+         {
+              void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+              if (dllib)
+              {
+                func = (mfrSetTempThresholds_t) dlsym(dllib, "mfrSetTempThresholds");
+                if (func)
+                {
+                     LOG("mfrSetTempThresholds is defined and loaded\r\n");
+                }
+                else
+                {
+                     LOG("mfrSetTempThresholds is not defined\r\n");
+                     dlclose(dllib);
+                     return IARM_RESULT_INVALID_STATE;
+                }
+                dlclose(dllib);
+              }
+              else
+              {
+                LOG("Opening RDK_MFRLIB_NAME [%s] failed\r\n", RDK_MFRLIB_NAME);
+                return IARM_RESULT_INVALID_STATE;
+              }
+         }
+
+       if(NULL != arg && func)
        {
                IARM_Bus_MFRLib_ThermalSoCTemp_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *) arg;
 
-               err = mfrSetTempThresholds(param->highTemp ,param->criticalTemp);
+               err = func(param->highTemp ,param->criticalTemp);
                if (mfrERR_NONE == err)
                {
                        retCode = IARM_RESULT_SUCCESS;
@@ -923,13 +977,40 @@ static IARM_Result_t getTemperatureThresholds_(void *arg)
 {
        IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
        mfrError_t err = mfrERR_NONE;
+       typedef mfrError_t (*mfrGetTempThresholds_t)(int*, int*);
+       static mfrGetTempThresholds_t func = 0;
 
-       if(NULL != arg)
+         if (func == 0)
+         {
+                  void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+                  if (dllib)
+                  {
+                 func = (mfrGetTempThresholds_t) dlsym(dllib, "mfrGetTempThresholds");
+                 if (func)
+                 {
+                        LOG("mfrGetTempThresholds is defined and loaded\r\n");
+                 }
+                 else
+                 {
+                        LOG("mfrGetTempThresholds is not defined\r\n");
+                        dlclose(dllib);
+                        return IARM_RESULT_INVALID_STATE;
+                 }
+                 dlclose(dllib);
+                  }
+                  else
+                  {
+                 LOG("Opening RDK_MFRLIB_NAME [%s] failed\r\n", RDK_MFRLIB_NAME);
+                 return IARM_RESULT_INVALID_STATE;
+                  }
+         }
+
+       if(NULL != arg && func)
        {
                IARM_Bus_MFRLib_ThermalSoCTemp_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *) arg;
                int high, critical;
 
-               err = mfrGetTempThresholds(&high, &critical);
+               err = func(&high, &critical);
                if (mfrERR_NONE == err)
                {
                        retCode = IARM_RESULT_SUCCESS;
@@ -950,13 +1031,40 @@ static IARM_Result_t searchCPUClockSpeeds_(void *arg)
 {
        IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
        mfrError_t err = mfrERR_NONE;
+       typedef mfrError_t (*mfrDetemineClockSpeeds_t)(uint32_t *, uint32_t *, uint32_t *);
+       static mfrDetemineClockSpeeds_t func = 0;
 
-       if(NULL != arg)
+       if (func == 0)
+       {
+               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               if (dllib)
+               {
+                       func = (mfrDetemineClockSpeeds_t) dlsym(dllib, "mfrDetemineClockSpeeds");
+                       if (func)
+                       {
+                               LOG("mfrDetemineClockSpeeds is defined and loaded\r\n");
+                       }
+                       else
+                       {
+                               LOG("mfrDetemineClockSpeeds is not defined\r\n");
+                               dlclose(dllib);
+                               return IARM_RESULT_INVALID_STATE;
+                       }
+                       dlclose(dllib);
+               }
+               else
+               {
+                       LOG("Opening RDK_MFRLIB_NAME [%s] failed\r\n", RDK_MFRLIB_NAME);
+                       return IARM_RESULT_INVALID_STATE;
+               }
+       }
+
+       if(NULL != arg && func)
        {
                IARM_Bus_MFRLib_ThermalSoCFreq_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCFreq_Param_t *) arg;
                uint32_t cpu_clock_Normal ,cpu_clock_Scaled ,cpu_clock_Minimal;
 
-               err = mfrDetemineClockSpeeds(&cpu_clock_Normal ,&cpu_clock_Scaled ,&cpu_clock_Minimal);
+               err = func(&cpu_clock_Normal ,&cpu_clock_Scaled ,&cpu_clock_Minimal);
                if(mfrERR_NONE == err)
                {
                        retCode = IARM_RESULT_SUCCESS;
@@ -982,12 +1090,39 @@ static IARM_Result_t setCPUClockSpeed_(void *arg)
 {
        IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
        mfrError_t err = mfrERR_NONE;
+       typedef mfrError_t (*mfrSetClockSpeed_t)(uint32_t);
+       static mfrSetClockSpeed_t func = 0;
 
-       if(NULL != arg)
+       if (func == 0)
+       {
+               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               if (dllib)
+               {
+                       func = (mfrSetClockSpeed_t) dlsym(dllib, "mfrSetClockSpeed");
+                       if (func)
+                       {
+                               LOG("mfrSetClockSpeed is defined and loaded\r\n");
+                       }
+                       else
+                       {
+                               LOG("mfrSetClockSpeed is not defined\r\n");
+                               dlclose(dllib);
+                               return IARM_RESULT_INVALID_STATE;
+                       }
+                       dlclose(dllib);
+               }
+               else
+               {
+                       LOG("Opening RDK_MFRLIB_NAME [%s] failed\r\n", RDK_MFRLIB_NAME);
+                       return IARM_RESULT_INVALID_STATE;
+               }
+       }
+
+       if(NULL != arg && func)
        {
                IARM_Bus_MFRLib_ThermalSoCFreq_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCFreq_Param_t *) arg;
 
-               err = mfrSetClockSpeed(param->cpu_clock_speed);
+               err = func(param->cpu_clock_speed);
                if(mfrERR_NONE == err)
                {
                        retCode = IARM_RESULT_SUCCESS;
@@ -1010,13 +1145,40 @@ static IARM_Result_t getCPUClockSpeed_(void *arg)
 {
        IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
        mfrError_t err = mfrERR_NONE;
+       typedef mfrError_t (*mfrGetClockSpeed_t)(uint32_t *);
+       static mfrGetClockSpeed_t func = 0;
 
-       if(NULL != arg)
+       if (func == 0)
+       {
+               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               if (dllib)
+               {
+                       func = (mfrGetClockSpeed_t) dlsym(dllib, "mfrGetClockSpeed");
+                       if (func)
+                       {
+                               LOG("mfrGetClockSpeed is defined and loaded\r\n");
+                       }
+                       else
+                       {
+                               LOG("mfrGetClockSpeed is not defined\r\n");
+                               dlclose(dllib);
+                               return IARM_RESULT_INVALID_STATE;
+                       }
+                       dlclose(dllib);
+               }
+               else
+               {
+                       LOG("Opening RDK_MFRLIB_NAME [%s] failed\r\n", RDK_MFRLIB_NAME);
+                       return IARM_RESULT_INVALID_STATE;
+               }
+       }
+
+       if(NULL != arg && func)
        {
                IARM_Bus_MFRLib_ThermalSoCFreq_Param_t * param = (IARM_Bus_MFRLib_ThermalSoCFreq_Param_t *) arg;
                uint32_t clock_speed;
 
-               err = mfrGetClockSpeed(&clock_speed);
+               err = func(&clock_speed);
                if(mfrERR_NONE == err)
                {
                        retCode = IARM_RESULT_SUCCESS;
