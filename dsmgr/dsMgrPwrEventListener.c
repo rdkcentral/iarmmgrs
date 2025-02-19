@@ -625,7 +625,6 @@ static void* _DSMgrPwrEventHandlingThreadFunc(void *arg)
         INT_INFO ("_DSMgrPwrEventHandlingThreadFunc... Wait for Events from Power manager Controller Callback\r\n");
         pthread_mutex_lock(&tdsPwrEventMutexLock);
         pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
-        INT_INFO ("_DSMgrPwrEventHandlingThreadFunc... Event received from Power manager Controller Callback\r\n");
 
         /* Check the Queue for not empty and loop through, extract element from queue and pass values to handler */
         while (!pwrEventQueue.empty()) 
