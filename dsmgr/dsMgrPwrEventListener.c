@@ -37,6 +37,7 @@
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
+#include <queue>
 
 #include "dsRpc.h"
 #include "dsMgrPwrEventListener.h"
@@ -48,7 +49,6 @@
 #include "dsMgrProductTraitsHandler.h"
 #include "dsAudioSettings.h"
 #include "plat_power.h"
-#include "rdkProfile.h"
 
 #define PWRMGR_REBOOT_REASON_MAINTENANCE "MAINTENANCE_REBOOT"
 #define MAX_NUM_VIDEO_PORTS 5
@@ -57,6 +57,24 @@ typedef struct{
     char port[DSMGR_MAX_VIDEO_PORT_NAME_LENGTH];
     bool isEnabled;
 }DSMgr_Standby_Video_State_t;
+
+/* Power Controller State Data Structure to Pass to the Thread */
+typedef struct{
+    PowerController_PowerState_t currentState;
+    PowerController_PowerState_t newState;
+}DSMgr_Power_Event_State_t;
+
+std::queue<DSMgr_Power_Event_State_t> pwrEventQueue;
+
+/* Power Controller Event Handling Thread */
+static pthread_t edsPwrEventHandlerThreadID; 
+static pthread_mutex_t tdsPwrEventMutexLock;
+static pthread_cond_t  tdsPwrEventMutexCond;
+
+static void* _DSMgrPwrEventHandlingThreadFunc(void *arg);
+void CreatePwrEvtThreadInitQueue(void);
+void PwrMgrFlushQueueHandleStop(void);
+
 
 extern IARM_Result_t _dsGetAudioPort(void *arg);
 extern IARM_Result_t _dsEnableAudioPort(void *arg);
@@ -68,30 +86,84 @@ static DSMgr_Standby_Video_State_t g_standby_video_port_setting[MAX_NUM_VIDEO_PO
 static dsMgrProductTraits::ux_controller * ux = nullptr;
 
 static bool get_video_port_standby_setting(const char * port);
-static void _PwrEventHandler(const PowerManager_PowerState_t currentState,
-                             const PowerManager_PowerState_t newState,
+static void _PwrEventHandler(const PowerController_PowerState_t currentState,
+                             const PowerController_PowerState_t newState,
                              void *userdata);
-static int _SetLEDStatus(PowerManager_PowerState_t powerState);
-int _SetAVPortsPowerState(PowerManager_PowerState_t powerState);
+static int _SetLEDStatus(PowerController_PowerState_t powerState);
+int _SetAVPortsPowerState(PowerController_PowerState_t powerState);
 static IARM_Result_t _SetStandbyVideoState(void *arg);
 static IARM_Result_t _GetStandbyVideoState(void *arg);
 static IARM_Result_t _SetAvPortState(void *arg);
 static IARM_Result_t _SetLEDState(void *arg);
 static IARM_Result_t _SetRebootConfig(void *arg);
 
-static PowerManager_PowerState_t curState = POWER_STATE_OFF;
+static PowerController_PowerState_t curState = POWER_STATE_OFF;
 
 #define RDK_PROFILE "RDK_PROFILE"
 #define PROFILE_STR_TV "TV"
 #define PROFILE_STR_STB "STB"
 
-static profile_t profileType = PROFILE_INVALID;
+typedef enum profile {
+    PROFILE_INVALID = -1,
+    PROFILE_STB = 0,
+    PROFILE_TV,
+    PROFILE_MAX
+}profile_t;
+
+profile_t profileType = PROFILE_INVALID;
+
+profile_t searchRdkProfile(void) {
+    INT_DEBUG("Entering [%s]\r\n", __FUNCTION__);
+    const char* devPropPath = "/etc/device.properties";
+    char line[256], *rdkProfile = NULL;
+    profile_t ret = PROFILE_INVALID;
+    FILE* file;
+
+    file = fopen(devPropPath, "r");
+    if (file == NULL) {
+        INT_ERROR("[%s]: File not found.\n", __FUNCTION__);
+        return PROFILE_INVALID;
+    }
+
+    while (fgets(line, sizeof(line), file)) {
+        rdkProfile = strstr(line, RDK_PROFILE);
+        if (rdkProfile != NULL) {
+            INT_DEBUG("[%s]: Found RDK_PROFILE\r\n", __FUNCTION__);
+            break;
+        }
+    }
+    
+    if(rdkProfile != NULL)
+    {
+        rdkProfile += strlen(RDK_PROFILE);
+        rdkProfile++; // Move past the '=' character
+        if(0 == strncmp(rdkProfile, PROFILE_STR_TV, strlen(PROFILE_STR_TV)))
+        {
+            ret = PROFILE_TV;
+            INT_DEBUG("[%s]: Found RDK_PROFILE is TV", __FUNCTION__);
+        }
+        else if (0 == strncmp(rdkProfile, PROFILE_STR_STB, strlen(PROFILE_STR_STB)))
+        {
+            ret = PROFILE_STB;
+            INT_DEBUG("[%s]: Found RDK_PROFILE is STB", __FUNCTION__);
+        }
+    }
+    else
+    {
+        INT_ERROR("[%s]: NOT FOUND RDK_PROFILE in device properties file\r\n", __FUNCTION__);
+        ret = PROFILE_INVALID;
+    }
+
+    fclose(file);
+    INT_INFO("Exit [%s]: RDK_PROFILE = %d\r\n", __FUNCTION__, ret);
+    return ret;
+}
 
 void initPwrEventListner()
 {
-    PowerManager_PowerState_t _curState = POWER_STATE_UNKNOWN;
-    PowerManager_PowerState_t _prevState = POWER_STATE_UNKNOWN;
-    PowerManager_PowerState_t powerStateBeforeReboot = POWER_STATE_STANDBY;
+    PowerController_PowerState_t _curState = POWER_STATE_UNKNOWN;
+    PowerController_PowerState_t _prevState = POWER_STATE_UNKNOWN;
+    PowerController_PowerState_t powerStateBeforeReboot = POWER_STATE_STANDBY;
 
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
     
@@ -124,7 +196,7 @@ void initPwrEventListner()
         INT_DEBUG("Exception Caught during [device::Manager::load]\r\n");
     }
 
-    PowerManager_RegisterPowerModeChangedCallback(_PwrEventHandler, nullptr);
+    PowerController_RegisterPowerModeChangedCallback(_PwrEventHandler, nullptr);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetStandbyVideoState, _SetStandbyVideoState);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_GetStandbyVideoState, _GetStandbyVideoState);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetAvPortState, _SetAvPortState);
@@ -132,18 +204,18 @@ void initPwrEventListner()
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetRebootConfig, _SetRebootConfig);
 
     /*  Read the Device Power State on startup... */
-    if (POWER_MANAGER_ERROR_NONE == PowerManager_GetPowerState(&_curState, &_prevState))
+    if (POWER_MANAGER_ERROR_NONE == PowerController_GetPowerState(&_curState, &_prevState))
     {
         INT_DEBUG("Deep Sleep Manager Init with Power State %d\r\n", _curState);
         curState = _curState;
     }
 
-    if (POWER_MANAGER_ERROR_NONE != PowerManager_GetPowerStateBeforeReboot(&powerStateBeforeReboot))
+    if (POWER_MANAGER_ERROR_NONE != PowerController_GetPowerStateBeforeReboot(&powerStateBeforeReboot))
     {
         INT_ERROR("DSMgr GetPowerStateBeforeReboot Failed\r\n");
     }
 
-    if (nullptr != ux)
+    if (nullptr != ux) 
     {
         // This will set up ports, lights and bootloader pattern internally
         ux->applyPostRebootConfig(curState, powerStateBeforeReboot);
@@ -151,31 +223,34 @@ void initPwrEventListner()
         // Sync Port with Power state TODO:
     }
 
-    if (nullptr == ux) // Since ux_controller is not supported, ports need to be set up explicitly.
+    if (nullptr == ux) // Since ux_controller is not supported, ports need to be
+                       // set up explicitly.
     {
+#ifndef DISABLE_LED_SYNC_IN_BOOTUP
         _SetLEDStatus(curState);
+#endif
         _SetAVPortsPowerState(curState);
     }
 }
 
-static void _PwrEventHandler(const PowerManager_PowerState_t currentState,
-    const PowerManager_PowerState_t newState,
+static void _PwrEventHandler(const PowerController_PowerState_t currentState,
+    const PowerController_PowerState_t newState,
     void* userdata)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
 
-    if (nullptr != ux) {
-        // If ux_controller is supported, it will set up AV ports and LEDs in the below call.
-        ux->applyPowerStateChangeConfig(newState, currentState);
-    } else {
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
-        _SetLEDStatus(newState);
-#endif
-        _SetAVPortsPowerState(newState);
-    }
+    /* In this call back function, received event is pushed to queue and signalled for the thread to 
+        pop out from queue process the pushed event This will allow the CB to be handled separately 
+        in a different thread context, userdata is empty and not handled*/
+    pthread_mutex_lock(&tdsPwrEventMutexLock);
+    pwrEventQueue.push({currentState, newState});
+    INT_INFO("Sending Signal to Thread for Processing Callback Event \r\n");
+    
+    pthread_cond_signal(&tdsPwrEventMutexCond);
+    pthread_mutex_unlock(&tdsPwrEventMutexLock);
 }
 
-static int _SetLEDStatus(PowerManager_PowerState_t powerState)
+static int _SetLEDStatus(PowerController_PowerState_t powerState)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
     try {
@@ -212,7 +287,7 @@ static int _SetLEDStatus(PowerManager_PowerState_t powerState)
     return 0;
 }
 
-int _SetAVPortsPowerState(PowerManager_PowerState_t powerState)
+int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
 {
     INT_INFO("Entering [%s] powerState:%d \r\n", __FUNCTION__,powerState);
 
@@ -454,9 +529,9 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
     return IARM_RESULT_SUCCESS;
 }
 
-static PowerManager_PowerState_t PWRMgrToPowerManager_PowerState(PWRMgr_PowerState_t _state)
+static PowerController_PowerState_t PWRMgrToPowerController_PowerState(PWRMgr_PowerState_t _state)
 {
-    PowerManager_PowerState_t powerState = POWER_STATE_UNKNOWN;
+    PowerController_PowerState_t powerState = POWER_STATE_UNKNOWN;
     switch (_state) {
     case PWRMGR_POWERSTATE_OFF:
         powerState = POWER_STATE_OFF;
@@ -490,7 +565,7 @@ static IARM_Result_t _SetAvPortState(void *arg)
     }
 
     PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param->avPortPowerState;
-    PowerManager_PowerState_t powerState = PWRMgrToPowerManager_PowerState(pwrState);
+    PowerController_PowerState_t powerState = PWRMgrToPowerController_PowerState(pwrState);
 
     _SetAVPortsPowerState(powerState);
     param->result = 0;
@@ -508,7 +583,7 @@ static IARM_Result_t _SetLEDState(void *arg)
     }
 
     PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param->ledState;
-    PowerManager_PowerState_t powerState = PWRMgrToPowerManager_PowerState(pwrState);
+    PowerController_PowerState_t powerState = PWRMgrToPowerController_PowerState(pwrState);
 
     _SetLEDStatus(powerState);
     param->result = 0;
@@ -528,7 +603,7 @@ static IARM_Result_t _SetRebootConfig(void *arg)
     if(nullptr != ux)
     {
         PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param->powerState;
-        PowerManager_PowerState_t powerState = PWRMgrToPowerManager_PowerState(pwrState);
+        PowerController_PowerState_t powerState = PWRMgrToPowerController_PowerState(pwrState);
 
         if(0 == strncmp(PWRMGR_REBOOT_REASON_MAINTENANCE, param->reboot_reason_custom, sizeof(param->reboot_reason_custom)))
             ux->applyPreMaintenanceRebootConfig(powerState);
@@ -539,3 +614,80 @@ static IARM_Result_t _SetRebootConfig(void *arg)
     param->result = 0;
     return IARM_RESULT_SUCCESS;
 }
+
+static void* _DSMgrPwrEventHandlingThreadFunc(void *arg)
+{
+    INT_INFO("%s: Entry  \r\n",__FUNCTION__);
+
+    /* In Loop and waiting for an event conditionally */
+    while (1)
+    {
+        INT_INFO ("_DSMgrPwrEventHandlingThreadFunc... Wait for Events from Power manager Controller Callback\r\n");
+        pthread_mutex_lock(&tdsPwrEventMutexLock);
+        pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
+        INT_INFO ("_DSMgrPwrEventHandlingThreadFunc... Event received from Power manager Controller Callback\r\n");
+
+        /* Check the Queue for not empty and loop through, extract element from queue and pass values to handler */
+        while (!pwrEventQueue.empty()) 
+        {
+            DSMgr_Power_Event_State_t pwrEvent = pwrEventQueue.front();
+            pwrEventQueue.pop(); 
+            pthread_mutex_unlock(&tdsPwrEventMutexLock);
+            HandlePwrEventData(pwrEvent.currentState,pwrEvent.newState);
+        }
+        pthread_mutex_unlock(&tdsPwrEventMutexLock);
+    }
+    return arg;
+}
+
+
+
+
+static void HandlePwrEventData(const PowerController_PowerState_t currentState,
+    const PowerController_PowerState_t newState)
+{
+    INT_INFO("Entering [%s]\r\n", __FUNCTION__);
+
+    /* This is the Handler for Power State after Separation of the Context to a new thread context.
+        This function is getting executed in a new thread context.with currentState and newState values*/
+    INT_INFO("In [%s] currentState [%d]   newState[%d]\r\n", __FUNCTION__,currentState,newState);
+    
+    if (nullptr != ux) {
+        // If ux_controller is supported, it will set up AV ports and LEDs in the below call.
+        ux->applyPowerStateChangeConfig(newState, currentState);
+    } else {
+#ifndef DISABLE_LED_SYNC_IN_BOOTUP
+        _SetLEDStatus(newState);
+#endif
+        _SetAVPortsPowerState(newState);
+    }
+    INT_INFO("Completed [%s]\r\n", __FUNCTION__);
+}
+
+
+void CreatePwrEvtThreadInitQueue(void)
+{
+    INT_INFO("Entering [%s]\r\n", __FUNCTION__);
+
+    /* Initialize the Mutex and waitsignal variable, Create the thread used to separate the context of the Event Callback */
+    pthread_mutex_init (&tdsPwrEventMutexLock, NULL);
+    pthread_cond_init (&tdsPwrEventMutexCond, NULL);
+    pthread_create (&edsPwrEventHandlerThreadID, NULL, _DSMgrPwrEventHandlingThreadFunc, NULL);
+}
+
+void PwrMgrFlushQueueHandleStop(void) 
+{    
+    INT_INFO("Entering [%s]\r\n", __FUNCTION__);
+
+    /* Clear the elements by looping through the Queue and Destroy the Mutex Lock and Wait Signal Condition */
+
+    pthread_mutex_lock(&tdsPwrEventMutexLock); 
+    while (!pwrEventQueue.empty()) 
+    {        
+        pwrEventQueue.pop(); 
+    }    
+    pthread_mutex_unlock(&tdsPwrEventMutexLock);
+    pthread_mutex_destroy(&tdsPwrEventMutexLock);
+    pthread_cond_destroy(&tdsPwrEventMutexCond);
+}
+
