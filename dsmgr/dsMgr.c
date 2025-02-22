@@ -77,6 +77,8 @@ extern IARM_Result_t _dsGetForceDisable4K(void *arg);
 extern IARM_Result_t _dsSetBackgroundColor(void *arg);
 extern IARM_Result_t _dsGetIgnoreEDIDStatus(void *arg);
 extern bool isComponentPortPresent();
+extern void CreatePwrEvtThreadInitQueue(void);
+extern void PwrMgrFlushQueueHandleStop(void);
 
 extern bool dsGetHDMIDDCLineStatus(void);
 static int _SetVideoPortResolution();
@@ -162,12 +164,15 @@ IARM_Result_t DSMgr_Start()
 	IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
 
         /*Refactored dsMGR code*/
+        PowerController_Init();
         initPwrEventListner();   
 	/* Create  Thread for listening Hot Plug events */
 	pthread_mutex_init (&tdsMutexLock, NULL);
 	pthread_cond_init (&tdsMutexCond, NULL);
 	pthread_create (&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL);
-			
+
+      CreatePwrEvtThreadInitQueue();
+
 	/* Read the HDMI DDC Line delay to be introduced 
 	 * for setting  the resolution
 	 * The DDC line is used for EDID and HDCP Negotiation
@@ -202,9 +207,12 @@ IARM_Result_t DSMgr_Start()
         INT_ERROR("Fails to Create a main Loop for [%s] \r\n",IARM_BUS_DSMGR_NAME);
     }
 
-    INT_INFO("Set resolution during dsMgr init .. \r\n");
-    _SetVideoPortResolution(); 
-    return IARM_RESULT_SUCCESS;
+    if(!isHDMIConnected())
+    {
+        INT_ERROR("HDMI not connected at bootup -Schedule a handler to set the resolution .. \r\n");
+        _SetVideoPortResolution(); 
+    }
+	return IARM_RESULT_SUCCESS;
 }
 
 IARM_Result_t DSMgr_Loop()
@@ -234,11 +242,13 @@ IARM_Result_t DSMgr_Stop()
     { 
         g_main_loop_quit(dsMgr_Gloop);
     }
-    
+    PowerController_Term();
     IARM_Bus_Disconnect();
     IARM_Bus_Term();
 	pthread_mutex_destroy (&tdsMutexLock);
 	pthread_cond_destroy  (&tdsMutexCond);
+
+    PwrMgrFlushQueueHandleStop();
 	
     return IARM_RESULT_SUCCESS;
 }
