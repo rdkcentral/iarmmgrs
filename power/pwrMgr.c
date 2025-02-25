@@ -871,6 +871,7 @@ static IARM_Result_t _HandleReboot(void *arg)
     param->requestor[sizeof(param->requestor) - 1] = '\0';
     dsMgrRebootConfigParam_t rebootParam;
     strncpy(rebootParam.reboot_reason_custom,param->reboot_reason_custom,sizeof(param->reboot_reason_custom));
+    rebootParam->reboot_reason_custom[sizeof(rebootParam->reboot_reason_custom) - 1] = '\0';
     rebootParam.powerState = m_settings.powerState;
     result = IARM_Bus_Call(IARM_BUS_DSMGR_NAME, IARM_BUS_DSMGR_API_SetRebootConfig, &rebootParam, sizeof(rebootParam));
     if (IARM_RESULT_SUCCESS != result)
