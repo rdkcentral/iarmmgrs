@@ -1210,14 +1210,17 @@ IARM_Result_t MFRLib_Start(void)
 
     do{
 
+    LOG("Entering [%s] -  calling mfr_init\r\n", __FUNCTION__);
         if(mfr_init()!= mfrERR_NONE)
         {
             LOG("Error initializing MFR library..\n");
 	    err = IARM_RESULT_INVALID_STATE;
 	    break;
         }
+    LOG("Entering [%s] -  mfr_init calling \r\n", __FUNCTION__);
 
         err = IARM_Bus_Init(IARM_BUS_MFRLIB_NAME);
+    LOG("Entering [%s] -  mfr_init done \r\n", __FUNCTION__);
 
         if(IARM_RESULT_SUCCESS != err)
         {

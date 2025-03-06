@@ -18,7 +18,7 @@
 ##########################################################################
 [Unit]
 Description=IARM Mgr Daemon Power MGR (pwrmgr)
-After=lighttpd.service iarmbusd.service mfrmgr.service
+After=lighttpd.service iarmbusd.service
 
 [Service]
 Type=notify

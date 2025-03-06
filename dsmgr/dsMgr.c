@@ -103,6 +103,7 @@ IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal
 #include <glib.h>
 GMainLoop *dsMgr_Gloop = NULL;
 static gboolean heartbeatMsg(gpointer data);
+static gboolean async_dsMgr_init(gpointer data);
 static gboolean _SetResolutionHandler(gpointer data);
 static guint hotplug_event_src = 0;
 static gboolean dumpEdidOnChecksumDiff(gpointer data);
@@ -137,15 +138,17 @@ IARM_Result_t DSMgr_Start()
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
     INT_INFO("Entering [%s] - [%s] - disabling io redirect buf \r\n", __FUNCTION__, IARM_BUS_DSMGR_NAME);
-	
+    INT_INFO(" [%s]  IARM_Bus_Init \r\n", __FUNCTION__);	
 	/* Register with IARM Libs and Connect */
 	IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
     IARM_Bus_Connect();
 	IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
 
 	/*Initialize the DS Manager - DS Srv and DS HAL */
+    INT_INFO(" [%s]  dsMgr_init\r\n", __FUNCTION__);	
 	dsMgr_init();
 	  
+    INT_INFO(" [%s]  dsMgr_init exit \r\n", __FUNCTION__);	
 	iInitResnFlag = 1;
         dsEdidIgnoreParam_t ignoreEdidParam;
         memset(&ignoreEdidParam,0,sizeof(ignoreEdidParam));
@@ -161,11 +164,6 @@ IARM_Result_t DSMgr_Start()
 	/*Register EAS handler so that we can ensure audio settings for EAS */
 	IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
 
-        /*Refactored dsMGR code*/
-       PowerController_Init();
-       dsMgrInitPwrControllerEvt();
-       /* Power controller connect is checked inside initPwrEventListner*/
-        initPwrEventListner();   
 	/* Create  Thread for listening Hot Plug events */
 	pthread_mutex_init (&tdsMutexLock, NULL);
 	pthread_cond_init (&tdsMutexCond, NULL);
@@ -195,18 +193,20 @@ IARM_Result_t DSMgr_Start()
 	{
 		iTuneReady = 1;
 	}
+    INT_INFO("DSMgr_Start  [%s]  g_main_loop_new \r\n", __FUNCTION__);	
 
 	/* Create Main loop for DS Manager */
     dsMgr_Gloop = g_main_loop_new ( NULL , FALSE );
     if(dsMgr_Gloop != NULL){
-        g_timeout_add_seconds (300 , heartbeatMsg , dsMgr_Gloop); 
+        g_timeout_add_seconds (300 , heartbeatMsg , dsMgr_Gloop);
+        g_timeout_add_seconds (3 , async_dsMgr_init , dsMgr_Gloop); 
     }
     else {
         INT_ERROR("Fails to Create a main Loop for [%s] \r\n",IARM_BUS_DSMGR_NAME);
     }
 
-    INT_INFO("Set resolution during dsMgr init .. \r\n");
-    _SetVideoPortResolution(); 
+    INT_INFO("DSMgr_Start complete .. \r\n");
+
     return IARM_RESULT_SUCCESS;
 }
 
@@ -229,6 +229,22 @@ static gboolean heartbeatMsg(gpointer data)
     INT_INFO("I-ARM BUS DS Mgr: HeartBeat at %s\r\n", ctime(&curr));
     return TRUE;
 }
+
+static gboolean async_dsMgr_init(gpointer data)
+{   
+    INT_INFO("dsMgr_init async_dsMgr_init \r\n");
+        /*Refactored dsMGR code*/
+       PowerController_Init();
+       dsMgrInitPwrControllerEvt();
+       /* Power controller connect is checked inside initPwrEventListner*/
+        initPwrEventListner();   
+    INT_INFO(" [%s]  initPwrEventListner \r\n", __FUNCTION__);	
+    initPwrEventListner();   
+    INT_INFO("DSMgr_Start Set resolution during dsMgr init .. \r\n");
+    _SetVideoPortResolution(); 
+
+    return FALSE;
+}   
 
 IARM_Result_t DSMgr_Stop()
 {
