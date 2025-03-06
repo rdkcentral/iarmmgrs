@@ -137,15 +137,17 @@ IARM_Result_t DSMgr_Start()
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
     INT_INFO("Entering [%s] - [%s] - disabling io redirect buf \r\n", __FUNCTION__, IARM_BUS_DSMGR_NAME);
-	
+    INT_INFO(" [%s]  IARM_Bus_Init \r\n", __FUNCTION__);	
 	/* Register with IARM Libs and Connect */
 	IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
     IARM_Bus_Connect();
 	IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
 
 	/*Initialize the DS Manager - DS Srv and DS HAL */
+    INT_INFO(" [%s]  dsMgr_init\r\n", __FUNCTION__);	
 	dsMgr_init();
 	  
+    INT_INFO(" [%s]  dsMgr_init exit \r\n", __FUNCTION__);	
 	iInitResnFlag = 1;
         dsEdidIgnoreParam_t ignoreEdidParam;
         memset(&ignoreEdidParam,0,sizeof(ignoreEdidParam));
@@ -160,6 +162,7 @@ IARM_Result_t DSMgr_Start()
 
 	/*Register EAS handler so that we can ensure audio settings for EAS */
 	IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
+    INT_INFO(" [%s]  initPwrEventListner \r\n", __FUNCTION__);	
 
         /*Refactored dsMGR code*/
         initPwrEventListner();   
@@ -192,6 +195,7 @@ IARM_Result_t DSMgr_Start()
 	{
 		iTuneReady = 1;
 	}
+    INT_INFO(" [%s]  g_main_loop_new \r\n", __FUNCTION__);	
 
 	/* Create Main loop for DS Manager */
     dsMgr_Gloop = g_main_loop_new ( NULL , FALSE );
