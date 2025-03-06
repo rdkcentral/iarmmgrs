@@ -57,6 +57,7 @@ int main(int argc, char *argv[])
     int itr=0;
     errno_t safec_rc = -1;
     int ind = -1;
+    LOG(" [%s] entry  \r\n", __FUNCTION__);
     int debug_len = strlen("--debugconfig");
         while (itr < argc)
         {
@@ -85,14 +86,17 @@ int main(int argc, char *argv[])
 #endif
 
 
+    LOG(" [%s] calling MFRLib_Start \r\n", __FUNCTION__);
     MFRLib_Start();
 
 #ifdef ENABLE_SD_NOTIFY
+    LOG(" [%s] MFRLib_Start exit  now calling sd_notifyf \r\n", __FUNCTION__);
     sd_notifyf(0, "READY=1\n"
               "STATUS=mfrMgrMain is Successfully Initialized\n"
               "MAINPID=%lu",
               (unsigned long) getpid());
 #endif
+    LOG(" [%s] MFRLib_Loop \r\n", __FUNCTION__);
 
     MFRLib_Loop();
     MFRLib_Stop();

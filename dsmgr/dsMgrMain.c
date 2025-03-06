@@ -81,7 +81,7 @@ int main(int argc, char *argv[])
 {
     const char* debugConfigFile = NULL;
     int itr=0;
-
+    INT_INFO(" dsmgr entry ");
         while (itr < argc)
         {
                 if(strcmp(argv[itr],"--debugconfig")==0)
@@ -126,7 +126,9 @@ int main(int argc, char *argv[])
 //    DSHal_RegisterForLog(dslogCallback);
 
 #endif
+    INT_INFO(" DSMgr_Start main  calling DSMgr_Start ");
     DSMgr_Start();
+    INT_INFO(" DSMgr_Start  dsmgr sd_notifyf ");
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
