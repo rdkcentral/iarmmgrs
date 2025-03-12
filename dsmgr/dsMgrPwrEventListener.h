@@ -40,19 +40,40 @@
 #ifndef DSMGR_DSMGRPWREVENTLISTENER_H_
 #define DSMGR_DSMGRPWREVENTLISTENER_H_
 
+#include <queue>
+#include <atomic>
+#include <unistd.h>
 #include "libIARM.h"
 #include "libIBusDaemon.h"
 #include "dsMgrInternal.h"
 #include "sysMgr.h"
-#include "pwrMgr.h"
+#include "power_controller.h"
 #include "dsMgr.h"
 #include "libIBus.h"
 #include "iarmUtil.h"
 #include "plat_power.h"
 
+/* Retry every 300 msec */
+#define DSMGR_PWR_CNTRL_CONNECT_WAIT_TIME_MS   (300*1000)
+
+
+/* Power Controller State Data Structure to Pass to the Thread */
+struct DSMgr_Power_Event_State_t{
+    PowerController_PowerState_t currentState;
+    PowerController_PowerState_t newState;
+    DSMgr_Power_Event_State_t(PowerController_PowerState_t currSt, PowerController_PowerState_t newSt)
+        : currentState(currSt), newState(newSt) {}
+};
 
 void initPwrEventListner(void);
-
-
+void dsMgrInitPwrControllerEvt(void);
+void dsMgrDeinitPwrControllerEvt(void);
+static void dsMgrHandlePwrEventData(const PowerController_PowerState_t currentState,
+                const PowerController_PowerState_t newState);
+static PowerController_PowerState_t dsMgrPwrMgrToPowerControllerPowerState(PWRMgr_PowerState_t _state);
+static void* dsMgrPwrEventHandlingThreadFunc(void *arg);
+static void* dsMgrPwrRetryEstablishConnThread(void *arg);
+static void dsMgrPwrCtrlEstablishConnection(void);
+static void dsMgrPwrControllerFetchNinitStateValues(void);
 
 #endif /* DSMGR_DSMGRPWREVENTLISTENER_H_ */
