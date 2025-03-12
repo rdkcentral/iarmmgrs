@@ -26,7 +26,8 @@ EXECUTABLE  =   dsMgrMain
 INCLUDE     =   -I. \
                 -I$(IARM_PATH)/core/   \
                 -I$(IARM_PATH)/core/include \
-				-I$(IARM_MGRS)/generic/sysmgr/include \
+				-I$(IARM_MGRS)/sysmgr/include \
+				-I$(IARM_MGRS)/utils \
                 -I$(DS_PATH)/rpc/include \
 				-I$(DS_PATH)/hal/include \
 		        -I$(DS_PATH)/ds/include \
