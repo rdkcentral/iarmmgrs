@@ -61,6 +61,10 @@ LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
 LDFLAGS += -L$(INSTALL)/lib -ldshalcli -lds -L$(UTILS_PATH)/ -liarmUtils 
 
+ifeq ($(PLATFORM_SOC),L2HalMock)
+export LDFLAGS += -L$(DS_PATH)/install/lib -L$(IARM_PATH)/install -L$(UTILS_PATH)/ -liarmUtils -ldshalsrv -lds-hal -lds -ldshalcli -lIARMBus -lglib-2.0 -lsafec-3.5
+endif
+
 INTEL_SHLIBS=   \
                                 -lismd_core \
                                 -losal \
