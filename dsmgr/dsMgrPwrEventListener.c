@@ -105,8 +105,6 @@ static profile_t profileType = PROFILE_INVALID;
 void initPwrEventListner()
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
-    IARM_Bus_PWRMgr_GetPowerState_Param_t param;
-    PWRMgr_PowerState_t beforeRebootPowerState = PWRMGR_POWERSTATE_STANDBY;
     
     profileType = searchRdkProfile();
 
@@ -147,7 +145,7 @@ void initPwrEventListner()
      * if connection is eastablished, proceed with fetching and Getting values from Power control and initialize*/
     if(POWER_CONTROLLER_ERROR_NONE == PowerController_Connect())
     {
-        INT_INFO("PowerController_Connect is Success \r\n");
+        INT_DEBUG("PowerController_Connect is Success \r\n");
         dsMgrPwrControllerFetchNinitStateValues();
     }
     else
@@ -159,9 +157,9 @@ void initPwrEventListner()
 
 static void dsMgrPwrCtrlEstablishConnection(void)
 {
-    pthread_t edsPwrConnectThreadID; 
-
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
+    
+    pthread_t edsPwrConnectThreadID; 
 
     if(pthread_create (&edsPwrConnectThreadID, NULL, dsMgrPwrRetryEstablishConnThread, NULL)  == 0)
     {
@@ -184,7 +182,7 @@ static void* dsMgrPwrRetryEstablishConnThread(void *arg)
     {
         if(POWER_CONTROLLER_ERROR_NONE == PowerController_Connect())
         {
-            INT_INFO("dsMgrPwrRetryEstablishConnThread PowerController_Connect is Success \r\n");
+            INT_DEBUG("dsMgrPwrRetryEstablishConnThread PowerController_Connect is Success \r\n");
             dsMgrPwrControllerFetchNinitStateValues();
             break;
         }
@@ -194,16 +192,17 @@ static void* dsMgrPwrRetryEstablishConnThread(void *arg)
             usleep(DSMGR_PWR_CNTRL_CONNECT_WAIT_TIME_MS);
         }
     }
-    INT_INFO("dsMgrPwrRetryEstablishConnThread Completed Exit \r\n");
+    INT_DEBUG("dsMgrPwrRetryEstablishConnThread Completed Exit \r\n");
+    return arg;
 }
 
 static void dsMgrPwrControllerFetchNinitStateValues(void)
 {
+    INT_INFO("Entering [%s]\r\n", __FUNCTION__);
+    
     PowerController_PowerState_t _curState = POWER_STATE_UNKNOWN;
     PowerController_PowerState_t _prevState = POWER_STATE_UNKNOWN;
     PowerController_PowerState_t powerStateBeforeReboot = POWER_STATE_STANDBY;
-
-    INT_INFO("Entering [%s]\r\n", __FUNCTION__);
 
     PowerController_RegisterPowerModeChangedCallback(_PwrEventHandler, nullptr);
     /*  Read the Device Power State on startup... */
@@ -250,7 +249,7 @@ static void _PwrEventHandler(const PowerController_PowerState_t currentState,
     pwrEventQueue.emplace(currentState, newState);
     pthread_mutex_unlock(&tdsPwrEventQueueMutexLock);
     
-    INT_INFO("Sending Signal to Thread for Processing Callback Event \r\n");
+    INT_DEBUG("Sending Signal to Thread for Processing Callback Event \r\n");
 
     pthread_mutex_lock(&tdsPwrEventMutexLock);
     pthread_cond_signal(&tdsPwrEventMutexCond);
@@ -488,7 +487,7 @@ static IARM_Result_t _SetStandbyVideoState(void *arg)
     try
     {
         device::VideoOutputPort &vPort = device::Host::getInstance().getVideoOutputPort(param->port);
-        if((PWRMGR_POWERSTATE_ON != curState) && (PWRMGR_POWERSTATE_OFF != curState))
+        if((POWER_STATE_ON != curState) && (POWER_STATE_OFF != curState))
         {
             /*We're currently in one of the standby states. This new setting needs to be applied right away.*/
             INT_DEBUG("[%s] Setting standby %s port status to %s.\n", __FUNCTION__, param->port, ((1 == param->isEnabled)? "enabled" : "disabled"));
@@ -560,7 +559,7 @@ static PowerController_PowerState_t dsMgrPwrMgrToPowerControllerPowerState(PWRMg
         INT_ERROR("DSMgr dsMgrPwrMgrToPowerControllerPowerState Invalid Power State\r\n");
         break;
     }
-    INT_INFO("[%s] _state=[%d]  powerState[%d]\r\n", __FUNCTION__,_state,powerState,);
+    INT_DEBUG("[%s] _state=[%d]  powerState[%d]\r\n", __FUNCTION__,_state,powerState,);
     return powerState;
 }
 
@@ -641,13 +640,13 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
     while (true)
     {
         pthread_mutex_lock(&tdsPwrEventMutexLock);
-        INT_INFO ("dsMgrPwrEventHandlingThreadFunc... Wait for Events from Power manager Controller Callback\r\n");
+        INT_DEBUG("dsMgrPwrEventHandlingThreadFunc... Wait for Events from Power manager Controller Callback\r\n");
         pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
         if(m_dsMgrPwrStopThread)
         {
              /* This case can enter if the de init is trigerred which wants to exit the thread function 
                   and unlock happens after the end of while loop, it will not process any events for this case*/
-            INT_INFO ("[%s:%d]:dsMgrPwrEventHandlingThreadFunc Exiting due to m_dsMgrPwrStopThread true \n",__FUNCTION__,__LINE__);
+            INT_DEBUG("[%s:%d]:dsMgrPwrEventHandlingThreadFunc Exiting due to m_dsMgrPwrStopThread true \n",__FUNCTION__,__LINE__);
             pthread_mutex_unlock(&tdsPwrEventMutexLock);
             break;
         }
@@ -677,7 +676,7 @@ static void dsMgrHandlePwrEventData(const PowerController_PowerState_t currentSt
 
     /* This is the Handler for Power State after Separation of the Context to a new thread context.
         This function is getting executed in a new thread context.with currentState and newState values*/
-    INT_INFO("In [%s] currentState [%d]   newState[%d]\r\n", __FUNCTION__,currentState,newState);
+    INT_DEBUG("In [%s] currentState [%d]   newState[%d]\r\n", __FUNCTION__,currentState,newState);
     
     if (nullptr != ux) {
         // If ux_controller is supported, it will set up AV ports and LEDs in the below call.
@@ -688,7 +687,7 @@ static void dsMgrHandlePwrEventData(const PowerController_PowerState_t currentSt
 #endif
         _SetAVPortsPowerState(newState);
     }
-    INT_INFO("Completed [%s]\r\n", __FUNCTION__);
+    INT_DEBUG("Completed [%s]\r\n", __FUNCTION__);
 }
 
 
@@ -725,9 +724,9 @@ void dsMgrDeinitPwrControllerEvt(void)
     pthread_mutex_unlock(&tdsPwrEventMutexLock);
 
     /* wait for the event thread handler to complete its operation */
-    INT_INFO("[%s:%d]:Before Joining thread id\n",__FUNCTION__,__LINE__);
+    INT_DEBUG("[%s:%d]:Before Joining thread id\n",__FUNCTION__,__LINE__);
     pthread_join(edsPwrEventHandlerThreadID, NULL);
-    INT_INFO("[%s:%d]:Completed  Joined thread id\n",__FUNCTION__,__LINE__);
+    INT_DEBUG("[%s:%d]:Completed  Joined thread id\n",__FUNCTION__,__LINE__);
 
     /* clean the queue with guarding mutex*/
     pthread_mutex_lock(&tdsPwrEventQueueMutexLock); 
