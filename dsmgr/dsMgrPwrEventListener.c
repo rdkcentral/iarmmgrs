@@ -559,7 +559,7 @@ static PowerController_PowerState_t dsMgrPwrMgrToPowerControllerPowerState(PWRMg
         INT_ERROR("DSMgr dsMgrPwrMgrToPowerControllerPowerState Invalid Power State\r\n");
         break;
     }
-    INT_DEBUG("[%s] _state=[%d]  powerState[%d]\r\n", __FUNCTION__,_state,powerState,);
+    INT_DEBUG("[%s] _state=[%d]  powerState[%d]\r\n", __FUNCTION__,_state,powerState);
     return powerState;
 }
 
