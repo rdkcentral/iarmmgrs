@@ -63,10 +63,11 @@ install:
 	echo "Copying files now.."	
 	cp $(exe_sysmgr)/*Main $(install_dir)
 	cp $(exe_power)/*Main $(install_dir)
+	cp $(exe_ds)/*Main $(install_dir)
+ifneq ($(PLATFORM_SOC),L2HalMock)
 	cp $(exe_pwrstate)/pwrstate_notifier $(install_dir)
-	cp $(exe_ds)/*Main $(install_dir)
 	cp $(exe_tr69Bus)/*Main $(install_dir)
-	cp $(exe_ds)/*Main $(install_dir)
+endif
 
 clean:
 	rm -rf $(install_dir)
