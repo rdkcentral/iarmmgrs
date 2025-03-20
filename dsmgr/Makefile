@@ -81,7 +81,7 @@ all:clean executable
 	@echo "Build Finished...."
 
 executable: $(OBJS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $(EXECUTABLE)
+	$(CXX) $(CFLAGS) $(OBJS) -o $(EXECUTABLE) $(LDFLAGS)
 
 %.o: %.c
 	@echo "Building $@ ...."
