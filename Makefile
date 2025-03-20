@@ -30,6 +30,7 @@ exe_ds              := dsmgr/
 exe_tr69Bus         := tr69Bus/
 exe_test            := test
 exe_mfr_test        := mfr/test_mfr
+exe_utils	    := utils
 ifneq ($(PLATFORM_SOC),L2HalMock)
 exe_platform_ir     := ../soc/${PLATFORM_SOC}/ir
 exe_platform_power  := ../soc/${PLATFORM_SOC}/power
