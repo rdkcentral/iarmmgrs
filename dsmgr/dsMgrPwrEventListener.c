@@ -632,8 +632,6 @@ static IARM_Result_t _SetRebootConfig(void *arg)
 
 static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
 {
-    std::queue<DSMgr_Power_Event_State_t> pwrEventLocalQueue;
-
     INT_INFO("%s: Entry  \r\n",__FUNCTION__);
 
     /* In Loop and waiting for an event conditionally */
@@ -652,19 +650,23 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
         }
         pthread_mutex_unlock(&tdsPwrEventMutexLock);
 
-        /* Copy the contents of Queue to Local Queue to avoid multiple queue checks for extracting elements 
-            and release mutex lock immediately after copy. This will ensure the lock retention period is less */
-        pthread_mutex_lock(&tdsPwrEventQueueMutexLock);
-        std::swap(pwrEventLocalQueue, pwrEventQueue); 
-        pthread_mutex_unlock(&tdsPwrEventQueueMutexLock);
-
-        /* Check the Local queue for not empty and loop through to extract element from queue and pass values to handler */        
-        while (!pwrEventLocalQueue.empty()) 
-        {
-            DSMgr_Power_Event_State_t pwrEvent = pwrEventLocalQueue.front();
-            dsMgrHandlePwrEventData(pwrEvent.currentState,pwrEvent.newState);
-            pwrEventLocalQueue.pop();
+        
+	/*  Directly read the contents of the PwrEvtQueue, release the lock when processing the data and relock it after 
+            wards until the complete data in the queue is processed. This will ensure the lock retention period is less 
+	    and all the updated data from the queue is processed */
+	pthread_mutex_lock(&tdsPwrEventQueueMutexLock);
+	while (!pwrEventQueue.empty())
+	{
+            DSMgr_Power_Event_State_t pwrEvent = pwrEventQueue.front();
+            pwrEventQueue.pop();
+            pthread_mutex_unlock(&tdsPwrEventQueueMutexLock);
+            /* Release the Lock when processing the data */
+	    dsMgrHandlePwrEventData(pwrEvent.currentState,pwrEvent.newState);
+            /* Reacquire the Lock before checking the Queue contents in loop */
+            pthread_mutex_lock(&tdsPwrEventQueueMutexLock);
         }
+        /* Release the Lock either exit is due to empty directly or processing completed  */
+        pthread_mutex_unlock(&tdsPwrEventQueueMutexLock);
     }
     return arg;
 }
