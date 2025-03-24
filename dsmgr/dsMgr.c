@@ -403,8 +403,8 @@ static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data,
 					{
 						INT_ERROR("Changed status to HDCP Authentication Fail   !!!!!!!! ..\r\n");
 						HDCPeventData.data.systemStates.state =  0;
-                                                setBGColor(dsVIDEO_BGCOLOR_BLUE);
-                                                bHDCPAuthenticated = false;
+						
+						bHDCPAuthenticated = false;
 						if (!IsIgnoreEdid_gs) {
                                                     _SetVideoPortResolution();
 						}
