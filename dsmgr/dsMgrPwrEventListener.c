@@ -638,7 +638,7 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
     while (true)
     {
         pthread_mutex_lock(&tdsPwrEventMutexLock);
-        INT_DEBUG("dsMgrPwrEventHandlingThreadFunc... Wait for Events from Power manager Controller Callback\r\n");
+        INT_DEBUG("dsMgrPwrEventHandlingThreadFunc.... Wait for Events from Power manager Controller Callback\r\n");
         pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
         if(m_dsMgrPwrStopThread)
         {
