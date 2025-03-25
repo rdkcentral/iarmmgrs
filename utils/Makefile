@@ -24,7 +24,7 @@ LDFLAGS     += -shared
 LIBRARY_NAME = libiarmUtils.so
 
 INCLUDE     =	-I.\
-
+		-I$(IARM_PATH)/core/include
 
 
 ifeq ($(RDK_LOGGER_ENABLED),y)
