@@ -162,6 +162,9 @@ IARM_Result_t DSMgr_Start()
 	IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
 
         /*Refactored dsMGR code*/
+       PowerController_Init();
+       dsMgrInitPwrControllerEvt();
+       /* Power controller connect is checked inside initPwrEventListner*/
         initPwrEventListner();   
 	/* Create  Thread for listening Hot Plug events */
 	pthread_mutex_init (&tdsMutexLock, NULL);
@@ -234,7 +237,8 @@ IARM_Result_t DSMgr_Stop()
     { 
         g_main_loop_quit(dsMgr_Gloop);
     }
-    
+    dsMgrDeinitPwrControllerEvt();
+    PowerController_Term();
     IARM_Bus_Disconnect();
     IARM_Bus_Term();
 	pthread_mutex_destroy (&tdsMutexLock);
