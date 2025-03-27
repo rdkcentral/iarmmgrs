@@ -32,7 +32,7 @@
 
 using namespace dsMgrProductTraits;
 extern bool isTVOperatingInFactory();
-extern int _SetAVPortsPowerState(PWRMgr_PowerState_t powerState);
+extern int _SetAVPortsPowerState(PowerController_PowerState_t powerState);
 extern IARM_Result_t _dsSetFPState(void *arg);
 
 /*
@@ -218,7 +218,7 @@ void ux_controller::initialize_safe_defaults()
     }
 }
 
-void ux_controller::sync_power_led_with_power_state(PWRMgr_PowerState_t power_state) const
+void ux_controller::sync_power_led_with_power_state(PowerController_PowerState_t power_state) const
 {
     if (true == enableMultiColourLedSupport)
     {
@@ -226,7 +226,7 @@ void ux_controller::sync_power_led_with_power_state(PWRMgr_PowerState_t power_st
     }
 
     bool led_state;
-    if (PWRMGR_POWERSTATE_ON == power_state)
+    if (POWER_STATE_ON == power_state)
         led_state = ledEnabledInOnState;
     else
         led_state = ledEnabledInStandby;
@@ -245,7 +245,7 @@ void ux_controller::sync_power_led_with_power_state(PWRMgr_PowerState_t power_st
     }
 }
 
-void ux_controller::sync_display_ports_with_power_state(PWRMgr_PowerState_t power_state) const
+void ux_controller::sync_display_ports_with_power_state(PowerController_PowerState_t power_state) const
 {
     INT_INFO("sync_display_ports_with_power_state: %d  ",power_state);
     _SetAVPortsPowerState(power_state);
@@ -295,39 +295,39 @@ ux_controller_tv_eu::ux_controller_tv_eu(unsigned int in_id, const std::string &
     preferedPowerModeOnReboot = POWER_MODE_LIGHT_SLEEP;
 }
 
-bool ux_controller_tv_eu::applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state)
+bool ux_controller_tv_eu::applyPowerStateChangeConfig(PowerController_PowerState_t new_state, PowerController_PowerState_t prev_state)
 {
     bool ret = true;
     sync_display_ports_with_power_state(new_state);
-    ret = set_bootloader_pattern((PWRMGR_POWERSTATE_ON == new_state ? mfrBL_PATTERN_NORMAL : mfrBL_PATTERN_SILENT_LED_ON));
+    ret = set_bootloader_pattern((POWER_STATE_ON == new_state ? mfrBL_PATTERN_NORMAL : mfrBL_PATTERN_SILENT_LED_ON));
     return ret;
 }
 
-bool ux_controller_tv_eu::applyPreRebootConfig(PWRMgr_PowerState_t current_state) const
+bool ux_controller_tv_eu::applyPreRebootConfig(PowerController_PowerState_t current_state) const
 {
     return true;
 }
-bool ux_controller_tv_eu::applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state)
+bool ux_controller_tv_eu::applyPreMaintenanceRebootConfig(PowerController_PowerState_t current_state)
 {
     bool ret = true;
-    if (PWRMGR_POWERSTATE_ON != current_state) // Silent reboot only applies if maintenance reboot is triggered while TV is in one of the standby states.
+    if (POWER_STATE_ON != current_state) // Silent reboot only applies if maintenance reboot is triggered while TV is in one of the standby states.
     {
         ret = set_bootloader_pattern(mfrBL_PATTERN_SILENT);
     }
     return ret;
 }
 
-bool ux_controller_tv_eu::applyPostRebootConfig(PWRMgr_PowerState_t target_state, PWRMgr_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
+bool ux_controller_tv_eu::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
     /* Note: the product requires a special LED pattern that's set by bootloader/kernel as it boots. Since power manager
        doesn't support any fancy patterns yet, skip setting the LED configuration here so that we retain the boot pattern
        until app takes over. */
-    if ((PWRMGR_POWERSTATE_ON == last_known_state) && (PWRMGR_POWERSTATE_STANDBY == target_state))
+    if ((POWER_STATE_ON == last_known_state) && (POWER_STATE_STANDBY == target_state))
     {
         /* Special handling. Although the new power state is standby, leave display enabled. App will transition TV to ON state immediately afterwards anyway,
            and if we turn off the display to match standby state here, it'll confuse the user into thinking that TV has gone into standby for good. */
-        sync_display_ports_with_power_state(PWRMGR_POWERSTATE_ON);
+        sync_display_ports_with_power_state(POWER_STATE_ON);
     }
     else
     {
@@ -341,13 +341,13 @@ bool ux_controller_tv_eu::applyPostRebootConfig(PWRMgr_PowerState_t target_state
     mfrBlPattern_t pattern = mfrBL_PATTERN_NORMAL;
     switch (target_state)
     {
-    case PWRMGR_POWERSTATE_ON:
+    case POWER_STATE_ON:
         //Do nothing. Pattern is already set to normal.
         break;
 
-    case PWRMGR_POWERSTATE_STANDBY:             //deliberate fall-through
-    case PWRMGR_POWERSTATE_STANDBY_LIGHT_SLEEP: //deliberate fall-through
-    case PWRMGR_POWERSTATE_STANDBY_DEEP_SLEEP:
+    case POWER_STATE_STANDBY:             //deliberate fall-through
+    case POWER_STATE_STANDBY_LIGHT_SLEEP: //deliberate fall-through
+    case POWER_STATE_STANDBY_DEEP_SLEEP:
         pattern = mfrBL_PATTERN_SILENT_LED_ON;
         break;
     default:
@@ -358,9 +358,9 @@ bool ux_controller_tv_eu::applyPostRebootConfig(PWRMgr_PowerState_t target_state
     return ret;
 }
 
-PWRMgr_PowerState_t ux_controller_tv_eu::getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const
+PowerController_PowerState_t ux_controller_tv_eu::getPreferredPostRebootPowerState(PowerController_PowerState_t prev_state) const
 {
-    return PWRMGR_POWERSTATE_STANDBY;
+    return POWER_STATE_STANDBY;
 }
 
 /********************************* End ux_controller_tv_eu class definitions ********************************/
@@ -373,39 +373,43 @@ ux_controller_stb_eu::ux_controller_stb_eu(unsigned int in_id, const std::string
     preferedPowerModeOnReboot = POWER_MODE_LIGHT_SLEEP;
 }
 
-bool ux_controller_stb_eu::applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state)
+bool ux_controller_stb_eu::applyPowerStateChangeConfig(PowerController_PowerState_t new_state, PowerController_PowerState_t prev_state)
 {
     sync_display_ports_with_power_state(new_state);
     sync_power_led_with_power_state(new_state);
     return true;
 }
 
-bool ux_controller_stb_eu::applyPreRebootConfig(PWRMgr_PowerState_t current_state) const
+bool ux_controller_stb_eu::applyPreRebootConfig(PowerController_PowerState_t current_state) const
 {
     return true; //No-op
 }
-bool ux_controller_stb_eu::applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state)
+bool ux_controller_stb_eu::applyPreMaintenanceRebootConfig(PowerController_PowerState_t current_state)
 {
     bool ret = true;
-    if (PWRMGR_POWERSTATE_ON != current_state) // Silent reboot only applies if maintenance reboot is triggered while STB is in one of the standby states.
+    if (POWER_STATE_ON != current_state) // Silent reboot only applies if maintenance reboot is triggered while STB is in one of the standby states.
     {
         ret = set_bootloader_pattern(mfrBL_PATTERN_SILENT);
     }
     return ret;
 }
 
-bool ux_controller_stb_eu::applyPostRebootConfig(PWRMgr_PowerState_t target_state, PWRMgr_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
+bool ux_controller_stb_eu::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
-    if ((PWRMGR_POWERSTATE_ON == last_known_state) && (PWRMGR_POWERSTATE_STANDBY == target_state))
+    if ((POWER_STATE_ON == last_known_state) && (POWER_STATE_STANDBY == target_state))
     {
         //Special handling. Although the new power state is standby, leave display and LED enabled.
-        sync_power_led_with_power_state(PWRMGR_POWERSTATE_ON);
-        sync_display_ports_with_power_state(PWRMGR_POWERSTATE_ON);
+#ifndef DISABLE_LED_SYNC_IN_BOOTUP
+        sync_power_led_with_power_state(POWER_STATE_ON);
+#endif
+        sync_display_ports_with_power_state(POWER_STATE_ON);
     }
     else
     {
+#ifndef DISABLE_LED_SYNC_IN_BOOTUP
         sync_power_led_with_power_state(target_state);
+#endif
         sync_display_ports_with_power_state(target_state);
     }
 
@@ -414,9 +418,9 @@ bool ux_controller_stb_eu::applyPostRebootConfig(PWRMgr_PowerState_t target_stat
     return ret;
 }
 
-PWRMgr_PowerState_t ux_controller_stb_eu::getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const
+PowerController_PowerState_t ux_controller_stb_eu::getPreferredPostRebootPowerState(PowerController_PowerState_t prev_state) const
 {
-    return PWRMGR_POWERSTATE_STANDBY;
+    return POWER_STATE_STANDBY;
 }
 /********************************* End ux_controller_stb_eu class definitions ********************************/
 
@@ -428,7 +432,7 @@ ux_controller_tv::ux_controller_tv(unsigned int in_id, const std::string &in_nam
     preferedPowerModeOnReboot = POWER_MODE_LIGHT_SLEEP;
 }
 
-bool ux_controller_tv::applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state)
+bool ux_controller_tv::applyPowerStateChangeConfig(PowerController_PowerState_t new_state, PowerController_PowerState_t prev_state)
 {
     mutex.lock();
     if(false == firstPowerTransitionComplete)
@@ -437,30 +441,30 @@ bool ux_controller_tv::applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state
     mutex.unlock();
 
     sync_display_ports_with_power_state(new_state);
-    bool ret = set_bootloader_pattern((PWRMGR_POWERSTATE_ON == new_state ? mfrBL_PATTERN_NORMAL : mfrBL_PATTERN_SILENT_LED_ON));
+    bool ret = set_bootloader_pattern((POWER_STATE_ON == new_state ? mfrBL_PATTERN_NORMAL : mfrBL_PATTERN_SILENT_LED_ON));
     return ret;
 }
 
-bool ux_controller_tv::applyPreRebootConfig(PWRMgr_PowerState_t current_state) const
+bool ux_controller_tv::applyPreRebootConfig(PowerController_PowerState_t current_state) const
 {
     return true;
 }
-bool ux_controller_tv::applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state)
+bool ux_controller_tv::applyPreMaintenanceRebootConfig(PowerController_PowerState_t current_state)
 {
     bool ret = true;
-    if (PWRMGR_POWERSTATE_ON != current_state) // Silent reboot only applies if maintenance reboot is triggered while TV is in one of the standby states.
+    if (POWER_STATE_ON != current_state) // Silent reboot only applies if maintenance reboot is triggered while TV is in one of the standby states.
     {
         ret = set_bootloader_pattern(mfrBL_PATTERN_SILENT_LED_ON);
     }
     return ret;
 }
 
-bool ux_controller_tv::applyPostRebootConfig(PWRMgr_PowerState_t target_state, PWRMgr_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
+bool ux_controller_tv::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
     sync_power_led_with_power_state(target_state);
 
-    if ((PWRMGR_POWERSTATE_ON == last_known_state) && (PWRMGR_POWERSTATE_STANDBY == target_state))
+    if ((POWER_STATE_ON == last_known_state) && (POWER_STATE_STANDBY == target_state))
     {
         /* Special handling:
            Although the new power state is standby, leave display enabled. If last known power state is ON, app will transition TV to ON state
@@ -475,18 +479,18 @@ bool ux_controller_tv::applyPostRebootConfig(PWRMgr_PowerState_t target_state, P
            after a hard reboot. Use isTVOperatingInFactory() and doForceDisplayOnPostReboot() to detect those scenarios and act accordingly.
            */
         if(true == doForceDisplayOnPostReboot() || (true == isTVOperatingInFactory()))
-            sync_display_ports_with_power_state(PWRMGR_POWERSTATE_ON);
+            sync_display_ports_with_power_state(POWER_STATE_ON);
         else
         {
             reboot_type_t isHardReboot = getRebootType();
             switch (isHardReboot)
             {
             case reboot_type_t::HARD:
-                sync_display_ports_with_power_state(PWRMGR_POWERSTATE_STANDBY);
+                sync_display_ports_with_power_state(POWER_STATE_STANDBY);
                 break;
 
             case reboot_type_t::SOFT:
-                sync_display_ports_with_power_state(PWRMGR_POWERSTATE_ON);
+                sync_display_ports_with_power_state(POWER_STATE_ON);
                 break;
 
             default: //Unavailable. Take no action now, but keep checking every N seconds.
@@ -507,13 +511,13 @@ bool ux_controller_tv::applyPostRebootConfig(PWRMgr_PowerState_t target_state, P
     mfrBlPattern_t pattern = mfrBL_PATTERN_NORMAL;
     switch (target_state)
     {
-    case PWRMGR_POWERSTATE_ON:
+    case POWER_STATE_ON:
         //Do nothing. Pattern is already set to normal.
         break;
 
-    case PWRMGR_POWERSTATE_STANDBY:             //deliberate fall-through
-    case PWRMGR_POWERSTATE_STANDBY_LIGHT_SLEEP: //deliberate fall-through
-    case PWRMGR_POWERSTATE_STANDBY_DEEP_SLEEP:
+    case POWER_STATE_STANDBY:             //deliberate fall-through
+    case POWER_STATE_STANDBY_LIGHT_SLEEP: //deliberate fall-through
+    case POWER_STATE_STANDBY_DEEP_SLEEP:
         pattern = mfrBL_PATTERN_SILENT_LED_ON;
         break;
     default:
@@ -524,9 +528,9 @@ bool ux_controller_tv::applyPostRebootConfig(PWRMgr_PowerState_t target_state, P
     return ret;
 }
 
-PWRMgr_PowerState_t ux_controller_tv::getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const
+PowerController_PowerState_t ux_controller_tv::getPreferredPostRebootPowerState(PowerController_PowerState_t prev_state) const
 {
-    return PWRMGR_POWERSTATE_STANDBY;
+    return POWER_STATE_STANDBY;
 }
 
 void ux_controller_tv::sync_display_ports_with_reboot_reason(reboot_type_t reboot_type)
@@ -536,7 +540,7 @@ void ux_controller_tv::sync_display_ports_with_reboot_reason(reboot_type_t reboo
     if(false == firstPowerTransitionComplete)
     {
         mutex.unlock();
-        sync_display_ports_with_power_state(reboot_type_t::HARD == reboot_type? PWRMGR_POWERSTATE_STANDBY : PWRMGR_POWERSTATE_ON);
+        sync_display_ports_with_power_state(reboot_type_t::HARD == reboot_type? POWER_STATE_STANDBY : POWER_STATE_ON);
     }
     else // Do nothing, as we're already past the first power transition and display configuration has already been set as appropriate.
         mutex.unlock();
@@ -552,24 +556,24 @@ ux_controller_stb::ux_controller_stb(unsigned int in_id, const std::string &in_n
     enableSilentRebootSupport = false;
 }
 
-bool ux_controller_stb::applyPowerStateChangeConfig(PWRMgr_PowerState_t new_state, PWRMgr_PowerState_t prev_state)
+bool ux_controller_stb::applyPowerStateChangeConfig(PowerController_PowerState_t new_state, PowerController_PowerState_t prev_state)
 {
     sync_display_ports_with_power_state(new_state);
     sync_power_led_with_power_state(new_state);
     return true;
 }
 
-bool ux_controller_stb::applyPreRebootConfig(PWRMgr_PowerState_t current_state) const
+bool ux_controller_stb::applyPreRebootConfig(PowerController_PowerState_t current_state) const
 {
     return true; //No-op
 }
-bool ux_controller_stb::applyPreMaintenanceRebootConfig(PWRMgr_PowerState_t current_state)
+bool ux_controller_stb::applyPreMaintenanceRebootConfig(PowerController_PowerState_t current_state)
 {
     bool ret = true;
     return ret;
 }
 
-bool ux_controller_stb::applyPostRebootConfig(PWRMgr_PowerState_t target_state, PWRMgr_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
+bool ux_controller_stb::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
     sync_power_led_with_power_state(target_state);
@@ -577,7 +581,7 @@ bool ux_controller_stb::applyPostRebootConfig(PWRMgr_PowerState_t target_state, 
     return ret;
 }
 
-PWRMgr_PowerState_t ux_controller_stb::getPreferredPostRebootPowerState(PWRMgr_PowerState_t prev_state) const
+PowerController_PowerState_t ux_controller_stb::getPreferredPostRebootPowerState(PowerController_PowerState_t prev_state) const
 {
     return prev_state;
 }
