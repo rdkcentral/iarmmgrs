@@ -352,6 +352,7 @@ typedef struct _IARM_Bus_SYSMgr_GetSystemStates_Param_t {
   state_property bootup;
   state_property dst_offset;
   state_property rf_connected;
+  state_property partnerid_changed;
   state_property ip_mode;  
   state_property qam_ready_status;
   state_property firmware_update_state;

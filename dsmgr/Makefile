@@ -26,10 +26,12 @@ EXECUTABLE  =   dsMgrMain
 INCLUDE     =   -I. \
                 -I$(IARM_PATH)/core/   \
                 -I$(IARM_PATH)/core/include \
-				-I$(IARM_MGRS)/generic/sysmgr/include \
+				-I$(IARM_MGRS)/sysmgr/include \
+				-I$(IARM_MGRS)/utils \
                 -I$(DS_PATH)/rpc/include \
 				-I$(DS_PATH)/hal/include \
 		        -I$(DS_PATH)/ds/include \
+				-I$(UTILS_PATH)/ \
 				-I$(DS_PATH)/hal/src \
 				-I$(GLIB_HEADER_PATH)/ \
 				-I$(GLIB_HEADER_PATH)/glib/ \
@@ -57,7 +59,11 @@ CFLAGS += $(_INIT_RESN_SETTINGS)
 
 LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
-LDFLAGS += -L$(INSTALL)/lib -ldshalcli -lds       
+LDFLAGS += -L$(INSTALL)/lib -ldshalcli -lds -L$(UTILS_PATH)/ -liarmUtils 
+
+ifeq ($(PLATFORM_SOC),L2HalMock)
+export LDFLAGS += -L$(DS_PATH)/install/lib -L$(IARM_PATH)/install -L$(UTILS_PATH)/ -liarmUtils -ldshalsrv -lds-hal -lds -ldshalcli -lIARMBus -lglib-2.0 -lsafec-3.5
+endif
 
 INTEL_SHLIBS=   \
                                 -lismd_core \
@@ -75,7 +81,7 @@ all:clean executable
 	@echo "Build Finished...."
 
 executable: $(OBJS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $(EXECUTABLE)
+	$(CXX) $(CFLAGS) $(OBJS) -o $(EXECUTABLE) $(LDFLAGS)
 
 %.o: %.c
 	@echo "Building $@ ...."
