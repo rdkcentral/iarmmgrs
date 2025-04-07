@@ -60,13 +60,18 @@ LDFLAGS+=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS+=-L$(SDK_FSROOT)/lib -L$(SDK_FSROOT)/usr/lib -L$(SDK_FSROOT)/usr/local/lib/  -L$(CROSS_TOOLCHAIN)/lib
 ISMD_LIBS=-L$(TOOLCHAIN_DIR)/lib -lismd_audio
 GDL_LIBS=-L$(TOOLCHAIN_DIR)/lib -lgdl
+ifneq ($(PLATFORM_SOC),L2HalMock)
 LDFLAGS += -lIARMBus -lrt -L$(DS_PATH)/install/lib -lnspr4 -losal -lrt -lMAF_StackAdapter -lMAF_InputHandler -lMAF_ConfigMgmt -lMAF_DbusAdapter -lpace_spi_drv -lparker_fpd_library -ldshalcli -lds
 LDFLAGS += $(ISMD_LIBS)
 LDFLAGS += $(GDL_LIBS)
+endif
 
 LDFLAGS += -L$(DS_PATH)/install/lib -lds -ldshalcli -L$(UTILS_PATH)/ -liarmUtils
 LDFLAGS += -L$(IARM_MGRS)/install/lib -lPwrMgr
 
+ifeq ($(PLATFORM_SOC),L2HalMock)
+LDFLAGS+=-L$(DS_PATH)/install/lib -L$(IARM_PATH)/install -lIARMBus -lglib-2.0 -lsafec-3.5
+endif
 
 all:clean objs executable
 	@echo "Build Finished...."
@@ -82,7 +87,7 @@ objs: $(OBJS)
 	$(CXX) -c $<  $(CFLAGS) -o $@
 
 executable: $(OBJS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $(EXECUTABLE)
+	$(CXX) $(CFLAGS) $(OBJS) -o $(EXECUTABLE) $(LDFLAGS)
 
 clean:
 	@echo "Cleaning the directory..."
