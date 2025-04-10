@@ -282,6 +282,7 @@ static IARM_Result_t _GetHDCPProfile(void *arg)
 
 static IARM_Result_t _GetSystemStates(void *arg)
 {
+#if 0
     __TIMESTAMP();LOG("_GetSystemStates In\r\n");
 #ifdef USE_MFR_FOR_SERIAL
     GetSerialNumber();
@@ -314,6 +315,7 @@ static IARM_Result_t _GetSystemStates(void *arg)
     __TIMESTAMP();LOG("_GetSystemStates param filled\r\n");
     pthread_mutex_unlock(&tMutexLock);
     __TIMESTAMP();LOG("_GetSystemStates Out\r\n");
+#endif
     return IARM_RESULT_SUCCESS;
 }
 
@@ -410,10 +412,6 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				systemStates.firmware_update_state.error = error;
 				break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_TIME_SOURCE :
-				__TIMESTAMP();LOG("_sysEventHandler SYSSTATE_TIME_SOURCE In\r\n");
-				systemStates.time_source.state = state;
-				systemStates.time_source.error = error;
-				__TIMESTAMP();LOG("_sysEventHandler SYSSTATE_TIME_SOURCE out\r\n");
 				break;
 				/*
 					payload contains any of the string below for various time zones
