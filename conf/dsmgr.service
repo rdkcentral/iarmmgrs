@@ -24,7 +24,7 @@ OnFailure=reboot-notifier@%i.service
 [Service]
 Type=notify
 ExecStartPre=/bin/mkdir -p /opt/persistent/ds
-ExecStart=/usr/bin/dsMgrMain
+ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
 
 [Install]
 WantedBy=multi-user.target
