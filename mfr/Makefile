@@ -67,7 +67,7 @@ library: mfrMgr.o
 
 executable: mfrMgrMain.o mfrMgr.o
 	@echo "Building $(EXECUTABLE) ...."
-	$(CC) $(CFLAGS) $(LDFLAGS) $(MFR_LDFLAGS) mfrMgr.o mfrMgrMain.o -o $(EXECUTABLE)
+	$(CC) $(CFLAGS) $(LDFLAGS) mfrMgr.o mfrMgrMain.o -o $(EXECUTABLE)
 
 %.o: %.c
 	@echo "Building $@ ...."
