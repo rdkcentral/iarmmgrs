@@ -27,15 +27,17 @@ exe_pwrstate        := pwrstate/
 exe_sysmgr          := sysmgr/
 exe_mfr             := mfr/
 exe_ds              := dsmgr/
-exe_tr69Bus         := tr69Bus/
 exe_test            := test
 exe_mfr_test        := mfr/test_mfr
 exe_utils	    := utils
+ifneq ($(STANDALONE_BUILD_ENABLED),y)
+exe_tr69Bus         := tr69Bus/
 ifneq ($(PLATFORM_SOC),L2HalMock)
 exe_platform_ir     := ../soc/${PLATFORM_SOC}/ir
 exe_platform_power  := ../soc/${PLATFORM_SOC}/power
 exe_platform_pwrstate  := ../soc/${PLATFORM_SOC}/pwrstate
 exe_platform_fp     := ../soc/${PLATFORM_SOC}/fp
+endif
 endif
 
 ifneq ($(MFR_MGR_SUPPORT),nomfrmgr)
@@ -66,7 +68,9 @@ install:
 	cp $(exe_ds)/*Main $(install_dir)
 ifneq ($(PLATFORM_SOC),L2HalMock)
 	cp $(exe_pwrstate)/pwrstate_notifier $(install_dir)
+ifneq ($(STANDALONE_BUILD_ENABLED),y)
 	cp $(exe_tr69Bus)/*Main $(install_dir)
+endif
 endif
 
 clean:
