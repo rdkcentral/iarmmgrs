@@ -4,7 +4,7 @@ on:
   push:
     branches: [ main, 'sprint/**', 'release/**', develop ]
   pull_request:
-    branches: [ main, 'sprint/**', 'release/**', topic/RDK*, feature/RDK*, develop ]
+    branches: [ main, 'sprint/**', 'release/**', topic/*, feature/RDK*, develop ]
 
 jobs:
   build-entservices-on-pr:
