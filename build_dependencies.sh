@@ -1,4 +1,6 @@
 #!/bin/bash
+set -e
+set -x
 
 WORKDIR=`pwd`
 export ROOT=/usr
@@ -14,6 +16,28 @@ export RANLIB=ranlib
 export STRIP=strip
 
 apt-get update && apt-get install -y libsoup-3.0 libcjson-dev libdbus-1-dev
+
+mkdir -p /usr/local/include/wdmp-c
+cp $WORKDIR/stubs/wdmp-c.h /usr/local/include/wdmp-c/
+
+cd $ROOT
+rm -rf rdk_logger
+git clone https://github.com/rdkcentral/rdk_logger.git
+export RDKLOGGER_PATH=$ROOT/rdk_logger
+cd rdk_logger
+
+#build log4c
+wget --no-check-certificate https://sourceforge.net/projects/log4c/files/log4c/1.2.4/log4c-1.2.4.tar.gz/download -O log4c-1.2.4.tar.gz
+tar -xvf log4c-1.2.4.tar.gz
+cd log4c-1.2.4
+./configure
+make clean && make && make install
+
+cd ${RDKLOGGER_PATH}
+export PKG_CONFIG_PATH=${INSTALL_DIR}/rdk_logger/log4c-1.2.4:$PKG_CONFIG_PATH
+autoreconf -i
+./configure
+make clean && make && make install
 
 #Build rfc
 cd $ROOT
@@ -37,25 +61,6 @@ cd $ROOT
 rm -rf iarmmgrs
 git clone https://github.com/rdkcentral/iarmmgrs.git
 export IARMMGRS_PATH=$ROOT/iarmmgrs
-
-cd $ROOT
-rm -rf rdk_logger
-git clone https://github.com/rdkcentral/rdk_logger.git
-export RDKLOGGER_PATH=$ROOT/rdk_logger
-cd rdk_logger
-
-#build log4c
-wget --no-check-certificate https://sourceforge.net/projects/log4c/files/log4c/1.2.4/log4c-1.2.4.tar.gz/download -O log4c-1.2.4.tar.gz
-tar -xvf log4c-1.2.4.tar.gz
-cd log4c-1.2.4
-./configure
-make clean && make && make install
-
-cd ${RDKLOGGER_PATH}
-export PKG_CONFIG_PATH=${INSTALL_DIR}/rdk_logger/log4c-1.2.4:$PKG_CONFIG_PATH
-autoreconf -i
-./configure
-make clean && make && make install
 
 cd $ROOT
 rm -rf telemetry
@@ -86,5 +91,3 @@ cd $ROOT
 rm -rf rdkvhal-devicesettings-raspberrypi4
 git clone https://github.com/rdkcentral/rdkvhal-devicesettings-raspberrypi4.git
 export DS_HAL_PATH=$ROOT/rdkvhal-devicesettings-raspberrypi4
-
-
