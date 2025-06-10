@@ -66,7 +66,7 @@ objs: $(OBJS)
 	$(CXX) -c $<  $(CFLAGS) -o $@
 
 executable: $(OBJS)
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $(EXECUTABLE)
+	$(CXX) $(CFLAGS) $(OBJS) -o $(EXECUTABLE) $(LDFLAGS)
 
 clean:
 	@echo "Cleaning the directory..."
