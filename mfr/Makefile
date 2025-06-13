@@ -47,8 +47,10 @@ endif
 
 CFLAGS      += $(INCLUDE) 
 
-
+ifneq ($(STANDALONE_BUILD_ENABLED),y)
 CROSS_COMPILE=mipsel-linux-
+endif
+
 CC=$(CROSS_COMPILE)gcc
 CXX=$(CROSS_COMPILE)g++
 
@@ -67,7 +69,7 @@ library: mfrMgr.o
 
 executable: mfrMgrMain.o mfrMgr.o
 	@echo "Building $(EXECUTABLE) ...."
-	$(CC) $(CFLAGS) $(LDFLAGS) $(MFR_LDFLAGS) mfrMgr.o mfrMgrMain.o -o $(EXECUTABLE)
+	$(CC) $(CFLAGS) mfrMgr.o mfrMgrMain.o -o $(EXECUTABLE) $(LDFLAGS)
 
 %.o: %.c
 	@echo "Building $@ ...."
