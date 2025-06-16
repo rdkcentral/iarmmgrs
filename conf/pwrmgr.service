@@ -21,7 +21,7 @@ Description=IARM Mgr Daemon Power MGR (pwrmgr)
 After=lighttpd.service iarmbusd.service mfrmgr.service
 
 [Service]
-ExecStart=/usr/bin/sleep infinity
+ExecStart=/bin/sleep infinity
 Restart=always
 
 [Install]
