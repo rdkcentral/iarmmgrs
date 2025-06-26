@@ -128,6 +128,7 @@ int main(int argc, char *argv[])
 #endif
     DSMgr_Start();
     #ifdef ENABLE_SD_NOTIFY
+           LOG_INFO("[%s][%d] DsMgr is Successfully Initialized", __FUNCTION__, __LINE__);
            sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
               "MAINPID=%lu", (unsigned long) getpid());
