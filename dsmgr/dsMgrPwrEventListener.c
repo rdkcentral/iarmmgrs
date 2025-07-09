@@ -382,9 +382,12 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                 int numPorts, i = 0;
 
                 numPorts = dsUTL_DIM(kSupportedPortTypes);
+                printf("\nPWRDEBUG: No of Audio Ports Supported %d \r\n", numPorts);
                 for (i = 0; i < numPorts; i++)
                 {
+                    printf("\nPWRDEBUG: Audio Port Type %d \r\n", kSupportedPortTypes[i]);
                     const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
+                    printf("\nPWRDEBUG: Audio Port Type %d \r\n", *audioPort);
                     memset(&getHandle, 0, sizeof(getHandle));
                     getHandle.type = *audioPort;
                     getHandle.index = 0;
