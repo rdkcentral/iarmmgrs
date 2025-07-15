@@ -133,7 +133,7 @@ static intptr_t getVideoPortHandle(_dsVideoPortType_t port)
             cap = 10; // exit the loop
         }
 
-    } while (ret != IARM_RESULT_SUCCESS && cap < 10);
+    } while (cap < 10);
     return vidPortParam.handle;
 }
 
