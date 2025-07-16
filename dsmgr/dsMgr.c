@@ -113,11 +113,11 @@ static intptr_t getVideoPortHandle(_dsVideoPortType_t port)
     /* Get the HDMI Video Port Parameter */
     dsVideoPortGetHandleParam_t vidPortParam;
     memset(&vidPortParam, 0, sizeof(vidPortParam));
+    vidPortParam.type = port;
+    vidPortParam.index = 0;
+    vidPortParam.handle = NULL;
     int cap = 0;
     do{
-        vidPortParam.type = port;
-        vidPortParam.index = 0;
-        vidPortParam.handle = NULL;
         int ret = 0;
         ret = IARM_Bus_Call(IARM_BUS_DSMGR_NAME,
 	    	(char *)IARM_BUS_DSMGR_API_dsGetVideoPort,
@@ -126,8 +126,9 @@ static intptr_t getVideoPortHandle(_dsVideoPortType_t port)
 
         if (ret != IARM_RESULT_SUCCESS) {
             INT_ERROR("Failed to get Video Port Handle for port %d, ret = %d\n", port, ret);
+            INT_ERROR("Retrying to get Video Port Handle for port %d, attempt %d\n", port, cap + 1);
             cap++;
-            usleep(50000); // Sleep for 50ms before retrying
+            usleep(100000); // Sleep for 100ms before retrying
         }
         else{
             INT_INFO("Got Video Port Handle for port %d, handle = %p\n", port, vidPortParam.handle);
