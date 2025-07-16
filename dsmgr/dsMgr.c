@@ -127,6 +127,7 @@ static intptr_t getVideoPortHandle(_dsVideoPortType_t port)
         if (ret != IARM_RESULT_SUCCESS) {
             INT_ERROR("Failed to get Video Port Handle for port %d, ret = %d\n", port, ret);
             cap++;
+            usleep(50000); // Sleep for 50ms before retrying
         }
         else{
             INT_INFO("Got Video Port Handle for port %d, handle = %p\n", port, vidPortParam.handle);
