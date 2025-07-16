@@ -36,6 +36,7 @@ extern "C" {
 #include <sys/types.h>
 #include <unistd.h>
 #include "libIBus.h"
+#include <stdlib.h>
 #ifdef __cplusplus 
 }
 #endif
