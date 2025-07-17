@@ -36,7 +36,6 @@ extern "C" {
 #include <sys/types.h>
 #include <unistd.h>
 #include "libIBus.h"
-#include <stdlib.h>
 #ifdef __cplusplus 
 }
 #endif
@@ -128,8 +127,6 @@ int main(int argc, char *argv[])
 
 #endif
     DSMgr_Start();
-
-    usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
