@@ -129,25 +129,8 @@ int main(int argc, char *argv[])
 #endif
     DSMgr_Start();
 
-    FILE *sleepCheck = NULL;
-    sleepCheck = fopen("/opt/dsmgrSleep","r");
-	if (NULL != sleepCheck)
-    {
-        char sleepBuf[32] = {0};
-        if (fgets(sleepBuf, sizeof(sleepBuf), sleepCheck) != NULL) {
-            int sleepSeconds = atoi(sleepBuf);
-            if (sleepSeconds > 0) {
-                INT_INFO("Sleeping for %d seconds as per /opt/dsmgrSleep", sleepSeconds);
-                usleep(sleepSeconds);
-            }
-        }
-                fclose (sleepCheck);
-	}
-    else{
-        INT_INFO("No /opt/dsmgrSleep file found, not sleeping");
-    }
+    usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
-           INT_INFO("[%s][%d] DsMgr is Successfully Initialized", __FUNCTION__, __LINE__);
            sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
               "MAINPID=%lu", (unsigned long) getpid());
