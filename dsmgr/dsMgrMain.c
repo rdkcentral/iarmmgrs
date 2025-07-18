@@ -128,8 +128,8 @@ int main(int argc, char *argv[])
 
 #endif
     DSMgr_Start();
-    INT_INFO("Sleeping for 10 milliseconds to allow d-bus to initialize\n");
-    usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
+    INT_INFO("Sleeping for 35 milliseconds to allow d-bus to initialize\n");
+    usleep(35000); // Sleep for 35 milliseconds to allow the d-bus to initialize
     INT_INFO("Sleep completed, proceeding with DSMgr initialization\n");
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
