@@ -128,8 +128,22 @@ int main(int argc, char *argv[])
 
 #endif
     DSMgr_Start();
-    INT_INFO("Sleeping for 35 milliseconds to allow d-bus to initialize\n");
-    usleep(35000); // Sleep for 35 milliseconds to allow the d-bus to initialize
+     // Variable sleep if /opt/dsmgrSleep exists
+    FILE *sleepCheck = fopen("/opt/dsmgrSleep", "r");
+    if (sleepCheck != NULL) {
+        char sleepBuf[32] = {0};
+        if (fgets(sleepBuf, sizeof(sleepBuf), sleepCheck) != NULL) {
+            int sleepMicros = atoi(sleepBuf);
+            if (sleepMicros > 0) {
+                INT_INFO("Sleeping for %d microseconds as per /opt/dsmgrSleep\n", sleepMicros);
+                usleep(sleepMicros);
+            }
+        }
+        fclose(sleepCheck);
+    }
+    else{
+        INT_INFO("No /opt/dsmgrSleep file found, sleeping for default 35 milliseconds\n");
+    }
     INT_INFO("Sleep completed, proceeding with DSMgr initialization\n");
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
