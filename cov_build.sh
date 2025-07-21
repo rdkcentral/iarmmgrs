@@ -21,6 +21,7 @@ export RDKLOGGER_PATH=$ROOT/rdk_logger
 export TELEMETRY_PATH=$ROOT/telemetry
 export DS_PATH=$ROOT/devicesettings
 export DS_IF_PATH=$ROOT/rdk-halif-device_settings
+export POWER_IF_PATH=$ROOT/rdk-halif-power_manager
 export DEEPSLEEP_IF_PATH=$ROOT/rdk-halif-deepsleep_manager
 export DS_HAL_PATH=$ROOT/rdkvhal-devicesettings-raspberrypi4
 
@@ -29,7 +30,7 @@ echo "Building IARMBus stubs"
 cd $WORKDIR
 cd ./stubs
 g++ -fPIC -shared -o libIARMBus.so iarm_stubs.cpp -I$WORKDIR/stubs -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I$IARMBUS_PATH/core -I$IARMBUS_PATH/core/include -fpermissive
-g++ -fPIC -shared -o libWPEFrameworkPowerController.so powerctrl_stubs.cpp  -I$WORKDIR/stubs -fpermissive
+g++ -fPIC -shared -o libWPEFrameworkPowerController.so powerctrl_stubs.cpp  -I$WORKDIR/stubs -I${POWER_IF_PATH}/include -fpermissive
 
 gcc -fPIC -shared -o libdshal.so dshal_stubs.c -I${DS_IF_PATH}/include -I$WORKDIR/mfr/include
 g++ -fPIC -shared -o libdshalsrv.so dshalsrv_stubs.c -I${DS_IF_PATH}/include -I${IARMBUS_PATH}/core/include -I${DS_PATH}/rpc/include
@@ -70,4 +71,4 @@ find $WORKDIR -iname "*.so*" -exec rm -v {} \;
 make -C $UTILS_PATH CFLAGS="-I${IARMBUS_PATH}/core/include/"
 cp $UTILS_PATH/libiarmUtils.so* /usr/local/lib/
 
-make CFLAGS="-I${DS_IF_PATH}/include  -I${IARMBUS_PATH}/core -I${IARMBUS_PATH}/core/include -I$UTILS_PATH -I${IARM_MGRS}/sysmgr/include -I${DS_PATH}/ds/include -I${DS_PATH}/rpc/include -I${DS_HAL_PATH} -I${IARM_MGRS}/stubs -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I${IARM_MGRS}/mfr/include/ -I${IARM_MGRS}/mfr/common -I${DEEPSLEEP_IF_PATH}/include -I${IARM_MGRS}/hal/include" LDFLAGS="-L/usr/lib/x86_64-linux-gnu/ -L/usr/local/include -lglib-2.0 -lIARMBus -lWPEFrameworkPowerController -lds -ldshal -ldshalsrv -liarmUtils"
+make CFLAGS="-I${DS_IF_PATH}/include  -I${IARMBUS_PATH}/core -I${IARMBUS_PATH}/core/include -I$UTILS_PATH -I${IARM_MGRS}/sysmgr/include -I${DS_PATH}/ds/include -I${DS_PATH}/rpc/include -I${DS_HAL_PATH} -I${IARM_MGRS}/stubs -I${POWER_IF_PATH}/include/ -I/usr/include/glib-2.0 -I/usr/lib/x86_64-linux-gnu/glib-2.0/include -I${IARM_MGRS}/mfr/include/ -I${IARM_MGRS}/mfr/common -I${DEEPSLEEP_IF_PATH}/include -I${IARM_MGRS}/hal/include" LDFLAGS="-L/usr/lib/x86_64-linux-gnu/ -L/usr/local/include -lglib-2.0 -lIARMBus -lWPEFrameworkPowerController -lds -ldshal -ldshalsrv -liarmUtils"
