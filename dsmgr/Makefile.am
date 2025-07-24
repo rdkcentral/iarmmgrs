@@ -40,5 +40,5 @@ bin_PROGRAMS = dsMgrMain
 
 dsMgrMain_SOURCES = dsMgr.c  dsMgrInternal.h dsMgrMain.c
 dsMgrMain_SOURCES += dsMgrPwrEventListener.c dsMgrPwrEventListener.h dsMgrProductTraitsHandler.cpp dsMgrProductTraitsHandler.h dsMgrHelper.cpp
-dsMgrMain_LDADD = -L=/usr/lib -lds -ldshalsrv -lds-hal -ldshalcli  -lrfcapi
+dsMgrMain_LDADD = -L=/usr/lib -lds -ldshalsrv -lds-hal -lrfcapi
 
