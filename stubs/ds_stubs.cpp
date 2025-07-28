@@ -31,11 +31,21 @@ namespace device{
 		return Host::getInstance().getVideoOutputPorts().at(0);
 	}
 
+	AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) {
+	}
+
+	AudioOutputPort::~AudioOutputPort() {
+	}
+
 	List<AudioOutputPort> Host::getAudioOutputPorts() {
 		return device::List<device::AudioOutputPort>();
 	}
 
 	AudioOutputPort& Host::getAudioOutputPort(const std::string& name) {
+		return getAudioOutputPorts().at(0);
+	}
+
+	AudioOutputPort& Host::getAudioOutputPort(int id) {
 		return getAudioOutputPorts().at(0);
 	}
 	
@@ -51,11 +61,6 @@ namespace device{
 	}
 
 	void VideoOutputPort::disable() {
-	}
-
-	const std::string & AudioOutputPort::getName() const {
-		static std::string dummyName = "SPEAKER0";
-		return dummyName;
 	}
 
 	void Manager::load() {
