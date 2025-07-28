@@ -31,14 +31,14 @@ namespace device{
 		return Host::getInstance().getVideoOutputPorts().at(0);
 	}
 
-	List<AudioOutputPort> Host::getAudioOutputPorts() {
-		return device::List<device::AudioOutputPort>();
-	}
-
-	AudioOutputPort::AudioOutputPort(const AudioOutputPort&) {
+	AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) {
 	}
 
 	AudioOutputPort::~AudioOutputPort() {
+	}
+
+	List<AudioOutputPort> Host::getAudioOutputPorts() {
+		return device::List<device::AudioOutputPort>();
 	}
 
 	AudioOutputPort& Host::getAudioOutputPort(const std::string& name) {
