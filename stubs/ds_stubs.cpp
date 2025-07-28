@@ -53,11 +53,6 @@ namespace device{
 	void VideoOutputPort::disable() {
 	}
 
-	const std::string & AudioOutputPort::getName() const {
-		static std::string dummyName = "SPEAKER0";
-		return dummyName;
-	}
-
 	void Manager::load() {
 	}
 
