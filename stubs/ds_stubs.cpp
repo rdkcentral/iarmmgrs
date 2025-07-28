@@ -35,6 +35,12 @@ namespace device{
 		return device::List<device::AudioOutputPort>();
 	}
 
+	AudioOutputPort::AudioOutputPort(const AudioOutputPort&) {
+	}
+
+	AudioOutputPort::~AudioOutputPort() {
+	}
+
 	AudioOutputPort& Host::getAudioOutputPort(const std::string& name) {
 		return getAudioOutputPorts().at(0);
 	}
