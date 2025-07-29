@@ -194,13 +194,8 @@ static void SetPwrMgrDeepSleepMode(void *data)
                     status = PLAT_DS_SetDeepSleep(deep_sleep_wakeup_timer,&userWakeup, nwStandbyMode_gs);
                     LOG("Device resumed from Deep sleep Mode.status :%d  \r\n",status);
 
-                    #ifdef PLATCO_BOOTTO_STANDBY
                     pwr_param.newState = IARM_BUS_PWRMGR_POWERSTATE_STANDBY_LIGHT_SLEEP;
                     LOG("Set newState to IARM_BUS_PWRMGR_POWERSTATE_STANDBY_LIGHT_SLEEP \n");
-                    #else
-                    pwr_param.newState = IARM_BUS_PWRMGR_POWERSTATE_ON;
-                    LOG("Set newState to IARM_BUS_PWRMGR_POWERSTATE_ON \n");
-                    #endif
 
                     if(status != 0) {
                         sleep(5);
