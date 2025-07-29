@@ -357,7 +357,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
 
                     memset(&setMode, 0, sizeof(setMode));
                     setMode.handle = getHandle.handle;
-		    strncpy(setMode.portName, aPort.getName().c_str(), 32);
+		    strncpy(setMode.portName, aPort.getName().c_str(), 31);
                     setMode.enabled = false;
                     _dsEnableAudioPort(&setMode);
                 }
@@ -395,7 +395,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
 
                     memset(&setMode, 0, sizeof(setMode));
                     setMode.handle = getHandle.handle;
-		    strncpy(setMode.portName, aPort.getName().c_str(), 32);
+		    strncpy(setMode.portName, aPort.getName().c_str(), 31);
                     setMode.enabled = false;
                     _dsGetEnablePersist(&setMode);
 
