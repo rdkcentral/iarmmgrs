@@ -60,10 +60,12 @@ LDFLAGS+=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS+=-L$(SDK_FSROOT)/lib -L$(SDK_FSROOT)/usr/lib -L$(SDK_FSROOT)/usr/local/lib/  -L$(CROSS_TOOLCHAIN)/lib
 ISMD_LIBS=-L$(TOOLCHAIN_DIR)/lib -lismd_audio
 GDL_LIBS=-L$(TOOLCHAIN_DIR)/lib -lgdl
+ifneq ($(STANDALONE_BUILD_ENABLED),y)
 ifneq ($(PLATFORM_SOC),L2HalMock)
 LDFLAGS += -lIARMBus -lrt -L$(DS_PATH)/install/lib -lnspr4 -losal -lrt -lMAF_StackAdapter -lMAF_InputHandler -lMAF_ConfigMgmt -lMAF_DbusAdapter -lpace_spi_drv -lparker_fpd_library -ldshalcli -lds
 LDFLAGS += $(ISMD_LIBS)
 LDFLAGS += $(GDL_LIBS)
+endif
 endif
 
 LDFLAGS += -L$(DS_PATH)/install/lib -lds -ldshalcli -L$(UTILS_PATH)/ -liarmUtils

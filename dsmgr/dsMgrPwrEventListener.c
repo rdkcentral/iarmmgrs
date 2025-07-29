@@ -349,6 +349,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                 for (i = 0; i < numPorts; i++)
                 {
                     const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
+		    device::AudioOutputPort aPort = device::Host::getInstance().getAudioOutputPort(*audioPort);
                     memset(&getHandle, 0, sizeof(getHandle));
                     getHandle.type = *audioPort;
                     getHandle.index = 0;
@@ -356,6 +357,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
 
                     memset(&setMode, 0, sizeof(setMode));
                     setMode.handle = getHandle.handle;
+		    strncpy(setMode.portName, aPort.getName().c_str(), 31);
                     setMode.enabled = false;
                     _dsEnableAudioPort(&setMode);
                 }
@@ -385,6 +387,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                 for (i = 0; i < numPorts; i++)
                 {
                     const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
+		    device::AudioOutputPort aPort = device::Host::getInstance().getAudioOutputPort(*audioPort);
                     memset(&getHandle, 0, sizeof(getHandle));
                     getHandle.type = *audioPort;
                     getHandle.index = 0;
@@ -392,6 +395,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
 
                     memset(&setMode, 0, sizeof(setMode));
                     setMode.handle = getHandle.handle;
+		    strncpy(setMode.portName, aPort.getName().c_str(), 31);
                     setMode.enabled = false;
                     _dsGetEnablePersist(&setMode);
 
