@@ -51,8 +51,14 @@
 #include <systemd/sd-daemon.h>
 #endif
 
+#define CHECK_AND_RETURN_ERROR(call) \
+    retStatus = (call); \
+    if (IARM_RESULT_SUCCESS != retStatus) { \
+        pthread_mutex_unlock(&tMutexLock); \
+        return retStatus; \
+    }
 
-static pthread_mutex_t tMutexLock;
+static pthread_mutex_t tMutexLock = PTHREAD_MUTEX_INITIALIZER;
 static IARM_Bus_SYSMgr_GetSystemStates_Param_t systemStates;
 static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
 static IARM_Result_t _GetSystemStates(void *arg);
@@ -77,26 +83,18 @@ static IARM_Result_t _SetKeyCodeLoggingPref(void *arg);
 
 IARM_Result_t SYSMgr_Start()
 {
-
+    IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
 	LOG("Entering [%s] - [%s] - disabling io redirect buf\r\n", __FUNCTION__, IARM_BUS_SYSMGR_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 
+    pthread_mutex_lock(&tMutexLock);
     if (!initialized) {
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        pthread_mutex_init (&tMutexLock, NULL);
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        pthread_mutex_lock(&tMutexLock);
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_Init(IARM_BUS_SYSMGR_NAME);
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_Connect();
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX);
-      //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates);
-      //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler);
-      //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
+        CHECK_AND_RETURN_ERROR(IARM_Bus_Init(IARM_BUS_SYSMGR_NAME));
+        CHECK_AND_RETURN_ERROR(IARM_Bus_Connect());
+        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX));
+        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates));
+        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler));
         initialized = 1;
 	#ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
@@ -111,16 +109,15 @@ IARM_Result_t SYSMgr_Start()
     // write pidfile because sd_notify() does not work inside container
     IARM_Bus_WritePIDFile(xstr(PID_FILE_PATH) "/sysmgr.pid");
 #endif
-        
       //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
 
-		/*HDCP Profile required*/	
-		IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile);
-		IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile);
+		/*HDCP Profile required*/
+		CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
+		CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
 
 
-        IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref);
-	IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref);
+        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref));
+        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref));
         keyLogStatus = 1;
 
         systemStates.channel_map = {0};
@@ -160,19 +157,18 @@ IARM_Result_t SYSMgr_Start()
         systemStates.plant_id = {0};
         systemStates.stb_serial_no={0};
         systemStates.bootup = {0};
-        systemStates.hdcp_enabled.state = 1; /*Default HDCP state is enabled.*/		
+        systemStates.hdcp_enabled.state = 1; /*Default HDCP state is enabled.*/
 		systemStates.dst_offset = {0};
 		systemStates.ip_mode = {0};
 		systemStates.qam_ready_status = {0};
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        pthread_mutex_unlock(&tMutexLock);
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        return IARM_RESULT_SUCCESS;
     }
     else {
-      LOG("VENU: I-ARM Sys Mgr Error case: %d\r\n", __LINE__);
-        return IARM_RESULT_INVALID_STATE;
+        LOG("VENU: I-ARM Sys Mgr Error case: %d\r\n", __LINE__);
+        retStatus = IARM_RESULT_INVALID_STATE;
     }
+    pthread_mutex_unlock(&tMutexLock);
+    return retStatus;
 }
 
 IARM_Result_t SYSMgr_Loop()
@@ -190,29 +186,31 @@ IARM_Result_t SYSMgr_Loop()
 
 IARM_Result_t SYSMgr_Stop(void)
 {
+    IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
+    pthread_mutex_lock(&tMutexLock);
     if (initialized) {
-        pthread_mutex_lock(&tMutexLock);
-        IARM_Bus_Disconnect();
-        IARM_Bus_Term();
+        CHECK_AND_RETURN_ERROR(IARM_Bus_Disconnect());
+        CHECK_AND_RETURN_ERROR(IARM_Bus_Term());
         pthread_mutex_unlock(&tMutexLock);
-        pthread_mutex_destroy (&tMutexLock);
+        pthread_mutex_destroy(&tMutexLock);
         initialized = 0;
-        return IARM_RESULT_SUCCESS;
     }
     else {
-        return IARM_RESULT_INVALID_STATE;
+        pthread_mutex_unlock(&tMutexLock);
+        retStatus = IARM_RESULT_INVALID_STATE;
     }
+    return retStatus;
 }
 
 /**
- * @brief This functions sets/updates the HDCP Profile                             
+ * @brief This functions sets/updates the HDCP Profile
  *
  * @param callCtx: Context to the caller function
  * @param methodID: Method to be invoke
  * @param arg: Specifies the timeout to be set
  * @param serial: Handshake code to share with
  *
- * @return None 
+ * @return None
  */
 static int CheckHdcpProfile(void)
 {
@@ -229,9 +227,9 @@ static int CheckHdcpProfile(void)
 
 static IARM_Result_t _SetHDCPProfile(void *arg)
 {
-
-IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *param = (IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *)arg;
-int    new_profile = 0;
+    IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
+    IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *param = (IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *)arg;
+    int new_profile = 0;
 
 	new_profile = param->HdcpProfile;
 
@@ -252,10 +250,10 @@ int    new_profile = 0;
 			IARM_Bus_SYSMgr_EventData_t eventData;
 			eventData.data.hdcpProfileData.hdcpProfile = new_profile;
 			__TIMESTAMP(); printf("<<<<<<< Send HDCP Profile UPdate Event is %d>>>>>>>>",eventData.data.hdcpProfileData.hdcpProfile);
-			IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_HDCP_PROFILE_UPDATE,(void *)&eventData,sizeof(eventData));	
+			retStatus = IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_HDCP_PROFILE_UPDATE,(void *)&eventData,sizeof(eventData));
 		}
     }
-    return IARM_RESULT_SUCCESS;
+    return retStatus;
 }
 
 /**
@@ -263,7 +261,7 @@ int    new_profile = 0;
  *
  * @param Get current Profile state
  *
- * @return None 
+ * @return None
  */
 static IARM_Result_t _GetHDCPProfile(void *arg)
 {
@@ -280,7 +278,7 @@ static IARM_Result_t _GetHDCPProfile(void *arg)
  *
  * @param Data to return
  *
- * @return None 
+ * @return None
  */
 
 
@@ -314,14 +312,13 @@ static IARM_Result_t _GetSystemStates(void *arg)
 
 static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
-    errno_t rc = -1;	
+    errno_t rc = -1;
 	/* Only handle state events */
     if (eventId != IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE) return;
 
 	/*Handle only Sys Manager Events */
-	if (strcmp(owner, IARM_BUS_SYSMGR_NAME)  == 0) 
+	if (strcmp(owner, IARM_BUS_SYSMGR_NAME)  == 0)
 	{
-	
 		//__TIMESTAMP();LOG("_sysEventHandler invoked ww\r\n");
 		pthread_mutex_lock(&tMutexLock);
 		IARM_Bus_SYSMgr_EventData_t *sysEventData = (IARM_Bus_SYSMgr_EventData_t*)data;
@@ -343,12 +340,12 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 					}
 					memcpy( systemStates.channel_map.payload, payload, sizeof( systemStates.channel_map.payload ) );
 				systemStates.channel_map.payload[ sizeof( systemStates.channel_map.payload ) - 1] = 0;
-				LOG( "Got  IARM_BUS_SYSMGR_SYSSTATE_CHANNELMAP ID = %s", systemStates.channel_map.payload );				
+				LOG( "Got  IARM_BUS_SYSMGR_SYSSTATE_CHANNELMAP ID = %s", systemStates.channel_map.payload );
 				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_DISCONNECTMGR:
 				systemStates.disconnect_mgr_state.state = state;
 				systemStates.disconnect_mgr_state.error = error;
-				LOG( "Got  IARM_BUS_SYSMGR_SYSSTATE_DISCONNECTMGR state = %d\n", state );				
+				LOG( "Got  IARM_BUS_SYSMGR_SYSSTATE_DISCONNECTMGR state = %d\n", state );
 				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_TUNEREADY:
 				systemStates.TuneReadyStatus.state = state;
@@ -486,7 +483,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 			case   IARM_BUS_SYSMGR_SYSSTATE_VOD_AD :
 				systemStates.vod_ad.state = state;
 				systemStates.vod_ad.error = error;
-				/* memcpy can be replaced with strcpy once the RI is replaced with RMF */			
+				/* memcpy can be replaced with strcpy once the RI is replaced with RMF */
 					rc = memcpy_s( systemStates.vod_ad.payload,sizeof(systemStates.vod_ad.payload), payload, sizeof( systemStates.vod_ad.payload ) );
 					if(rc!=EOK)
 					{
@@ -535,17 +532,16 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 			  systemStates.stb_serial_no.payload[strlen(payload)]='\0';
 			  printf("systemStates.stb.serial.payload=%s\n",systemStates.stb_serial_no.payload);
 			  break;
-			case   IARM_BUS_SYSMGR_SYSSTATE_BOOTUP :				
+			case   IARM_BUS_SYSMGR_SYSSTATE_BOOTUP :
 				systemStates.bootup.state = state;
 				systemStates.bootup.error = error;
-				break;		    
+				break;
             case   IARM_BUS_SYSMGR_SYSSTATE_DST_OFFSET :
 				systemStates.dst_offset.state = state;
 				strncpy( systemStates.dst_offset.payload,payload,strlen(payload));
                 systemStates.dst_offset.payload[ strlen(payload) ] = '\0';
 				systemStates.dst_offset.error = error;
 				break;
-          
             case   IARM_BUS_SYSMGR_SYSSTATE_RF_CONNECTED :
 				systemStates.rf_connected.state = state;
 				systemStates.rf_connected.error = error;
@@ -562,12 +558,12 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				strncpy(systemStates.ip_mode.payload,payload,strlen(payload));
 				systemStates.ip_mode.payload[strlen(payload)]='\0';
 				printf("Got IARM_BUS_SYSMGR_SYSSTATE_IP_MODE systemStates.ip_mode.payload=%s\n",systemStates.ip_mode.payload);
-				break;				
+				break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_QAM_READY:
 				systemStates.qam_ready_status.state = state;
 				systemStates.qam_ready_status.error = error;
 				LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_QAM_READY,State = %d, Error = %d\n", systemStates.qam_ready_status.state,systemStates.qam_ready_status.error );
-				break;				
+				break;
 			default:
 				break;
 		}
@@ -576,13 +572,13 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 }
 
 /**
- * @brief This function executes a shell script and returns its value. 
+ * @brief This function executes a shell script and returns its value.
  *
  * @param script_name [in]  Null terminated path name to the script.
  *
  * @param return_value [in] value returned by the system command executing the script.
   *
- * @return None 
+ * @return None
  */
 
 void GetSerialNumber(void)
@@ -596,7 +592,7 @@ void GetSerialNumber(void)
     }
 
     param.type = mfrSERIALIZED_TYPE_SERIALNUMBER;
-    param.bufLen = 0; 
+    param.bufLen = 0;
     iarm_ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME, IARM_BUS_MFRLIB_API_GetSerializedData, &param, sizeof(param));
     param.buffer[param.bufLen] = '\0';
 
