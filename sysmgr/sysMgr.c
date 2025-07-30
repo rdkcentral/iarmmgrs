@@ -111,10 +111,9 @@ IARM_Result_t SYSMgr_Start()
 #endif
       //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
 
-		/*HDCP Profile required*/
-		CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
-		CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
-
+        /*HDCP Profile required*/
+        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
+        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
 
         CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref));
         CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref));
@@ -191,9 +190,9 @@ IARM_Result_t SYSMgr_Stop(void)
     if (initialized) {
         CHECK_AND_RETURN_ERROR(IARM_Bus_Disconnect());
         CHECK_AND_RETURN_ERROR(IARM_Bus_Term());
+        initialized = 0;
         pthread_mutex_unlock(&tMutexLock);
         pthread_mutex_destroy(&tMutexLock);
-        initialized = 0;
     }
     else {
         pthread_mutex_unlock(&tMutexLock);
