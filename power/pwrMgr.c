@@ -245,6 +245,7 @@ static void setPowerStateBeforeReboot (PWRMgr_PowerState_t powerState) {
 
 IARM_Result_t PWRMgr_Start(int argc, char *argv[])
 {
+    IARM_Result_t iarmStatus;
     char *settingsFile = NULL;
     time(&xre_timer); // Hack to fix DELIA-11393
 
@@ -258,8 +259,16 @@ IARM_Result_t PWRMgr_Start(int argc, char *argv[])
 #ifdef ENABLE_DEEP_SLEEP
     PLAT_DS_INIT();
 #endif
-    IARM_Bus_Init(IARM_BUS_PWRMGR_NAME);
-    IARM_Bus_Connect();
+    iarmStatus = IARM_Bus_Init(IARM_BUS_PWRMGR_NAME);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_Init failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_Connect();
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_Connect failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
 #if 0
     /* LOG("Initing PwrMgr Settings START\r\n");*/
     try {
@@ -270,32 +279,100 @@ IARM_Result_t PWRMgr_Start(int argc, char *argv[])
     }
 #endif
     _InitSettings(settingsFile);
-    IARM_Bus_RegisterEvent(IARM_BUS_PWRMGR_EVENT_MAX);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_Reboot, _HandleReboot);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetPowerState, _SetPowerState);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetPowerState, _GetPowerState);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_WareHouseReset, _WareHouseReset);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_WareHouseClear, _WareHouseClear);
+    iarmStatus = IARM_Bus_RegisterEvent(IARM_BUS_PWRMGR_EVENT_MAX);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterEvent failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_Reboot, _HandleReboot);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetPowerState, _SetPowerState);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetPowerState, _GetPowerState);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_WareHouseReset, _WareHouseReset);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_WareHouseClear, _WareHouseClear);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
 
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_ColdFactoryReset, _ColdFactoryReset);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_FactoryReset, _FactoryReset);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_UserFactoryReset, _UserFactoryReset);
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_ColdFactoryReset, _ColdFactoryReset);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_FactoryReset, _FactoryReset);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_UserFactoryReset, _UserFactoryReset);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
 #ifdef ENABLE_DEEP_SLEEP
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetDeepSleepTimeOut, _SetDeepSleepTimeOut);
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetDeepSleepTimeOut, _SetDeepSleepTimeOut);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
 #endif
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetNetworkStandbyMode, _SetNetworkStandbyMode);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetNetworkStandbyMode, _GetNetworkStandbyMode);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetWakeupSrcConfig, _SetWakeupSrcConfig);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetWakeupSrcConfig, _GetWakeupSrcConfig);
-
-    IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _systemStateChangeHandler);
-    IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_SLEEP_MODE_CHANGED,_sleepModeChangeHandler);
-
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetNetworkStandbyMode, _SetNetworkStandbyMode);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetNetworkStandbyMode, _GetNetworkStandbyMode);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetWakeupSrcConfig, _SetWakeupSrcConfig);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetWakeupSrcConfig, _GetWakeupSrcConfig);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _systemStateChangeHandler);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterEventHandler failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_SLEEP_MODE_CHANGED,_sleepModeChangeHandler);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterEventHandler failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
     /*Register EAS handler so that we can ensure audio settings for EAS */
-    IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange,_SysModeChange);
-    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetPowerStateBeforeReboot, _GetPowerStateBeforeReboot);
-
-
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange,_SysModeChange);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetPowerStateBeforeReboot, _GetPowerStateBeforeReboot);
+    if (iarmStatus != IARM_RESULT_SUCCESS) {
+        LOG("IARM_Bus_RegisterCall failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
 #ifdef ENABLE_THERMAL_PROTECTION
     initializeThermalProtection();
 #endif //ENABLE_THERMAL_PROTECTION
@@ -487,7 +564,7 @@ static gboolean heartbeatMsg(gpointer data)
 
 IARM_Result_t PWRMgr_Stop(void)
 {
-
+    IARM_Result_t iarmStatus;
     if(pwrMgr_Gloop)
     {
         g_main_loop_quit(pwrMgr_Gloop);
@@ -500,8 +577,16 @@ IARM_Result_t PWRMgr_Stop(void)
         LOG("Exception Caught during [device::Manager::Initialize]\r\n");
     }
 
-    IARM_Bus_Disconnect();
-    IARM_Bus_Term();
+    iarmStatus = IARM_Bus_Disconnect();
+    if (IARM_RESULT_SUCCESS != iarmStatus) {
+        LOG("IARM_Bus_Disconnect failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_Term();
+    if (IARM_RESULT_SUCCESS != iarmStatus) {
+        LOG("IARM_Bus_Term failed with status %d\r\n", iarmStatus);
+        return iarmStatus;
+    }
     PLAT_TERM();
 #ifdef ENABLE_DEEP_SLEEP
     PLAT_DS_TERM();
