@@ -1535,7 +1535,7 @@ static IARM_Result_t getFSRflag_(void *arg)
          if (func)
          {
              err = func(&param);
-             if(mfrERR_NONE == err && param != -1)
+             if(mfrERR_NONE == err && param != (uint16_t)-1)
              {
                  LOG("[mfrMgr][%s] IARM_Bus_MFRLib_FsrFlag_Param_t success with param is %d \n",__FUNCTION__, param);
                  *tmp = (IARM_Bus_MFRLib_FsrFlag_Param_t)param?true:false;
