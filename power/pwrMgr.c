@@ -1808,8 +1808,18 @@ static uint32_t getWakeupTime()
     /* Add randomness to calculated value i.e between 2AM - 3AM
         for 1 hour window
     */
-    srand(time(NULL));
-    uint32_t randTimeInSec = (uint32_t)rand()%(3600) + 0; // for 1 hour window
+    uint32_t randTimeInSec = 0;
+    int urandom_fd = open("/dev/urandom", O_RDONLY);
+    if (urandom_fd >= 0) {
+        if (read(urandom_fd, &randTimeInSec, sizeof(randTimeInSec)) == sizeof(randTimeInSec)) {
+            randTimeInSec = randTimeInSec % 3600; // 0 to 3599
+        } else {
+            randTimeInSec = 0; // fallback
+        }
+        close(urandom_fd);
+    } else {
+        randTimeInSec = 0; // fallback
+    }
     wakeupTimeInSec  = wakeupTimeInSec + randTimeInSec;
 //printf ("randTimeInSec is  : %d sec \r\n", randTimeInSec);
 
