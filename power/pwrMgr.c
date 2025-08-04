@@ -1482,7 +1482,7 @@ static int _InitSettings(const char *settingsFile)
 static int _WriteSettings(const char *settingsFile)
 {
     PWRMgr_Settings_t *pSettings = &m_settings;
-    int fd = open(settingsFile, O_CREAT|O_WRONLY);
+    int fd = open(settingsFile, O_CREAT|O_WRONLY, 0644);
     int ret = fd;
 
     if (fd >= 0) {

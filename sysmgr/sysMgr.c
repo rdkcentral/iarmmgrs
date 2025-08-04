@@ -62,7 +62,7 @@ static IARM_Result_t _GetSystemStates(void *arg);
 static volatile int initialized = 0;
 
 
-static char *ntp_filename ="/tmp/stt_received";
+#define NTP_FILE_NAME	"/tmp/stt_received";
 /*Support for HDCP Profile */
 static char *profile_1_filename ="/opt/.hdcp_profile_1";
 static int CheckHdcpProfile(void);
@@ -296,7 +296,7 @@ static IARM_Result_t _GetSystemStates(void *arg)
     	systemStates.channel_map.state=2;
     	systemStates.TuneReadyStatus.state=1;
 	if(systemStates.time_source.state==0) {
-   	   if( access( ntp_filename, F_OK ) != -1 ) {
+           if (access(NTP_FILE_NAME, F_OK ) != -1 ) {
       	      systemStates.time_source.state=1;
 	   }
 	}
