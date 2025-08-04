@@ -16,8 +16,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
-RM          := rm -rf 
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+RM          := rm -rf
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 
 INCLUDE     :=	-I.\
 		-I./include	\
@@ -30,7 +30,7 @@ INCLUDE     :=	-I.\
 		-I$(IARM_MGRS)/generic/mfr/include                      \
 		-I$(IARM_MGRS)/generic/sysmgr/include                      \
 		-I$(IARM_MGRS)/generic/tr69Bus/include                      \
-		-I$(DFB_ROOT)/usr/local/include/directfb 
+		-I$(DFB_ROOT)/usr/local/include/directfb
 
 CFLAGS      += $(INCLUDE)
 
@@ -46,16 +46,13 @@ LDFLAGS+=$(GLIBS)
 
 BINARIES    := $(patsubst %.c,%,$(wildcard *.c))
 
-all: clean $(BINARIES)  
+all: clean $(BINARIES)
 	@echo "Build Finished...."
 
 $(BINARIES):
 	@echo "Building $@ ...."
 	$(CXX) $(CFLAGS) $@.c -o $@ $(LDFLAGS)
-	
+
 clean:
 	@echo "Cleaning the directory..."
 	@$(RM) $(BINARIES)
-
-
-

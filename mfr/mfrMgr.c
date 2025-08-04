@@ -31,8 +31,6 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include <errno.h>
-
-#define _TIME_BITS 64
 #include <time.h>
 
 #include "mfrMgrInternal.h"

@@ -17,13 +17,13 @@
 # limitations under the License.
 ##########################################################################
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,$(wildcard *.c))
-CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
-EXECUTABLE  := sysMgrMain 
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+EXECUTABLE  := sysMgrMain
 
 INCLUDE     =	-I. \
-                -I./include\
+				-I./include\
 		-I../power/include \
 		-I../mfr/include \
 		-I$(IARM_PATH)/core/   \
@@ -41,7 +41,7 @@ ifeq ($(USE_MFR_FOR_SERIAL),y)
 CFLAGS      += -DUSE_MFR_FOR_SERIAL
 endif
 
-CFLAGS      += $(INCLUDE) 
+CFLAGS      += $(INCLUDE)
 LDFLAGS     +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS     += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
 
@@ -49,7 +49,7 @@ ifeq ($(PLATFORM_SOC),L2HalMock)
 LDFLAGS+=-L$(IARM_PATH)/install -lIARMBus -lglib-2.0 -lsafec-3.5
 endif
 
-all:clean executable 
+all:clean executable
 	@echo "Build Finished...."
 
 executable: $(OBJS)

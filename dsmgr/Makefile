@@ -19,9 +19,9 @@
 #
 
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,$(wildcard *.c)) dsMgrProductTraitsHandler.o dsMgrHelper.o
-CPPLAGS      := -g -fPIC -D_REENTRANT -Wall
+CPPLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 EXECUTABLE  =   dsMgrMain
 INCLUDE     =   -I. \
                 -I$(IARM_PATH)/core/   \

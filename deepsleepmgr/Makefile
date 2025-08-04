@@ -19,9 +19,9 @@
 #
 
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,$(wildcard *.c))
-CPPLAGS      := -g -fPIC -D_REENTRANT -Wall
+CPPLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 EXECUTABLE  := deepSleepMgrMain
 
 INCLUDE     =	-I.\
@@ -40,10 +40,10 @@ INCLUDE     =	-I.\
 		-I$(GLIB_HEADER_PATH)/ \
 		-I$(GLIB_HEADER_PATH)/glib/ \
 		-I$(GLIB_CONFIG_PATH)/../lib/glib-2.0/include/ \
-		-I$(RF4CE_PATH)/include 
+		-I$(RF4CE_PATH)/include
 
 
-CFLAGS      += $(INCLUDE) 
+CFLAGS      += $(INCLUDE)
 
 CFLAGS += $(_ENABLE_WAKEUP_KEY)
 CFLAGS += $(USE_GREEN_PEAK_RF4CE_INTERFACE)

@@ -17,9 +17,9 @@
 # limitations under the License.
 ##########################################################################
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,rdkProfile.c)
-CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 LDFLAGS     += -shared
 LIBRARY_NAME = libiarmUtils.so
 

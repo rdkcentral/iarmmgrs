@@ -20,13 +20,13 @@
 
 
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,$(wildcard *.c))
-CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
-EXECUTABLE  := diskMgrMain 
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+EXECUTABLE  := diskMgrMain
 
 INCLUDE     =	-I. \
-                -I./include\
+				-I./include\
 		-I../power/include \
 		-I$(IARM_PATH)/core/   \
 		-I$(IARM_PATH)/core/include \
@@ -41,11 +41,11 @@ endif
 
 
 LDFLAGS     +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
-CFLAGS      += $(INCLUDE) 
-LDFLAGS     += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus 
+CFLAGS      += $(INCLUDE)
+LDFLAGS     += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
 
 
-all:clean executable 
+all:clean executable
 	@echo "Build Finished...."
 
 executable: $(OBJS)

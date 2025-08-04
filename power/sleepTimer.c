@@ -20,8 +20,6 @@
 #include <glib.h>
 #include <stdio.h>
 #include <pthread.h>
-
-#define _TIME_BITS 64
 #include <time.h>
 
 #include "libIBus.h"

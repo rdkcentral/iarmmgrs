@@ -17,9 +17,9 @@
 # limitations under the License.
 ##########################################################################
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,$(wildcard *.c)) pwrMgrHelper.o
-CPPLAGS      := -g -fPIC -D_REENTRANT -Wall
+CPPLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 EXECUTABLE  := pwrMgrMain
 
 INCLUDE     =	-I.\
@@ -48,7 +48,7 @@ CFLAGS      += -DRDK_LOGGER_ENABLED
 CPPLAGS     += -DRDK_LOGGER_ENABLED
 endif
 
-CFLAGS      += $(INCLUDE) 
+CFLAGS      += $(INCLUDE)
 
 CFLAGS += $(_ENABLE_WAKEUP_KEY)
 CFLAGS += $(RF4CE_API)
@@ -80,7 +80,7 @@ all:clean objs executable
 
 objs: $(OBJS)
 
-%.o: %.c 
+%.o: %.c
 	@echo "Building $@ ...."
 	$(CXX) -c $<  $(CFLAGS) -o $@
 

@@ -34,8 +34,6 @@
 #include <unistd.h>
 #include <string.h>
 #include <stdlib.h>
-
-#define _TIME_BITS 64
 #include <time.h>
 
 #ifdef __cplusplus

@@ -33,10 +33,7 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
-
-#define _TIME_BITS 64
 #include <time.h>
-
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>

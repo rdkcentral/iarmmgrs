@@ -76,8 +76,6 @@ extern "C"
 
 #include <secure_wrapper.h>
 #include <thread>
-
-#define _TIME_BITS 64
 #include <time.h>
 
 /* For glib APIs*/

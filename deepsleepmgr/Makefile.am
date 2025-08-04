@@ -31,12 +31,12 @@ INCLUDES = -I=$(IARM) -I=$(IARM_MGR) \
            -I ../power/include \
            -I ../sysmgr/include \
            -I=$(includedir)/rdk/ds \
-           -I=$(includedir)/rdk/ds-hal \ 
+           -I=$(includedir)/rdk/ds-hal \
            -I=$(includedir)/rdk/halif/deepsleep-manager
 
 CC = $(CXX)
 
-AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11
+AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 
 bin_PROGRAMS = deepSleepMgrMain
 

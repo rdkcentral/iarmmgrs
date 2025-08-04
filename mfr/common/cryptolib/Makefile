@@ -17,11 +17,11 @@
 # limitations under the License.
 ##########################################################################
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 INSTALL     := $(IARM_MGRS)/install
 LIBNAME     := mfrcrypto
 LIBNAMEFULL := lib$(LIBNAME).so
-CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 
 #Plase make setting NEXUS_APP_INCLUDE_PATHS configuratble
 

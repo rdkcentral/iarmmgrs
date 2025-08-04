@@ -19,14 +19,14 @@
 #
 
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,$(wildcard *.c))
 OBJS        += $(patsubst %.cpp,%.o,$(wildcard *.cpp))
-CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
-EXECUTABLE  := deviceUpdateMgrMain 
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+EXECUTABLE  := deviceUpdateMgrMain
 
 INCLUDE     =	-I. \
-                -I./include\
+				-I./include\
 		-I../power/include \
 		-I$(IARM_PATH)/core/   \
 		-I$(IARM_PATH)/core/include \
@@ -34,7 +34,7 @@ INCLUDE     =	-I. \
 		-I$(OPENSOURCE_BASE)/include \
 		-I$(CURL_INCLUDE_PATH) \
 		-I$(OPENSOURCE_BASE)/include/libxml2 \
-		 
+
 
 LDFLAGS     +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 
@@ -46,8 +46,8 @@ CFLAGS      += -DRDK_LOGGER_ENABLED
 CPPLAGS     += -DRDK_LOGGER_ENABLED
 endif
 
-CFLAGS      += $(INCLUDE) 
-CPPFLAGS    += $(INCLUDE) 
+CFLAGS      += $(INCLUDE)
+CPPFLAGS    += $(INCLUDE)
 LDFLAGS     += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
 
 LDFLAGS     +=-L$(OPENSOURCE_BASE)/lib -lyajl
@@ -55,7 +55,7 @@ LDFLAGS     += -L$(CURL_LIBRARY_PATH)
 LDFLAGS     += -lcurl -lssl -lcrypto
 
 
-all:clean executable 
+all:clean executable
 	@echo "Build Finished...."
 
 executable: $(OBJS)

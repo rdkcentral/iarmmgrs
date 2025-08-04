@@ -58,8 +58,6 @@ extern "C"
 #include <string>
 #include <iostream>
 #include <utils.h>
-
-#define _TIME_BITS 64
 #include <time.h>
 
 #include "safec_lib.h"

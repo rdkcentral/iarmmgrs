@@ -17,10 +17,10 @@
 # limitations under the License.
 ##########################################################################
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 LIBNAME     := MAF
 LIBNAMEFULL := lib$(LIBNAME).so
-CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 executable  := mfrMgrMain
 CFLAGS +=-DRDK_MFRLIB_NAME='"librdkmfr.so"'
 

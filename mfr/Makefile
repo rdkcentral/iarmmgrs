@@ -19,22 +19,22 @@
 #
 
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 LIBNAME     := MAF
 LIBNAMEFULL := lib$(LIBNAME).so
-CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 EXECUTABLE  := mfrMgrMain
 
 #Plase make setting LINUXKDIR configuratble
 
 
 INCLUDE     =	-I.\
-                -I./include \
+				-I./include \
 		-I$(MFR_PATH)/include	\
 		-I$(IARM_PATH)/core/   \
 		-I$(IARM_PATH)/core/include \
 		-I$(DFB_ROOT)/usr/local/include/directfb \
-		 -I$(UTILS_PATH)/ 
+		 -I$(UTILS_PATH)/
 
 
 
@@ -45,7 +45,7 @@ CFLAGS      += -DRDK_LOGGER_ENABLED
 CPPLAGS     += -DRDK_LOGGER_ENABLED
 endif
 
-CFLAGS      += $(INCLUDE) 
+CFLAGS      += $(INCLUDE)
 
 ifneq ($(STANDALONE_BUILD_ENABLED),y)
 CROSS_COMPILE=mipsel-linux-
@@ -57,14 +57,14 @@ CXX=$(CROSS_COMPILE)g++
 LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus -lnexus
 
-LDFLAGS += -L${WORK_DIR}/${MFR_LIB_PATH} $(MFR_LIB_NAME) -L$(UTILS_PATH)/ -liarmUtils 
-LDFLAGS += -L$(OPENSSL_PATH)/lib -lcrypto -lrt 
+LDFLAGS += -L${WORK_DIR}/${MFR_LIB_PATH} $(MFR_LIB_NAME) -L$(UTILS_PATH)/ -liarmUtils
+LDFLAGS += -L$(OPENSSL_PATH)/lib -lcrypto -lrt
 
 
 all:clean executable
 	@echo "Build Finished...."
 
-library: mfrMgr.o 
+library: mfrMgr.o
 	@echo "Building $(LIBNAMEFULL) ...."
 
 executable: mfrMgrMain.o mfrMgr.o
@@ -77,5 +77,4 @@ executable: mfrMgrMain.o mfrMgr.o
 
 clean:
 	@echo "Cleaning the directory..."
-	@$(RM) *.o $(LIBNAMEFULL) 
-
+	@$(RM) *.o $(LIBNAMEFULL)

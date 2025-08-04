@@ -19,9 +19,9 @@
 #
 
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall
+CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,$(wildcard *.c))
-CPPLAGS     := -g -fPIC -D_REENTRANT -Wall
+CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 EXECUTABLE  := pwrstate_notifier
 
 INCLUDE     =	-I.\
@@ -48,7 +48,7 @@ CFLAGS      += -DRDK_LOGGER_ENABLED
 CPPLAGS     += -DRDK_LOGGER_ENABLED
 endif
 
-CFLAGS      += $(INCLUDE) 
+CFLAGS      += $(INCLUDE)
 LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus -lnexus
 
@@ -71,4 +71,3 @@ executable: $(OBJS)
 clean:
 	@echo "Cleaning the directory..."
 	@$(RM) $(OBJS) $(LIBNAMEFULL) $(EXECUTABLE)
-
