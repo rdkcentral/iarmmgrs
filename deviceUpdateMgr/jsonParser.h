@@ -56,14 +56,14 @@ public:
     virtual ~JSONParser();
     map<string, varVal *> parse(const unsigned char *);
 
-    void newKey(string keyName) { m_curKey = keyName; }
+    void newKey(string keyName) { m_curKey = std::move(keyName); }
     void newString(string value) {
-    	varVal *vv=new varVal();
-    	vv->str=value;
+    	varVal *vv = new varVal();
+    	vv->str = std::move(value);
     	if(m_array!=NULL){
     		m_array->push_back(vv);
     	}else{
-    		m_dict[m_curKey] = vv;
+    		m_dict[std::move(m_curKey)] = vv;
     	}
 
     }

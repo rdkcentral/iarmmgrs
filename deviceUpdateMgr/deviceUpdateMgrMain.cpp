@@ -674,7 +674,7 @@ bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData)
 		INT_LOG("dumMgr:--------------------Missing Version %s\n", filename.c_str());
 		return false;
 	}
-		rc = strcpy_s(myData->deviceImageVersion,sizeof(myData->deviceImageVersion), text.c_str());
+		rc = strcpy_s(myData->deviceImageVersion,sizeof(myData->deviceImageVersion), std::move(text).c_str());
 		if(rc!=EOK)
 		{
 			ERR_CHK(rc);
@@ -684,7 +684,7 @@ bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData)
 	myData->deviceImageType = atoi(text.c_str());
 
 	text = getXMLTagText(fileContents, "image:productName");
-		rc = strcpy_s(myData->deviceName,sizeof(myData->deviceName), text.c_str());
+		rc = strcpy_s(myData->deviceName,sizeof(myData->deviceName), std::move(text).c_str());
 		if(rc!=EOK)
 		{
 			ERR_CHK(rc);
@@ -722,9 +722,9 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 
 					for (list<JSONParser::varVal *>::iterator arrayItr = folders->begin(); arrayItr != folders->end();arrayItr++)
 					{
-						string updateFolder = (*arrayItr)->str;
+						string updateFolder = std::move((*arrayItr)->str);
 						if(selectedUpdate<=0){
-							string updatePath = serverUpdatePath + updateFolder;
+							string updatePath = std::move(serverUpdatePath) + std::move(updateFolder);
 							INT_LOG("checking folder:%s\n",updatePath.c_str());
 
 							if (updatePath.length() > 0)
@@ -747,8 +747,8 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 				{
 					for (list<JSONParser::varVal *>::iterator arrayItr = folders->begin(); arrayItr != folders->end();arrayItr++)
 					{
-						string updateFolder = (*arrayItr)->str;
-						string updatePath = serverUpdatePath + updateFolder;
+						string updateFolder = std::move((*arrayItr)->str);
+						string updatePath = std::move(serverUpdatePath) + std::move(updateFolder);
 						INT_LOG("checking folder:%s\n",updatePath.c_str());
 
 						if (updatePath.length() > 0)
