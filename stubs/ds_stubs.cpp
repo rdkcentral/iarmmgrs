@@ -31,6 +31,28 @@ namespace device{
 		return Host::getInstance().getVideoOutputPorts().at(0);
 	}
 
+	AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) {
+	}
+
+	AudioOutputPort::~AudioOutputPort() {
+	}
+
+	List<AudioOutputPort> Host::getAudioOutputPorts() {
+		return device::List<device::AudioOutputPort>();
+	}
+
+	AudioOutputPort& Host::getAudioOutputPort(const std::string& name) {
+		return getAudioOutputPorts().at(0);
+	}
+
+	AudioOutputPort& Host::getAudioOutputPort(int id) {
+		return getAudioOutputPorts().at(0);
+	}
+	
+	AudioOutputPort & AudioOutputPort::getInstance(int id) {
+		return Host::getInstance().getAudioOutputPorts().at(0);
+	}
+
 	SleepMode Host::getPreferredSleepMode() {
 		return SleepMode::getInstance(dsHOST_SLEEP_MODE_LIGHT);
 	}
