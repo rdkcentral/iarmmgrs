@@ -888,7 +888,7 @@ static IARM_Result_t _GetPowerStateBeforeReboot(void *arg)
 {
     IARM_Bus_PWRMgr_GetPowerStateBeforeReboot_Param_t *param = (IARM_Bus_PWRMgr_GetPowerStateBeforeReboot_Param_t *)arg;
     memset (param->powerStateBeforeReboot, '\0', MAX_PWR_STATE_BEF_REBOOR_STR_LEN);
-    strncpy (param->powerStateBeforeReboot, powerStateBeforeReboot_gc.c_str(), strlen(powerStateBeforeReboot_gc.c_str()));
+    strncpy (param->powerStateBeforeReboot, powerStateBeforeReboot_gc.c_str(), MAX_PWR_STATE_BEF_REBOOR_STR_LEN-1);
     return IARM_RESULT_SUCCESS;
 }
 
