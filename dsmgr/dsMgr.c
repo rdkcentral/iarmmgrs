@@ -197,8 +197,14 @@ IARM_Result_t DSMgr_Start()
         initPwrEventListner();
 	/* Create  Thread for listening Hot Plug events */
 	pthread_mutex_init (&tdsMutexLock, NULL);
-	pthread_cond_init (&tdsMutexCond, NULL);
-	pthread_create (&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL);
+	if (pthread_cond_init(&tdsMutexCond, NULL) != 0) {
+		INT_ERROR("Failed to create pthread_cond_init tdsMutexCond.");
+		return IARM_RESULT_IPCCORE_FAIL;
+	}
+	if (pthread_create(&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL) != 0) {
+		INT_ERROR("Failed pthread_create _DSMgrResnThreadFunc.");
+		return IARM_RESULT_IPCCORE_FAIL;
+	}
 
 	/* Read the HDMI DDC Line delay to be introduced
 	 * for setting  the resolution

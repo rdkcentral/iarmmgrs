@@ -251,7 +251,7 @@ bool loadConfig()
 			filePath = "/etc/" + confName;
 			if (!_fileExists(filePath))
 			{
-				filePath = confName;
+				filePath = std::move(confName);
 				if (!_fileExists(filePath))
 				{
 					__TIMESTAMP();
