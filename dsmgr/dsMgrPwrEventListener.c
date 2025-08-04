@@ -647,6 +647,10 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
         if (0 != waitStatus) {
             pthread_mutex_unlock(&tdsPwrEventMutexLock);
             INT_ERROR("[%s:%d]dsMgrPwrEventHandlingThreadFunc: pthread_cond_wait failed = %u\n", __FUNCTION__, __LINE__, waitStatus);
+	    /*
+	     * Coverity note: No shared data is accessed after pthread_cond_wait failure.
+	     * The mutex is unlocked and the thread exits immediately, so this is safe.
+	     */
             break;
         }
 
