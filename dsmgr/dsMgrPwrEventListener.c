@@ -643,7 +643,13 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
     {
         pthread_mutex_lock(&tdsPwrEventMutexLock);
         INT_DEBUG("dsMgrPwrEventHandlingThreadFunc.... Wait for Events from Power manager Controller Callback\r\n");
-        pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
+        int waitStatus = pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
+        if (0 != waitStatus) {
+            pthread_mutex_unlock(&tdsPwrEventMutexLock);
+            INT_ERROR("[%s:%d]dsMgrPwrEventHandlingThreadFunc: pthread_cond_wait failed = %u\n", __FUNCTION__, __LINE__, waitStatus);
+            break;
+        }
+
         if(m_dsMgrPwrStopThread)
         {
              /* This case can enter if the de init is trigerred which wants to exit the thread function 
