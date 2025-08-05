@@ -1,0 +1,205 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Coverity error reader: /home/amadha013/community/mw-dev/build-raspberrypi4-64-rdke/tmp/work/raspberrypi4-64-rdke-middleware-rdkmllib32-linux-gnueabi/lib32-iarmmgrs/1.0.13-r0/git/power/sleepTimer.c</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head>
+<body link="#000000" vlink="#000000"><pre>
+<b><a name="line1">1    </a></b>	/*
+<b><a name="line2">2    </a></b>	 * If not stated otherwise in this file or this component's LICENSE file the
+<b><a name="line3">3    </a></b>	 * following copyright and licenses apply:
+<b><a name="line4">4    </a></b>	 *
+<b><a name="line5">5    </a></b>	 * Copyright 2018 RDK Management
+<b><a name="line6">6    </a></b>	 *
+<b><a name="line7">7    </a></b>	 * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+<b><a name="line8">8    </a></b>	 * you may not use this file except in compliance with the License.
+<b><a name="line9">9    </a></b>	 * You may obtain a copy of the License at
+<b><a name="line10">10   </a></b>	 *
+<b><a name="line11">11   </a></b>	 * http://www.apache.org/licenses/LICENSE-2.0
+<b><a name="line12">12   </a></b>	 *
+<b><a name="line13">13   </a></b>	 * Unless required by applicable law or agreed to in writing, software
+<b><a name="line14">14   </a></b>	 * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<b><a name="line15">15   </a></b>	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<b><a name="line16">16   </a></b>	 * See the License for the specific language governing permissions and
+<b><a name="line17">17   </a></b>	 * limitations under the License.
+<b><a name="line18">18   </a></b>	*/
+<b><a name="line19">19   </a></b>	
+<b><a name="line20">20   </a></b>	#include &lt;glib.h&gt;
+<b><a name="line21">21   </a></b>	#include &lt;stdio.h&gt;
+<b><a name="line22">22   </a></b>	#include &lt;pthread.h&gt;
+<b><a name="line23">23   </a></b>	#include &lt;time.h&gt;
+<b><a name="line24">24   </a></b>	
+<b><a name="line25">25   </a></b>	#include &lt;assert.h&gt;
+<b><a name="line26">26   </a></b>	#include &lt;stdint.h&gt;
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="red">
+<a name="error:0"></a>
+<a name="error"></a>
+<!-- merge-key 239aba24a2cf2a1fa0384202f4521e40 -->
+<b>(1) Event missing_decl_specifiers</b>: </font></td>
+<td><font color="red">this declaration has no storage class or type specifier</font></td>
+</tr>
+<tr><td><font color="red">
+<a name="error:1"></a>
+<!-- merge-key 239aba24a2cf2a1fa0384202f4521e40 -->
+<b>(2) Event caretline</b>: </font></td>
+<td><font color="red">^</font></td>
+</tr>
+</table>
+<pre><b><a name="line27">27   </a></b>	_Static_assert(sizeof(double) == 8, &quot;Expected double to be 8 bytes&quot;);
+<b><a name="line28">28   </a></b>	_Static_assert(sizeof(time_t) &gt;= 8, &quot;Y2K38 safety: time_t must be at least 64 bits&quot;);
+<b><a name="line29">29   </a></b>	
+<b><a name="line30">30   </a></b>	#include &quot;libIBus.h&quot;
+<b><a name="line31">31   </a></b>	#include &quot;pwrlogger.h&quot;
+<b><a name="line32">32   </a></b>	#include &quot;pwrMgr.h&quot;
+<b><a name="line33">33   </a></b>	#include &quot;pwrMgrInternal.h&quot;
+<b><a name="line34">34   </a></b>	#ifdef SLEEPTIMER_USE_CECSTANDBY
+<b><a name="line35">35   </a></b>	#include &quot;CecIARMBusMgr.h&quot;
+<b><a name="line36">36   </a></b>	#endif
+<b><a name="line37">37   </a></b>	#include &quot;safec_lib.h&quot;
+<b><a name="line38">38   </a></b>	
+<b><a name="line39">39   </a></b>	static GMainLoop *mainloop = NULL;
+<b><a name="line40">40   </a></b>	static guint timerSource = 0;
+<b><a name="line41">41   </a></b>	static time_t timerEnd = 0;
+<b><a name="line42">42   </a></b>	static pthread_mutex_t  _lock = PTHREAD_MUTEX_INITIALIZER;
+<b><a name="line43">43   </a></b>	#define LOCK() pthread_mutex_lock(&amp;_lock)
+<b><a name="line44">44   </a></b>	#define UNLOCK() pthread_mutex_unlock(&amp;_lock)
+<b><a name="line45">45   </a></b>	
+<b><a name="line46">46   </a></b>	#ifdef SLEEPTIMER_USE_CECSTANDBY
+<b><a name="line47">47   </a></b>	static void SendCECStandby(void)
+<b><a name="line48">48   </a></b>	{
+<b><a name="line49">49   </a></b>	    errno_t rc = -1;
+<b><a name="line50">50   </a></b>	    IARM_Bus_CECMgr_Send_Param_t dataToSend;
+<b><a name="line51">51   </a></b>	    unsigned char buf[] = {0x30, 0x36}; //standby msg, from TUNER to TV
+<b><a name="line52">52   </a></b>	    memset(&amp;dataToSend, 0, sizeof(dataToSend));
+<b><a name="line53">53   </a></b>	    dataToSend.length = sizeof(buf);
+<b><a name="line54">54   </a></b>	    rc = memcpy_s(dataToSend.data,sizeof(dataToSend.data), buf, dataToSend.length);
+<b><a name="line55">55   </a></b>	    if(rc!=EOK)
+<b><a name="line56">56   </a></b>	    {
+<b><a name="line57">57   </a></b>	        ERR_CHK(rc);
+<b><a name="line58">58   </a></b>	    }
+<b><a name="line59">59   </a></b>	    LOG(&quot;SleepTimer send CEC Standby\r\n&quot;);
+<b><a name="line60">60   </a></b>	    IARM_Bus_Call(IARM_BUS_CECMGR_NAME,IARM_BUS_CECMGR_API_Send,(void *)&amp;dataToSend, sizeof(dataToSend));
+<b><a name="line61">61   </a></b>	}
+<b><a name="line62">62   </a></b>	#endif
+<b><a name="line63">63   </a></b>	
+<b><a name="line64">64   </a></b>	static gboolean _onSleepTimerFire(void *)
+<b><a name="line65">65   </a></b>	{
+<b><a name="line66">66   </a></b>	    LOCK();
+<b><a name="line67">67   </a></b>	    LOG(&quot;SleepTimer %d start at %ld, fired at %ld, set standby\r\n&quot;, timerSource, timerEnd, time(NULL));
+<b><a name="line68">68   </a></b>	    timerEnd = 0;
+<b><a name="line69">69   </a></b>	    timerSource = 0;
+<b><a name="line70">70   </a></b>	    UNLOCK();
+<b><a name="line71">71   </a></b>	#ifdef SLEEPTIMER_USE_CECSTANDBY
+<b><a name="line72">72   </a></b>	    SendCECStandby();
+<b><a name="line73">73   </a></b>	#else
+<b><a name="line74">74   </a></b>	    LOG(&quot;No STANDBY action implemented\r\n&quot;);
+<b><a name="line75">75   </a></b>	#endif
+<b><a name="line76">76   </a></b>	    return FALSE;
+<b><a name="line77">77   </a></b>	}
+<b><a name="line78">78   </a></b>	
+<b><a name="line79">79   </a></b>	static IARM_Result_t _SetSleepTimer(void *arg)
+<b><a name="line80">80   </a></b>	{
+<b><a name="line81">81   </a></b>	    IARM_Bus_PWRMgr_SleepTimer_Param_t *param = (IARM_Bus_PWRMgr_SleepTimer_Param_t *)arg;
+<b><a name="line82">82   </a></b>	
+<b><a name="line83">83   </a></b>	    if(param != NULL)
+<b><a name="line84">84   </a></b>	    {
+<b><a name="line85">85   </a></b>	        LOCK();
+<b><a name="line86">86   </a></b>	        if (param-&gt;start == 1) {
+<b><a name="line87">87   </a></b>	            time(&amp;timerEnd);
+<b><a name="line88">88   </a></b>	            timerEnd += (time_t)param-&gt;time;
+<b><a name="line89">89   </a></b>	            LOG(&quot;SleepTimer (re)set :%.3f, curr source=%d, to fire at %ld\r\n&quot;, param-&gt;time, timerSource, timerEnd);
+<b><a name="line90">90   </a></b>	            if (timerSource) {
+<b><a name="line91">91   </a></b>	                g_source_remove(timerSource);
+<b><a name="line92">92   </a></b>	                timerSource = 0;
+<b><a name="line93">93   </a></b>	            }
+<b><a name="line94">94   </a></b>	            timerSource = g_timeout_add_seconds((guint)(param-&gt;time), _onSleepTimerFire, NULL);
+<b><a name="line95">95   </a></b>	        }
+<b><a name="line96">96   </a></b>	        else if (param-&gt;start == 0) {
+<b><a name="line97">97   </a></b>	            LOG(&quot;SleepTimer %d cancelled\r\n&quot;, timerSource);
+<b><a name="line98">98   </a></b>	            if (timerSource) {
+<b><a name="line99">99   </a></b>	                g_source_remove(timerSource);
+<b><a name="line100">100  </a></b>	            }
+<b><a name="line101">101  </a></b>	            timerSource = 0;
+<b><a name="line102">102  </a></b>	            timerEnd = 0;
+<b><a name="line103">103  </a></b>	        }
+<b><a name="line104">104  </a></b>	        UNLOCK();
+<b><a name="line105">105  </a></b>	        return IARM_RESULT_SUCCESS;
+<b><a name="line106">106  </a></b>	    }
+<b><a name="line107">107  </a></b>	    return IARM_RESULT_IPCCORE_FAIL;
+<b><a name="line108">108  </a></b>	}
+<b><a name="line109">109  </a></b>	
+<b><a name="line110">110  </a></b>	static IARM_Result_t _GetSleepTimer(void *arg)
+<b><a name="line111">111  </a></b>	{
+<b><a name="line112">112  </a></b>	    IARM_Bus_PWRMgr_SleepTimer_Param_t *param = (IARM_Bus_PWRMgr_SleepTimer_Param_t *)arg;
+<b><a name="line113">113  </a></b>	    param-&gt;time = 0.;
+<b><a name="line114">114  </a></b>	    param-&gt;start = 0;
+<b><a name="line115">115  </a></b>	    LOCK();
+<b><a name="line116">116  </a></b>	    if (timerSource) {
+<b><a name="line117">117  </a></b>	        time_t now = time(NULL);
+<b><a name="line118">118  </a></b>	        param-&gt;time = (double)((now &lt; timerEnd) ? (timerEnd - now) :0);
+<b><a name="line119">119  </a></b>	        param-&gt;start = (param-&gt;time ? 1 : 0);
+<b><a name="line120">120  </a></b>	    }
+<b><a name="line121">121  </a></b>	    UNLOCK();
+<b><a name="line122">122  </a></b>	    LOG(&quot;SleepTimer %d has %.3lf remaining\r\n&quot;, param-&gt;start, param-&gt;time);  //CID:128053,127752,97127,95718 - Print_Args
+<b><a name="line123">123  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line124">124  </a></b>	}
+<b><a name="line125">125  </a></b>	
+<b><a name="line126">126  </a></b>	void IARM_Bus_PWRMGR_RegisterSleepTimerAPIs(void *context)
+<b><a name="line127">127  </a></b>	{
+<b><a name="line128">128  </a></b>	    LOG(&quot;SleepTimer PwrMgr register APIs\r\n&quot;);
+<b><a name="line129">129  </a></b>	    mainloop = (GMainLoop*)context;
+<b><a name="line130">130  </a></b>	    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetSleepTimer, _SetSleepTimer);
+<b><a name="line131">131  </a></b>	    IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetSleepTimer, _GetSleepTimer);
+<b><a name="line132">132  </a></b>	}
+<b><a name="line133">133  </a></b>	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre></body>
+</html>

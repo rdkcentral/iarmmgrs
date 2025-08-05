@@ -1,0 +1,1140 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Coverity error reader: /home/amadha013/community/mw-dev/build-raspberrypi4-64-rdke/tmp/work/raspberrypi4-64-rdke-middleware-rdkmllib32-linux-gnueabi/lib32-iarmmgrs/1.0.13-r0/git/dsmgr/dsMgr.c</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head>
+<body link="#000000" vlink="#000000"><pre>
+<b><a name="line1">1    </a></b>	/*
+<b><a name="line2">2    </a></b>	 * If not stated otherwise in this file or this component's LICENSE file the
+<b><a name="line3">3    </a></b>	 * following copyright and licenses apply:
+<b><a name="line4">4    </a></b>	 *
+<b><a name="line5">5    </a></b>	 * Copyright 2016 RDK Management
+<b><a name="line6">6    </a></b>	 *
+<b><a name="line7">7    </a></b>	 * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+<b><a name="line8">8    </a></b>	 * you may not use this file except in compliance with the License.
+<b><a name="line9">9    </a></b>	 * You may obtain a copy of the License at
+<b><a name="line10">10   </a></b>	 *
+<b><a name="line11">11   </a></b>	 * http://www.apache.org/licenses/LICENSE-2.0
+<b><a name="line12">12   </a></b>	 *
+<b><a name="line13">13   </a></b>	 * Unless required by applicable law or agreed to in writing, software
+<b><a name="line14">14   </a></b>	 * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<b><a name="line15">15   </a></b>	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<b><a name="line16">16   </a></b>	 * See the License for the specific language governing permissions and
+<b><a name="line17">17   </a></b>	 * limitations under the License.
+<b><a name="line18">18   </a></b>	*/
+<b><a name="line19">19   </a></b>	
+<b><a name="line20">20   </a></b>	
+<b><a name="line21">21   </a></b>	
+<b><a name="line22">22   </a></b>	/**
+<b><a name="line23">23   </a></b>	* @defgroup iarmmgrs
+<b><a name="line24">24   </a></b>	* @{
+<b><a name="line25">25   </a></b>	* @defgroup dsmgr
+<b><a name="line26">26   </a></b>	* @{
+<b><a name="line27">27   </a></b>	**/
+<b><a name="line28">28   </a></b>	
+<b><a name="line29">29   </a></b>	
+<b><a name="line30">30   </a></b>	#include &lt;stdio.h&gt;
+<b><a name="line31">31   </a></b>	#include &lt;string.h&gt;
+<b><a name="line32">32   </a></b>	#include &lt;unistd.h&gt;
+<b><a name="line33">33   </a></b>	#include &lt;fcntl.h&gt;
+<b><a name="line34">34   </a></b>	#include &lt;string.h&gt;
+<b><a name="line35">35   </a></b>	#include &lt;stdlib.h&gt;
+<b><a name="line36">36   </a></b>	#include &lt;time.h&gt;
+<b><a name="line37">37   </a></b>	#include &lt;pthread.h&gt;
+<b><a name="line38">38   </a></b>	#include &lt;sys/types.h&gt;
+<b><a name="line39">39   </a></b>	#include &lt;sys/stat.h&gt;
+<b><a name="line40">40   </a></b>	
+<b><a name="line41">41   </a></b>	
+<b><a name="line42">42   </a></b>	#include &quot;libIARM.h&quot;
+<b><a name="line43">43   </a></b>	#include &quot;libIBusDaemon.h&quot;
+<b><a name="line44">44   </a></b>	#include &quot;dsMgrInternal.h&quot;
+<b><a name="line45">45   </a></b>	#include &quot;libIBus.h&quot;
+<b><a name="line46">46   </a></b>	#include &quot;iarmUtil.h&quot;
+<b><a name="line47">47   </a></b>	
+<b><a name="line48">48   </a></b>	#include &quot;sysMgr.h&quot;
+<b><a name="line49">49   </a></b>	
+<b><a name="line50">50   </a></b>	#include &quot;dsMgr.h&quot;
+<b><a name="line51">51   </a></b>	#include &quot;dsUtl.h&quot;
+<b><a name="line52">52   </a></b>	#include &quot;dsError.h&quot;
+<b><a name="line53">53   </a></b>	#include &quot;dsTypes.h&quot;
+<b><a name="line54">54   </a></b>	#include &quot;dsRpc.h&quot;
+<b><a name="line55">55   </a></b>	#include &quot;dsVideoPort.h&quot;
+<b><a name="line56">56   </a></b>	#include &quot;dsVideoResolutionSettings.h&quot;
+<b><a name="line57">57   </a></b>	#include &quot;dsDisplay.h&quot;
+<b><a name="line58">58   </a></b>	#include &quot;dsAudioSettings.h&quot;
+<b><a name="line59">59   </a></b>	#include &quot;dsAudio.h&quot;
+<b><a name="line60">60   </a></b>	#include &quot;safec_lib.h&quot;
+<b><a name="line61">61   </a></b>	#include &quot;rfcapi.h&quot;
+<b><a name="line62">62   </a></b>	#include &quot;dsMgrPwrEventListener.h&quot;
+<b><a name="line63">63   </a></b>	
+<b><a name="line64">64   </a></b>	extern IARM_Result_t _dsSetResolution(void *arg);
+<b><a name="line65">65   </a></b>	extern IARM_Result_t _dsGetResolution(void *arg);
+<b><a name="line66">66   </a></b>	extern IARM_Result_t _dsInitResolution(void *arg);
+<b><a name="line67">67   </a></b>	extern IARM_Result_t _dsGetAudioPort(void *arg);
+<b><a name="line68">68   </a></b>	extern IARM_Result_t _dsGetStereoMode(void *arg);
+<b><a name="line69">69   </a></b>	extern IARM_Result_t _dsSetStereoMode(void *arg);
+<b><a name="line70">70   </a></b>	extern IARM_Result_t _dsGetEDID(void *arg);
+<b><a name="line71">71   </a></b>	extern IARM_Result_t _dsGetEDIDBytes(void *arg);
+<b><a name="line72">72   </a></b>	extern IARM_Result_t _dsGetVideoPort(void *arg);
+<b><a name="line73">73   </a></b>	extern IARM_Result_t _dsIsDisplayConnected(void *arg);
+<b><a name="line74">74   </a></b>	extern IARM_Result_t _dsGetStereoAuto(void *arg);
+<b><a name="line75">75   </a></b>	extern IARM_Result_t _dsIsDisplaySurround(void *arg);
+<b><a name="line76">76   </a></b>	extern IARM_Result_t _dsGetForceDisable4K(void *arg);
+<b><a name="line77">77   </a></b>	extern IARM_Result_t _dsSetBackgroundColor(void *arg);
+<b><a name="line78">78   </a></b>	extern IARM_Result_t _dsGetIgnoreEDIDStatus(void *arg);
+<b><a name="line79">79   </a></b>	extern bool isComponentPortPresent();
+<b><a name="line80">80   </a></b>	
+<b><a name="line81">81   </a></b>	extern bool dsGetHDMIDDCLineStatus(void);
+<b><a name="line82">82   </a></b>	static int _SetVideoPortResolution();
+<b><a name="line83">83   </a></b>	static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType);
+<b><a name="line84">84   </a></b>	static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
+<b><a name="line85">85   </a></b>	static IARM_Result_t _SysModeChange(void *arg);
+<b><a name="line86">86   </a></b>	static void dumpHdmiEdidInfo(dsDisplayEDID_t* pedidData);
+<b><a name="line87">87   </a></b>	static int iTuneReady = 0;
+<b><a name="line88">88   </a></b>	static dsDisplayEvent_t edisplayEventStatus = dsDISPLAY_EVENT_MAX;
+<b><a name="line89">89   </a></b>	static pthread_t edsHDMIHPDThreadID; // HDMI HPD - HDMI Hot Plug detect events
+<b><a name="line90">90   </a></b>	static pthread_mutex_t tdsMutexLock;
+<b><a name="line91">91   </a></b>	static pthread_cond_t  tdsMutexCond;
+<b><a name="line92">92   </a></b>	static void* _DSMgrResnThreadFunc(void *arg);
+<b><a name="line93">93   </a></b>	static void _setAudioMode();
+<b><a name="line94">94   </a></b>	void _setEASAudioMode();
+<b><a name="line95">95   </a></b>	static int iResnCount = 5;
+<b><a name="line96">96   </a></b>	static int iInitResnFlag = 0;
+<b><a name="line97">97   </a></b>	static bool bHDCPAuthenticated = false;
+<b><a name="line98">98   </a></b>	IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal Mode
+<b><a name="line99">99   </a></b>	
+<b><a name="line100">100  </a></b>	
+<b><a name="line101">101  </a></b>	/*DSMgr Glib variables */
+<b><a name="line102">102  </a></b>	/* For glib APIs*/
+<b><a name="line103">103  </a></b>	#include &lt;glib.h&gt;
+<b><a name="line104">104  </a></b>	GMainLoop *dsMgr_Gloop = NULL;
+<b><a name="line105">105  </a></b>	static gboolean heartbeatMsg(gpointer data);
+<b><a name="line106">106  </a></b>	static gboolean _SetResolutionHandler(gpointer data);
+<b><a name="line107">107  </a></b>	static guint hotplug_event_src = 0;
+<b><a name="line108">108  </a></b>	static gboolean dumpEdidOnChecksumDiff(gpointer data);
+<b><a name="line109">109  </a></b>	static bool IsIgnoreEdid_gs = false;
+<b><a name="line110">110  </a></b>	
+<b><a name="line111">111  </a></b>	static intptr_t getVideoPortHandle(_dsVideoPortType_t port)
+<b><a name="line112">112  </a></b>	{
+<b><a name="line113">113  </a></b>	    /* Get the HDMI Video Port Parameter */
+<b><a name="line114">114  </a></b>	    dsVideoPortGetHandleParam_t vidPortParam;
+<b><a name="line115">115  </a></b>	    memset(&amp;vidPortParam, 0, sizeof(vidPortParam));
+<b><a name="line116">116  </a></b>	    vidPortParam.type = port;
+<b><a name="line117">117  </a></b>	    vidPortParam.index = 0;
+<b><a name="line118">118  </a></b>	    _dsGetVideoPort(&amp;vidPortParam);
+<b><a name="line119">119  </a></b>	    return vidPortParam.handle;
+<b><a name="line120">120  </a></b>	}
+<b><a name="line121">121  </a></b>	
+<b><a name="line122">122  </a></b>	static bool isHDMIConnected()
+<b><a name="line123">123  </a></b>	{
+<b><a name="line124">124  </a></b>	    /* Get the Display connection status */
+<b><a name="line125">125  </a></b>	    dsVideoPortIsDisplayConnectedParam_t ConParam;
+<b><a name="line126">126  </a></b>	    memset(&amp;ConParam, 0, sizeof(ConParam));
+<b><a name="line127">127  </a></b>	    ConParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
+<b><a name="line128">128  </a></b>	    _dsIsDisplayConnected(&amp;ConParam);
+<b><a name="line129">129  </a></b>	    return ConParam.connected; 
+<b><a name="line130">130  </a></b>	}
+<b><a name="line131">131  </a></b>	
+<b><a name="line132">132  </a></b>	IARM_Result_t DSMgr_Start()
+<b><a name="line133">133  </a></b>	{
+<b><a name="line134">134  </a></b>		FILE *fDSCtrptr = NULL;
+<b><a name="line135">135  </a></b>		IARM_Bus_SYSMgr_GetSystemStates_Param_t tuneReadyParam;
+<b><a name="line136">136  </a></b>	    IARM_Result_t iarmStatus;
+<b><a name="line137">137  </a></b>	
+<b><a name="line138">138  </a></b>		setvbuf(stdout, NULL, _IOLBF, 0);
+<b><a name="line139">139  </a></b>	    INT_INFO(&quot;Entering [%s] - [%s] - disabling io redirect buf \r\n&quot;, __FUNCTION__, IARM_BUS_DSMGR_NAME);
+<b><a name="line140">140  </a></b>	
+<b><a name="line141">141  </a></b>		/* Register with IARM Libs and Connect */
+<b><a name="line142">142  </a></b>	    iarmStatus = IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
+<b><a name="line143">143  </a></b>	    if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line144">144  </a></b>	        INT_ERROR(&quot;Failed to initialize IARM Bus for [%s] \r\n&quot;, IARM_BUS_DSMGR_NAME);
+<b><a name="line145">145  </a></b>	        return iarmStatus;
+<b><a name="line146">146  </a></b>	    }
+<b><a name="line147">147  </a></b>	    iarmStatus = IARM_Bus_Connect();
+<b><a name="line148">148  </a></b>	    if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line149">149  </a></b>	        INT_ERROR(&quot;Failed to connect IARM Bus for [%s] \r\n&quot;, IARM_BUS_DSMGR_NAME);
+<b><a name="line150">150  </a></b>	        return iarmStatus;
+<b><a name="line151">151  </a></b>	    }
+<b><a name="line152">152  </a></b>	    iarmStatus = IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
+<b><a name="line153">153  </a></b>	    if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line154">154  </a></b>	        INT_ERROR(&quot;Failed to register IARM Bus events for [%s] \r\n&quot;, IARM_BUS_DSMGR_NAME);
+<b><a name="line155">155  </a></b>	        return iarmStatus;
+<b><a name="line156">156  </a></b>	    }
+<b><a name="line157">157  </a></b>		/*Initialize the DS Manager - DS Srv and DS HAL */
+<b><a name="line158">158  </a></b>	    iarmStatus = dsMgr_init();
+<b><a name="line159">159  </a></b>	    if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line160">160  </a></b>	        INT_ERROR(&quot;Failed to initialize DS Manager for [%s] \r\n&quot;, IARM_BUS_DSMGR_NAME);
+<b><a name="line161">161  </a></b>	        return iarmStatus;
+<b><a name="line162">162  </a></b>	    }
+<b><a name="line163">163  </a></b>	
+<b><a name="line164">164  </a></b>		iInitResnFlag = 1;
+<b><a name="line165">165  </a></b>	        dsEdidIgnoreParam_t ignoreEdidParam;
+<b><a name="line166">166  </a></b>	        memset(&amp;ignoreEdidParam,0,sizeof(ignoreEdidParam));
+<b><a name="line167">167  </a></b>	        ignoreEdidParam.handle = dsVIDEOPORT_TYPE_HDMI;
+<b><a name="line168">168  </a></b>	        _dsGetIgnoreEDIDStatus(&amp;ignoreEdidParam);
+<b><a name="line169">169  </a></b>		IsIgnoreEdid_gs = ignoreEdidParam.ignoreEDID;
+<b><a name="line170">170  </a></b>		INT_INFO(&quot;ResOverride DSMgr_Start IsIgnoreEdid_gs: %d\n&quot;, IsIgnoreEdid_gs);
+<b><a name="line171">171  </a></b>		/*Register the Events */
+<b><a name="line172">172  </a></b>		iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME,IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,_EventHandler);
+<b><a name="line173">173  </a></b>		if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line174">174  </a></b>			INT_ERROR(&quot;Failed to register IARM Bus events for [%s] \r\n&quot;, IARM_BUS_SYSMGR_NAME);
+<b><a name="line175">175  </a></b>			return iarmStatus;
+<b><a name="line176">176  </a></b>		}
+<b><a name="line177">177  </a></b>		iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG,_EventHandler);
+<b><a name="line178">178  </a></b>		if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line179">179  </a></b>			INT_ERROR(&quot;Failed to register IARM Bus events for [%s] \r\n&quot;, IARM_BUS_DSMGR_NAME);
+<b><a name="line180">180  </a></b>			return iarmStatus;
+<b><a name="line181">181  </a></b>		}
+<b><a name="line182">182  </a></b>		iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS,_EventHandler);
+<b><a name="line183">183  </a></b>		if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line184">184  </a></b>			INT_ERROR(&quot;Failed to register IARM Bus events for [%s] \r\n&quot;, IARM_BUS_DSMGR_NAME);
+<b><a name="line185">185  </a></b>			return iarmStatus;
+<b><a name="line186">186  </a></b>		}
+<b><a name="line187">187  </a></b>		/*Register EAS handler so that we can ensure audio settings for EAS */
+<b><a name="line188">188  </a></b>		iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
+<b><a name="line189">189  </a></b>		if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line190">190  </a></b>			INT_ERROR(&quot;Failed to register IARM Bus events for [%s] \r\n&quot;, IARM_BUS_COMMON_API_SysModeChange);
+<b><a name="line191">191  </a></b>			return iarmStatus;
+<b><a name="line192">192  </a></b>		}
+<b><a name="line193">193  </a></b>	        /*Refactored dsMGR code*/
+<b><a name="line194">194  </a></b>	       PowerController_Init();
+<b><a name="line195">195  </a></b>	       dsMgrInitPwrControllerEvt();
+<b><a name="line196">196  </a></b>	       /* Power controller connect is checked inside initPwrEventListner*/
+<b><a name="line197">197  </a></b>	        initPwrEventListner();
+<b><a name="line198">198  </a></b>		/* Create  Thread for listening Hot Plug events */
+<b><a name="line199">199  </a></b>		pthread_mutex_init (&amp;tdsMutexLock, NULL);
+<b><a name="line200">200  </a></b>		if (pthread_cond_init(&amp;tdsMutexCond, NULL) != 0) {
+<b><a name="line201">201  </a></b>			INT_ERROR(&quot;Failed to create pthread_cond_init tdsMutexCond.&quot;);
+<b><a name="line202">202  </a></b>			return IARM_RESULT_IPCCORE_FAIL;
+<b><a name="line203">203  </a></b>		}
+<b><a name="line204">204  </a></b>		if (pthread_create(&amp;edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL) != 0) {
+<b><a name="line205">205  </a></b>			INT_ERROR(&quot;Failed pthread_create _DSMgrResnThreadFunc.&quot;);
+<b><a name="line206">206  </a></b>			return IARM_RESULT_IPCCORE_FAIL;
+<b><a name="line207">207  </a></b>		}
+<b><a name="line208">208  </a></b>	
+<b><a name="line209">209  </a></b>		/* Read the HDMI DDC Line delay to be introduced
+<b><a name="line210">210  </a></b>		 * for setting  the resolution
+<b><a name="line211">211  </a></b>		 * The DDC line is used for EDID and HDCP Negotiation
+<b><a name="line212">212  </a></b>		 */
+<b><a name="line213">213  </a></b>		fDSCtrptr = fopen(&quot;/opt/ddcDelay&quot;,&quot;r&quot;);
+<b><a name="line214">214  </a></b>		if (NULL != fDSCtrptr)
+<b><a name="line215">215  </a></b>		{
+<b><a name="line216">216  </a></b>			if(0 &gt; fscanf(fDSCtrptr,&quot;%d&quot;,&amp;iResnCount))
+<b><a name="line217">217  </a></b>			{
+<b><a name="line218">218  </a></b>				INT_ERROR(&quot;Error: fscanf on ddcDelay failed&quot;);
+<b><a name="line219">219  </a></b>			}
+<b><a name="line220">220  </a></b>	                fclose (fDSCtrptr);
+<b><a name="line221">221  </a></b>		}
+<b><a name="line222">222  </a></b>		INT_DEBUG(&quot;Retry DS manager Resolution count is iResnCount = %d \r\n&quot;,iResnCount);
+<b><a name="line223">223  </a></b>	
+<b><a name="line224">224  </a></b>	
+<b><a name="line225">225  </a></b>		iarmStatus = IARM_Bus_Call(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_API_GetSystemStates, &amp;tuneReadyParam, sizeof(tuneReadyParam));
+<b><a name="line226">226  </a></b>		if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line227">227  </a></b>			INT_ERROR(&quot;Failed to get Tune Ready status for [%s] \r\n&quot;, IARM_BUS_SYSMGR_NAME);
+<b><a name="line228">228  </a></b>			return iarmStatus;
+<b><a name="line229">229  </a></b>		}
+<b><a name="line230">230  </a></b>		INT_INFO(&quot;Tune Ready Status on start up is %d \r\n&quot;,tuneReadyParam.TuneReadyStatus.state);
+<b><a name="line231">231  </a></b>	
+<b><a name="line232">232  </a></b>		/* Read the Tune Ready status on startup  and update the tune ready flag */
+<b><a name="line233">233  </a></b>		if(1 == tuneReadyParam.TuneReadyStatus.state)
+<b><a name="line234">234  </a></b>		{
+<b><a name="line235">235  </a></b>			iTuneReady = 1;
+<b><a name="line236">236  </a></b>		}
+<b><a name="line237">237  </a></b>	
+<b><a name="line238">238  </a></b>		/* Create Main loop for DS Manager */
+<b><a name="line239">239  </a></b>	    dsMgr_Gloop = g_main_loop_new ( NULL , FALSE );
+<b><a name="line240">240  </a></b>	    if(dsMgr_Gloop != NULL){
+<b><a name="line241">241  </a></b>	        g_timeout_add_seconds (300 , heartbeatMsg , dsMgr_Gloop); 
+<b><a name="line242">242  </a></b>	    }
+<b><a name="line243">243  </a></b>	    else {
+<b><a name="line244">244  </a></b>	        INT_ERROR(&quot;Fails to Create a main Loop for [%s] \r\n&quot;,IARM_BUS_DSMGR_NAME);
+<b><a name="line245">245  </a></b>	    }
+<b><a name="line246">246  </a></b>	
+<b><a name="line247">247  </a></b>	    INT_INFO(&quot;Set resolution during dsMgr init .. \r\n&quot;);
+<b><a name="line248">248  </a></b>	    _SetVideoPortResolution(); 
+<b><a name="line249">249  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line250">250  </a></b>	}
+<b><a name="line251">251  </a></b>	
+<b><a name="line252">252  </a></b>	IARM_Result_t DSMgr_Loop()
+<b><a name="line253">253  </a></b>	{
+<b><a name="line254">254  </a></b>	   
+<b><a name="line255">255  </a></b>	   /* DS Mgr loop */
+<b><a name="line256">256  </a></b>	    if(dsMgr_Gloop)
+<b><a name="line257">257  </a></b>	    { 
+<b><a name="line258">258  </a></b>	        g_main_loop_run (dsMgr_Gloop);
+<b><a name="line259">259  </a></b>	        g_main_loop_unref(dsMgr_Gloop);
+<b><a name="line260">260  </a></b>	    }
+<b><a name="line261">261  </a></b>		return IARM_RESULT_SUCCESS;
+<b><a name="line262">262  </a></b>	}
+<b><a name="line263">263  </a></b>	
+<b><a name="line264">264  </a></b>	static gboolean heartbeatMsg(gpointer data)
+<b><a name="line265">265  </a></b>	{
+<b><a name="line266">266  </a></b>	    time_t curr = 0;
+<b><a name="line267">267  </a></b>	    time(&amp;curr);
+<b><a name="line268">268  </a></b>	    INT_INFO(&quot;I-ARM BUS DS Mgr: HeartBeat at %s\r\n&quot;, ctime(&amp;curr));
+<b><a name="line269">269  </a></b>	    return TRUE;
+<b><a name="line270">270  </a></b>	}
+<b><a name="line271">271  </a></b>	
+<b><a name="line272">272  </a></b>	IARM_Result_t DSMgr_Stop()
+<b><a name="line273">273  </a></b>	{
+<b><a name="line274">274  </a></b>	    IARM_Result_t iarmStatus = IARM_RESULT_SUCCESS;
+<b><a name="line275">275  </a></b>		if(dsMgr_Gloop)
+<b><a name="line276">276  </a></b>	    {
+<b><a name="line277">277  </a></b>	        g_main_loop_quit(dsMgr_Gloop);
+<b><a name="line278">278  </a></b>	    }
+<b><a name="line279">279  </a></b>	    dsMgrDeinitPwrControllerEvt();
+<b><a name="line280">280  </a></b>	    PowerController_Term();
+<b><a name="line281">281  </a></b>	    iarmStatus = IARM_Bus_Disconnect();
+<b><a name="line282">282  </a></b>	    if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line283">283  </a></b>	        INT_ERROR(&quot;Failed to disconnect IARM Bus for [%s] \r\n&quot;, IARM_BUS_DSMGR_NAME);
+<b><a name="line284">284  </a></b>	        return iarmStatus;
+<b><a name="line285">285  </a></b>	    }
+<b><a name="line286">286  </a></b>	    iarmStatus = IARM_Bus_Term();
+<b><a name="line287">287  </a></b>	    if (IARM_RESULT_SUCCESS != iarmStatus) {
+<b><a name="line288">288  </a></b>	        INT_ERROR(&quot;Failed to terminate IARM Bus for [%s] \r\n&quot;, IARM_BUS_DSMGR_NAME);
+<b><a name="line289">289  </a></b>	        return iarmStatus;
+<b><a name="line290">290  </a></b>	    }
+<b><a name="line291">291  </a></b>		pthread_mutex_destroy (&amp;tdsMutexLock);
+<b><a name="line292">292  </a></b>		pthread_cond_destroy  (&amp;tdsMutexCond);
+<b><a name="line293">293  </a></b>	
+<b><a name="line294">294  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line295">295  </a></b>	}
+<b><a name="line296">296  </a></b>	
+<b><a name="line297">297  </a></b>	/**
+<b><a name="line298">298  </a></b>	 * @fn static IARM_Result_t _SysModeChange(void *arg){
+<b><a name="line299">299  </a></b>	 * @brief This function is a event handler which returns current system
+<b><a name="line300">300  </a></b>	 *  mode using IARM. It returns mode as  &quot;NORMAL&quot;, &quot;WAREHOUSE&quot;,&quot;EAS&quot; or &quot;UNKNOWN&quot;.
+<b><a name="line301">301  </a></b>	 *
+<b><a name="line302">302  </a></b>	 * @param[in] void pointer to void, containing IARM_Bus_CommonAPI_SysModeChange_Param_t data.
+<b><a name="line303">303  </a></b>	 *
+<b><a name="line304">304  </a></b>	 * @return variable of IARM_Result_t type.
+<b><a name="line305">305  </a></b>	 * @retval IARM_RESULT_SUCCESS On function completion.
+<b><a name="line306">306  </a></b>	 */
+<b><a name="line307">307  </a></b>	static IARM_Result_t _SysModeChange(void *arg)
+<b><a name="line308">308  </a></b>	{
+<b><a name="line309">309  </a></b>	    IARM_Bus_CommonAPI_SysModeChange_Param_t *param = (IARM_Bus_CommonAPI_SysModeChange_Param_t *)arg;
+<b><a name="line310">310  </a></b>	    IARM_Bus_Daemon_SysMode_t isNextEAS = IARM_BUS_SYS_MODE_NORMAL;
+<b><a name="line311">311  </a></b>	
+<b><a name="line312">312  </a></b>	    INT_INFO(&quot;[DSMgr] Recvd Sysmode Change::New mode --&gt; %d,Old mode --&gt; %d&quot;,param-&gt;newMode,param-&gt;oldMode);
+<b><a name="line313">313  </a></b>	         
+<b><a name="line314">314  </a></b>	     if ((param-&gt;newMode == IARM_BUS_SYS_MODE_EAS) ||  
+<b><a name="line315">315  </a></b>	     	 (param-&gt;newMode == IARM_BUS_SYS_MODE_NORMAL)) 
+<b><a name="line316">316  </a></b>	     {
+<b><a name="line317">317  </a></b>	        isNextEAS = param-&gt;newMode;
+<b><a name="line318">318  </a></b>	     }
+<b><a name="line319">319  </a></b>	     else
+<b><a name="line320">320  </a></b>	     {
+<b><a name="line321">321  </a></b>	     	/* Do not process any other mode change as of now for DS Manager.. */
+<b><a name="line322">322  </a></b>	     	return IARM_RESULT_SUCCESS;
+<b><a name="line323">323  </a></b>	     }
+<b><a name="line324">324  </a></b>	
+<b><a name="line325">325  </a></b>	    if ((isEAS == IARM_BUS_SYS_MODE_EAS) &amp;&amp; (isNextEAS == IARM_BUS_SYS_MODE_NORMAL) ) {
+<b><a name="line326">326  </a></b>	        isEAS = IARM_BUS_SYS_MODE_NORMAL;
+<b><a name="line327">327  </a></b>	        _setAudioMode();
+<b><a name="line328">328  </a></b>	    }
+<b><a name="line329">329  </a></b>	    else if ((isEAS == IARM_BUS_SYS_MODE_NORMAL) &amp;&amp; (isNextEAS == IARM_BUS_SYS_MODE_EAS) ) {
+<b><a name="line330">330  </a></b>	    	/* 
+<b><a name="line331">331  </a></b>	    		* Change the Audio Mode to Stereo if Current Audio Setting is Paasthrough
+<b><a name="line332">332  </a></b>	    	*/
+<b><a name="line333">333  </a></b>	        isEAS = IARM_BUS_SYS_MODE_EAS;
+<b><a name="line334">334  </a></b>	        _setEASAudioMode();
+<b><a name="line335">335  </a></b>	        
+<b><a name="line336">336  </a></b>	    }
+<b><a name="line337">337  </a></b>	    else {
+<b><a name="line338">338  </a></b>	        /* no op for no mode change */
+<b><a name="line339">339  </a></b>	    }
+<b><a name="line340">340  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line341">341  </a></b>	}
+<b><a name="line342">342  </a></b>	
+<b><a name="line343">343  </a></b>	static void setBGColor(dsVideoBackgroundColor_t color)
+<b><a name="line344">344  </a></b>	{
+<b><a name="line345">345  </a></b>	    /* Get the HDMI Video Port Parameter */
+<b><a name="line346">346  </a></b>	    dsVideoPortGetHandleParam_t vidPortParam;
+<b><a name="line347">347  </a></b>	    memset(&amp;vidPortParam, 0, sizeof(vidPortParam));
+<b><a name="line348">348  </a></b>	    vidPortParam.type = dsVIDEOPORT_TYPE_HDMI;
+<b><a name="line349">349  </a></b>	    vidPortParam.index = 0;
+<b><a name="line350">350  </a></b>	    _dsGetVideoPort(&amp;vidPortParam);
+<b><a name="line351">351  </a></b>	
+<b><a name="line352">352  </a></b>	    if(vidPortParam.handle != NULL)
+<b><a name="line353">353  </a></b>	    {
+<b><a name="line354">354  </a></b>	        dsSetBackgroundColorParam_t setBGColorParam;
+<b><a name="line355">355  </a></b>	        memset(&amp;setBGColorParam, 0, sizeof(setBGColorParam));
+<b><a name="line356">356  </a></b>	        setBGColorParam.color = color;
+<b><a name="line357">357  </a></b>	        setBGColorParam.handle= vidPortParam.handle;
+<b><a name="line358">358  </a></b>	        _dsSetBackgroundColor(&amp;setBGColorParam);  
+<b><a name="line359">359  </a></b>	    }
+<b><a name="line360">360  </a></b>	}
+<b><a name="line361">361  </a></b>	
+<b><a name="line362">362  </a></b>	
+<b><a name="line363">363  </a></b>	/*Event Handler for DS Manager And Sys Manager Events */
+<b><a name="line364">364  </a></b>	static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
+<b><a name="line365">365  </a></b>	{
+<b><a name="line366">366  </a></b>	    /* allows dsmgr to set initial resolution irrespective of ignore edid only during boot */
+<b><a name="line367">367  </a></b>	    static bool bootup_flag_enabled = true;
+<b><a name="line368">368  </a></b>	
+<b><a name="line369">369  </a></b>	    /*Handle only Sys Manager Events */
+<b><a name="line370">370  </a></b>		if (strcmp(owner, IARM_BUS_SYSMGR_NAME)  == 0) 
+<b><a name="line371">371  </a></b>		{
+<b><a name="line372">372  </a></b>			/* Only handle state events */
+<b><a name="line373">373  </a></b>		    if (eventId != IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE) return;
+<b><a name="line374">374  </a></b>			//	INT_DEBUG(&quot;_sysMgrEventHandler invoked in DS Manager\r\n&quot;);
+<b><a name="line375">375  </a></b>			IARM_Bus_SYSMgr_EventData_t *sysEventData = (IARM_Bus_SYSMgr_EventData_t*)data;
+<b><a name="line376">376  </a></b>			IARM_Bus_SYSMgr_SystemState_t stateId = sysEventData-&gt;data.systemStates.stateId;
+<b><a name="line377">377  </a></b>			int state = sysEventData-&gt;data.systemStates.state;
+<b><a name="line378">378  </a></b>			INT_INFO(&quot;_sysEventHandler invoked for stateid %d of state %d \r\n&quot;, stateId, state);
+<b><a name="line379">379  </a></b>			switch(stateId) {
+<b><a name="line380">380  </a></b>				case IARM_BUS_SYSMGR_SYSSTATE_TUNEREADY:
+<b><a name="line381">381  </a></b>						INT_DEBUG(&quot;Tune Ready Evenets in DS Manager \r\n&quot;);
+<b><a name="line382">382  </a></b>					
+<b><a name="line383">383  </a></b>						if (0 == iTuneReady)
+<b><a name="line384">384  </a></b>						{
+<b><a name="line385">385  </a></b>							iTuneReady = 1;
+<b><a name="line386">386  </a></b>	
+<b><a name="line387">387  </a></b>							/* Set audio mode from persistent */
+<b><a name="line388">388  </a></b>							_setAudioMode();
+<b><a name="line389">389  </a></b>							
+<b><a name="line390">390  </a></b>							/* Un-block the Resolution Settings Thread */
+<b><a name="line391">391  </a></b>							pthread_mutex_lock(&amp;tdsMutexLock);
+<b><a name="line392">392  </a></b>							pthread_cond_signal(&amp;tdsMutexCond);
+<b><a name="line393">393  </a></b>							pthread_mutex_unlock(&amp;tdsMutexLock);
+<b><a name="line394">394  </a></b>						}
+<b><a name="line395">395  </a></b>	  			break;
+<b><a name="line396">396  </a></b>				default:
+<b><a name="line397">397  </a></b>					break;
+<b><a name="line398">398  </a></b>			}
+<b><a name="line399">399  </a></b>		}else if (strcmp(owner,IARM_BUS_DSMGR_NAME) == 0)
+<b><a name="line400">400  </a></b>	    {
+<b><a name="line401">401  </a></b>	        switch (eventId) {
+<b><a name="line402">402  </a></b>				case IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG:
+<b><a name="line403">403  </a></b>					{
+<b><a name="line404">404  </a></b>						
+<b><a name="line405">405  </a></b>						IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
+<b><a name="line406">406  </a></b>						
+<b><a name="line407">407  </a></b>						INT_INFO(&quot;[DsMgr] Got HDMI %s Event  \r\n&quot;,(eventData-&gt;data.hdmi_hpd.event == dsDISPLAY_EVENT_CONNECTED ? &quot;Connect&quot; : &quot;Disconnect&quot;));
+<b><a name="line408">408  </a></b>	
+<b><a name="line409">409  </a></b>	                                        setBGColor(dsVIDEO_BGCOLOR_NONE);
+<b><a name="line410">410  </a></b>	
+<b><a name="line411">411  </a></b>						/* Un-Block the Resolution Settings Thread */
+<b><a name="line412">412  </a></b>						pthread_mutex_lock(&amp;tdsMutexLock);
+<b><a name="line413">413  </a></b>						edisplayEventStatus = ((eventData-&gt;data.hdmi_hpd.event == dsDISPLAY_EVENT_CONNECTED) ? dsDISPLAY_EVENT_CONNECTED : dsDISPLAY_EVENT_DISCONNECTED);
+<b><a name="line414">414  </a></b>						pthread_cond_signal(&amp;tdsMutexCond);
+<b><a name="line415">415  </a></b>						pthread_mutex_unlock(&amp;tdsMutexLock);
+<b><a name="line416">416  </a></b>											
+<b><a name="line417">417  </a></b>					}
+<b><a name="line418">418  </a></b>	                break;
+<b><a name="line419">419  </a></b>				case IARM_BUS_DSMGR_EVENT_HDCP_STATUS:
+<b><a name="line420">420  </a></b>					{
+<b><a name="line421">421  </a></b>						IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
+<b><a name="line422">422  </a></b>						IARM_Bus_SYSMgr_EventData_t HDCPeventData;
+<b><a name="line423">423  </a></b>						int status = eventData-&gt;data.hdmi_hdcp.hdcpStatus;
+<b><a name="line424">424  </a></b>						//INT_DEBUG(&quot;%s: IARM_BUS_DSMGR_EVENT_HDCP_STATUS  event status :%d \r\n&quot;,__FUNCTION__, status);
+<b><a name="line425">425  </a></b>						
+<b><a name="line426">426  </a></b>						/* HDCP is enabled */
+<b><a name="line427">427  </a></b>						HDCPeventData.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_HDCP_ENABLED;
+<b><a name="line428">428  </a></b>						HDCPeventData.data.systemStates.state = 1;
+<b><a name="line429">429  </a></b>						if (status == dsHDCP_STATUS_AUTHENTICATED )
+<b><a name="line430">430  </a></b>						{
+<b><a name="line431">431  </a></b>							INT_INFO(&quot;Changed status to HDCP Authentication Pass  !!!!!!!! ..\r\n&quot;);
+<b><a name="line432">432  </a></b>							HDCPeventData.data.systemStates.state =  1;
+<b><a name="line433">433  </a></b>	                                                bHDCPAuthenticated = true;
+<b><a name="line434">434  </a></b>							INT_INFO(&quot;HDCP success - Removed hotplug_event_src Time source %d and set resolution immediately \r\n&quot;,hotplug_event_src);
+<b><a name="line435">435  </a></b>	                                                if(hotplug_event_src)
+<b><a name="line436">436  </a></b>	                                                {
+<b><a name="line437">437  </a></b>	                                                    g_source_remove(hotplug_event_src);
+<b><a name="line438">438  </a></b>	                                                    hotplug_event_src = 0;
+<b><a name="line439">439  </a></b>	                                                }
+<b><a name="line440">440  </a></b>	                                                setBGColor(dsVIDEO_BGCOLOR_NONE);
+<b><a name="line441">441  </a></b>							if ((!IsIgnoreEdid_gs) || bootup_flag_enabled){
+<b><a name="line442">442  </a></b>	                                                    _SetVideoPortResolution();
+<b><a name="line443">443  </a></b>							    if(bootup_flag_enabled)
+<b><a name="line444">444  </a></b>							        bootup_flag_enabled = false;
+<b><a name="line445">445  </a></b>							}
+<b><a name="line446">446  </a></b>	                                                g_timeout_add_seconds((guint)1,dumpEdidOnChecksumDiff,NULL);
+<b><a name="line447">447  </a></b>						} 
+<b><a name="line448">448  </a></b>						else if (status == dsHDCP_STATUS_AUTHENTICATIONFAILURE )
+<b><a name="line449">449  </a></b>						{
+<b><a name="line450">450  </a></b>							INT_ERROR(&quot;Changed status to HDCP Authentication Fail   !!!!!!!! ..\r\n&quot;);
+<b><a name="line451">451  </a></b>							HDCPeventData.data.systemStates.state =  0;
+<b><a name="line452">452  </a></b>							
+<b><a name="line453">453  </a></b>							bHDCPAuthenticated = false;
+<b><a name="line454">454  </a></b>							if (!IsIgnoreEdid_gs) {
+<b><a name="line455">455  </a></b>	                                                    _SetVideoPortResolution();
+<b><a name="line456">456  </a></b>							}
+<b><a name="line457">457  </a></b>	                                                g_timeout_add_seconds((guint)1,dumpEdidOnChecksumDiff,NULL);
+<b><a name="line458">458  </a></b>	                    }
+<b><a name="line459">459  </a></b>	
+<b><a name="line460">460  </a></b>	                    if (IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+<b><a name="line461">461  </a></b>	                                (void *)&amp;HDCPeventData, sizeof(HDCPeventData)) != IARM_RESULT_SUCCESS) {
+<b><a name="line462">462  </a></b>	                        INT_ERROR(&quot;Failed to broadcast HDCP status for [%s] \r\n&quot;, IARM_BUS_SYSMGR_NAME);
+<b><a name="line463">463  </a></b>	                    }
+<b><a name="line464">464  </a></b>					}
+<b><a name="line465">465  </a></b>	                break;	
+<b><a name="line466">466  </a></b>				default:
+<b><a name="line467">467  </a></b>					break;
+<b><a name="line468">468  </a></b>				}
+<b><a name="line469">469  </a></b>		}
+<b><a name="line470">470  </a></b>	}
+<b><a name="line471">471  </a></b>	
+<b><a name="line472">472  </a></b>	/* Set Video resolution on HDMI Hot Plug or Tune Ready events  */
+<b><a name="line473">473  </a></b>	static int _SetVideoPortResolution()
+<b><a name="line474">474  </a></b>	{
+<b><a name="line475">475  </a></b>		intptr_t _hdmihandle = 0;
+<b><a name="line476">476  </a></b>		intptr_t _comphandle = 0;
+<b><a name="line477">477  </a></b>		bool connected=false;
+<b><a name="line478">478  </a></b>		int iCount = 0;
+<b><a name="line479">479  </a></b>		
+<b><a name="line480">480  </a></b>	
+<b><a name="line481">481  </a></b>		INT_DEBUG(&quot;%s:Enter \r\n&quot;,__FUNCTION__);
+<b><a name="line482">482  </a></b>		 
+<b><a name="line483">483  </a></b>	        _hdmihandle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);	
+<b><a name="line484">484  </a></b>		if(_hdmihandle != NULL)
+<b><a name="line485">485  </a></b>		{		
+<b><a name="line486">486  </a></b>	
+<b><a name="line487">487  </a></b>			usleep(100*1000);	//wait for 100 milli seconds
+<b><a name="line488">488  </a></b>	
+<b><a name="line489">489  </a></b>	
+<b><a name="line490">490  </a></b>			/* 	
+<b><a name="line491">491  </a></b>				* Check for HDMI DDC Line  when HDMI is connected.
+<b><a name="line492">492  </a></b>			*/
+<b><a name="line493">493  </a></b>	                connected = isHDMIConnected();
+<b><a name="line494">494  </a></b>			if(iInitResnFlag &amp;&amp; connected)
+<b><a name="line495">495  </a></b>			{
+<b><a name="line496">496  </a></b>	
+<b><a name="line497">497  </a></b>				#ifdef _INIT_RESN_SETTINGS  	
+<b><a name="line498">498  </a></b>					/*Wait for iResnCount*/
+<b><a name="line499">499  </a></b>					while(iCount &lt; iResnCount)
+<b><a name="line500">500  </a></b>					{
+<b><a name="line501">501  </a></b>						sleep(1);	//wait for 1 sec
+<b><a name="line502">502  </a></b>						if (dsGetHDMIDDCLineStatus())
+<b><a name="line503">503  </a></b>						{
+<b><a name="line504">504  </a></b>							break;
+<b><a name="line505">505  </a></b>						}
+<b><a name="line506">506  </a></b>						INT_INFO (&quot;Waiting for HDMI DDC Line to be ready for resolution Change...\r\n&quot;);
+<b><a name="line507">507  </a></b>						iCount++;
+<b><a name="line508">508  </a></b>					}
+<b><a name="line509">509  </a></b>				#endif
+<b><a name="line510">510  </a></b>			}
+<b><a name="line511">511  </a></b>			
+<b><a name="line512">512  </a></b>			/*Set HDMI Resolution if Connected else COomponent or Composite Resolution */	
+<b><a name="line513">513  </a></b>			if(connected){
+<b><a name="line514">514  </a></b>	
+<b><a name="line515">515  </a></b>				INT_INFO(&quot;Setting HDMI resolution.......... \r\n&quot;);
+<b><a name="line516">516  </a></b>				_SetResolution(&amp;_hdmihandle,dsVIDEOPORT_TYPE_HDMI);
+<b><a name="line517">517  </a></b>			}
+<b><a name="line518">518  </a></b>			else {
+<b><a name="line519">519  </a></b>				_comphandle = getVideoPortHandle(dsVIDEOPORT_TYPE_COMPONENT);
+<b><a name="line520">520  </a></b>				
+<b><a name="line521">521  </a></b>				if (NULL != _comphandle)
+<b><a name="line522">522  </a></b>				{
+<b><a name="line523">523  </a></b>					INT_INFO(&quot;Setting Component/Composite Resolution.......... \r\n&quot;);
+<b><a name="line524">524  </a></b>					_SetResolution(&amp;_comphandle,dsVIDEOPORT_TYPE_COMPONENT);
+<b><a name="line525">525  </a></b>				}
+<b><a name="line526">526  </a></b>				else
+<b><a name="line527">527  </a></b>				{
+<b><a name="line528">528  </a></b>				    INT_INFO(&quot;%s: NULL Handle for component\r\n&quot;,__FUNCTION__);
+<b><a name="line529">529  </a></b>	
+<b><a name="line530">530  </a></b>	                            intptr_t _compositehandle = getVideoPortHandle(dsVIDEOPORT_TYPE_BB);
+<b><a name="line531">531  </a></b>	
+<b><a name="line532">532  </a></b>	                            if (NULL != _compositehandle)
+<b><a name="line533">533  </a></b>	                            {
+<b><a name="line534">534  </a></b>	                                INT_INFO(&quot;Setting BB Composite Resolution.......... \r\n&quot;);
+<b><a name="line535">535  </a></b>	                                _SetResolution(&amp;_compositehandle,dsVIDEOPORT_TYPE_BB);
+<b><a name="line536">536  </a></b>	                            }
+<b><a name="line537">537  </a></b>	                            else
+<b><a name="line538">538  </a></b>	                            {
+<b><a name="line539">539  </a></b>	                                 INT_INFO(&quot;%s: NULL Handle for Composite \r\n&quot;,__FUNCTION__);
+<b><a name="line540">540  </a></b>	                                 intptr_t _rfhandle = getVideoPortHandle(dsVIDEOPORT_TYPE_RF);
+<b><a name="line541">541  </a></b>	                                 if (NULL != _rfhandle)
+<b><a name="line542">542  </a></b>	                                 {
+<b><a name="line543">543  </a></b>	                                     INT_INFO(&quot;Setting RF Resolution.......... \r\n&quot;);
+<b><a name="line544">544  </a></b>	                                     _SetResolution(&amp;_rfhandle,dsVIDEOPORT_TYPE_RF);
+<b><a name="line545">545  </a></b>	                                 }
+<b><a name="line546">546  </a></b>	                                 else
+<b><a name="line547">547  </a></b>	                                 {
+<b><a name="line548">548  </a></b>	                                     INT_INFO(&quot;%s: NULL Handle for RF \r\n&quot;,__FUNCTION__);
+<b><a name="line549">549  </a></b>	                                 }
+<b><a name="line550">550  </a></b>	                            }
+<b><a name="line551">551  </a></b>				}
+<b><a name="line552">552  </a></b>			
+<b><a name="line553">553  </a></b>			}
+<b><a name="line554">554  </a></b>		}
+<b><a name="line555">555  </a></b>		else
+<b><a name="line556">556  </a></b>		{
+<b><a name="line557">557  </a></b>			INT_INFO(&quot;%s: NULL Handle for HDMI \r\n&quot;,__FUNCTION__);
+<b><a name="line558">558  </a></b>		}
+<b><a name="line559">559  </a></b>		INT_INFO(&quot;%s:Exit \r\n&quot;,__FUNCTION__);
+<b><a name="line560">560  </a></b>		return 0;
+<b><a name="line561">561  </a></b>	}
+<b><a name="line562">562  </a></b>	
+<b><a name="line563">563  </a></b>	/**
+<b><a name="line564">564  </a></b>	 * @brief This Function does following :
+<b><a name="line565">565  </a></b>	 *   Read Persisted resolution 
+<b><a name="line566">566  </a></b>	 *   Verify Persisted resolution with Platform and EDID resolution 
+<b><a name="line567">567  </a></b>	 *   If fails set best EDID resolution supported by platform 
+<b><a name="line568">568  </a></b>	 *   If fails Default to 720P
+<b><a name="line569">569  </a></b>	 * 	 If 720p is not supported by TV , Default to 480p
+<b><a name="line570">570  </a></b>	 *  @param void pointer Device Handle
+<b><a name="line571">571  </a></b>	 * * @param Connection Status 
+<b><a name="line572">572  </a></b>	 ** @return void pointer (NULL)
+<b><a name="line573">573  </a></b>	 */
+<b><a name="line574">574  </a></b>	static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
+<b><a name="line575">575  </a></b>	{
+<b><a name="line576">576  </a></b>		errno_t rc = -1;
+<b><a name="line577">577  </a></b>		intptr_t _displayHandle = 0;
+<b><a name="line578">578  </a></b>		int numResolutions = 0,i=0;
+<b><a name="line579">579  </a></b>		intptr_t _handle = *handle;
+<b><a name="line580">580  </a></b>		bool IsValidResolution = false;
+<b><a name="line581">581  </a></b>		dsVideoPortSetResolutionParam_t Setparam;
+<b><a name="line582">582  </a></b>		dsVideoPortGetResolutionParam_t Getparam;
+<b><a name="line583">583  </a></b>		dsVideoPortResolution_t *setResn = NULL;
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="red">
+<a name="error:0"></a>
+<a name="error"></a>
+<!-- merge-key b9d4318652baa8bfd930e105e4e4661a -->
+<b>(1) Event stack_use_local_overflow</b>: </font></td>
+<td><font color="red">Local variable &quot;edidData&quot; uses 13356 bytes of stack space, which exceeds the maximum single use of 10000 bytes.</font></td>
+</tr>
+</table>
+<pre><b><a name="line584">584  </a></b>		dsDisplayEDID_t edidData;
+<b><a name="line585">585  </a></b>		dsDisplayGetEDIDParam_t Edidparam;
+<b><a name="line586">586  </a></b>		/*
+<b><a name="line587">587  </a></b>			* Default Resolution Compatible check is false - Do not Force compatible resolution on startup
+<b><a name="line588">588  </a></b>		*/
+<b><a name="line589">589  </a></b>		Setparam.forceCompatible = false;
+<b><a name="line590">590  </a></b>	
+<b><a name="line591">591  </a></b>		/*Initialize the struct*/
+<b><a name="line592">592  </a></b>		memset(&amp;edidData, 0, sizeof(edidData));
+<b><a name="line593">593  </a></b>		
+<b><a name="line594">594  </a></b>		/* Return if Handle is NULL */
+<b><a name="line595">595  </a></b>		if (_handle == NULL)
+<b><a name="line596">596  </a></b>		{
+<b><a name="line597">597  </a></b>			INT_ERROR(&quot;_SetResolution - Got NULL Handle ..\r\n&quot;);
+<b><a name="line598">598  </a></b>			return 0;
+<b><a name="line599">599  </a></b>		}
+<b><a name="line600">600  </a></b>		
+<b><a name="line601">601  </a></b>		/*Get the User Persisted Resolution Based on Handle */
+<b><a name="line602">602  </a></b>		memset(&amp;Getparam,0,sizeof(Getparam));
+<b><a name="line603">603  </a></b>		Getparam.handle = _handle;
+<b><a name="line604">604  </a></b>		Getparam.toPersist = true;
+<b><a name="line605">605  </a></b>		_dsGetResolution(&amp;Getparam);
+<b><a name="line606">606  </a></b>		dsVideoPortResolution_t *presolution = &amp;Getparam.resolution;	
+<b><a name="line607">607  </a></b>		INT_DEBUG(&quot;Got User Persisted Resolution - %s..\r\n&quot;,presolution-&gt;name);
+<b><a name="line608">608  </a></b>	
+<b><a name="line609">609  </a></b>			
+<b><a name="line610">610  </a></b>		if (PortType == dsVIDEOPORT_TYPE_HDMI)	{
+<b><a name="line611">611  </a></b>			/*Get The Display Handle */
+<b><a name="line612">612  </a></b>			dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &amp;_displayHandle);
+<b><a name="line613">613  </a></b>			if (_displayHandle)
+<b><a name="line614">614  </a></b>			{
+<b><a name="line615">615  </a></b>				/* Get the EDID Display Handle */
+<b><a name="line616">616  </a></b>				 memset(&amp;Edidparam,0,sizeof(Edidparam));
+<b><a name="line617">617  </a></b>	    			Edidparam.handle = _displayHandle;
+<b><a name="line618">618  </a></b>				_dsGetEDID(&amp;Edidparam);
+<b><a name="line619">619  </a></b>				rc = memcpy_s(&amp;edidData,sizeof(edidData), &amp;Edidparam.edid, sizeof(Edidparam.edid));
+<b><a name="line620">620  </a></b>				if(rc!=EOK)
+<b><a name="line621">621  </a></b>				{
+<b><a name="line622">622  </a></b>					ERR_CHK(rc);
+<b><a name="line623">623  </a></b>				}
+<b><a name="line624">624  </a></b>				dumpHdmiEdidInfo(&amp;edidData);
+<b><a name="line625">625  </a></b>				numResolutions = edidData.numOfSupportedResolution;
+<b><a name="line626">626  </a></b>				INT_INFO(&quot;numResolutions is %d \r\n&quot;,numResolutions);
+<b><a name="line627">627  </a></b>				
+<b><a name="line628">628  </a></b>				/*  If HDMI is connected and Low power Mode. 
+<b><a name="line629">629  </a></b>					The TV might not Transmit the EDID information 
+<b><a name="line630">630  </a></b>					Change the Resolution in Next Hot plug
+<b><a name="line631">631  </a></b>					DO not set the Resolution if TV is in DVI mode.
+<b><a name="line632">632  </a></b>				*/
+<b><a name="line633">633  </a></b>				if ((0 == numResolutions) || (!(edidData.hdmiDeviceType)))
+<b><a name="line634">634  </a></b>				{
+<b><a name="line635">635  </a></b>	
+<b><a name="line636">636  </a></b>					INT_ERROR(&quot;Do not Set Resolution..The HDMI is not Ready  !! \r\n&quot;);
+<b><a name="line637">637  </a></b>					INT_ERROR(&quot;numResolutions  = %d edidData.hdmiDeviceType = %d !! \r\n&quot;,numResolutions,edidData.hdmiDeviceType);
+<b><a name="line638">638  </a></b>					return 0;
+<b><a name="line639">639  </a></b>				}
+<b><a name="line640">640  </a></b>				
+<b><a name="line641">641  </a></b>				/* 
+<b><a name="line642">642  </a></b>					* Check if Persisted Resolution matches with 
+<b><a name="line643">643  </a></b>					* TV Resolution  list	
+<b><a name="line644">644  </a></b>				*/
+<b><a name="line645">645  </a></b>				for (i = 0; i &lt; numResolutions; i++)
+<b><a name="line646">646  </a></b>				{
+<b><a name="line647">647  </a></b>					setResn = &amp;(edidData.suppResolutionList[i]);
+<b><a name="line648">648  </a></b>					INT_INFO(&quot;presolution-&gt;name : %s, resolution-&gt;name : %s\r\n&quot;,presolution-&gt;name,setResn-&gt;name);
+<b><a name="line649">649  </a></b>					if ((strcmp(presolution-&gt;name,setResn-&gt;name) == 0 ))
+<b><a name="line650">650  </a></b>					{
+<b><a name="line651">651  </a></b>						INT_INFO(&quot;Breaking..Got Platform Resolution - %s..\r\n&quot;,setResn-&gt;name);
+<b><a name="line652">652  </a></b>						IsValidResolution = true;
+<b><a name="line653">653  </a></b>						Setparam.forceCompatible = true;
+<b><a name="line654">654  </a></b>						break;
+<b><a name="line655">655  </a></b>					}
+<b><a name="line656">656  </a></b>				}
+<b><a name="line657">657  </a></b>	                        /*
+<b><a name="line658">658  </a></b>	                        * The Persisted Resolution Does not matches with TV resolution list 
+<b><a name="line659">659  </a></b>				*  Set  the Best Resolution Supported by TV and Platform
+<b><a name="line660">660  </a></b>				*/
+<b><a name="line661">661  </a></b>	                        if (false == IsValidResolution)
+<b><a name="line662">662  </a></b>				{
+<b><a name="line663">663  </a></b>	                        	/* Set  the Best Resolution Supported by TV and Platform*/
+<b><a name="line664">664  </a></b>	                		for (i = numResolutions-1; i &gt;= 0; i--)
+<b><a name="line665">665  </a></b>	                		{
+<b><a name="line666">666  </a></b>	                        		setResn = &amp;(edidData.suppResolutionList[i]);
+<b><a name="line667">667  </a></b>	                        		int pNumResolutions = dsUTL_DIM(kResolutions);
+<b><a name="line668">668  </a></b>	                        		for (int j = pNumResolutions-1; j &gt;=0; j--)
+<b><a name="line669">669  </a></b>			        		{
+<b><a name="line670">670  </a></b>			                		dsVideoPortResolution_t *pfResolution = &amp;kResolutions[j];
+<b><a name="line671">671  </a></b>			                		if (0 == (strcmp(pfResolution-&gt;name,setResn-&gt;name)))
+<b><a name="line672">672  </a></b>			                		{
+<b><a name="line673">673  </a></b>								INT_INFO(&quot;[DsMgr] Set Best TV Supported Resolution %s \r\n&quot;,pfResolution-&gt;name);
+<b><a name="line674">674  </a></b>			                			IsValidResolution = true;
+<b><a name="line675">675  </a></b>			                    			break;
+<b><a name="line676">676  </a></b>			                		}
+<b><a name="line677">677  </a></b>	                                        }
+<b><a name="line678">678  </a></b>	                                	if (IsValidResolution)
+<b><a name="line679">679  </a></b>	                                	{
+<b><a name="line680">680  </a></b>	                                		break;
+<b><a name="line681">681  </a></b>	                                        }
+<b><a name="line682">682  </a></b>	                                }
+<b><a name="line683">683  </a></b>	                        }
+<b><a name="line684">684  </a></b>				/* 
+<b><a name="line685">685  </a></b>					* The Persisted Resolution Does not matches with TV and Platform 
+<b><a name="line686">686  </a></b>					* Resolution List
+<b><a name="line687">687  </a></b>					* Force PLatform Default Resolution 	
+<b><a name="line688">688  </a></b>				*/
+<b><a name="line689">689  </a></b>				if (false == IsValidResolution)
+<b><a name="line690">690  </a></b>				{
+<b><a name="line691">691  </a></b>					/* Check if the Default platform resolution is supported by Platfrom resolution List i.e 720p */
+<b><a name="line692">692  </a></b>					dsVideoPortResolution_t *defaultResn; 
+<b><a name="line693">693  </a></b>					defaultResn = &amp;kResolutions[kDefaultResIndex];
+<b><a name="line694">694  </a></b>					for (i = 0; i &lt; numResolutions; i++)
+<b><a name="line695">695  </a></b>					{
+<b><a name="line696">696  </a></b>						setResn = &amp;(edidData.suppResolutionList[i]);
+<b><a name="line697">697  </a></b>						//INT_DEBUG(&quot;\n presolution-&gt;name : %s, resolution-&gt;name : %s\n&quot;,defaultResn-&gt;name,setResn-&gt;name);
+<b><a name="line698">698  </a></b>						if ((strcmp(defaultResn-&gt;name,setResn-&gt;name) == 0 ))
+<b><a name="line699">699  </a></b>						{
+<b><a name="line700">700  </a></b>							IsValidResolution = true;
+<b><a name="line701">701  </a></b>							INT_INFO(&quot;Breaking..Got Default Platform Resolution - %s..\r\n&quot;,setResn-&gt;name);
+<b><a name="line702">702  </a></b>							break;
+<b><a name="line703">703  </a></b>						}
+<b><a name="line704">704  </a></b>					}
+<b><a name="line705">705  </a></b>				}
+<b><a name="line706">706  </a></b>	
+<b><a name="line707">707  </a></b>				if (false == IsValidResolution)
+<b><a name="line708">708  </a></b>				{
+<b><a name="line709">709  </a></b>					/*Take 480p as resolution if both above cases fail */
+<b><a name="line710">710  </a></b>	                for (i = 0; i &lt; numResolutions; i++)
+<b><a name="line711">711  </a></b>	                {
+<b><a name="line712">712  </a></b>	                    setResn = &amp;(edidData.suppResolutionList[i]);
+<b><a name="line713">713  </a></b>	                    if ((strcmp(&quot;480p&quot;,setResn-&gt;name) == 0 )) 
+<b><a name="line714">714  </a></b>	                	{
+<b><a name="line715">715  </a></b>							INT_INFO(&quot;Breaking..Default to 480p Resolution - %s..\r\n&quot;,setResn-&gt;name);
+<b><a name="line716">716  </a></b>							IsValidResolution = true;
+<b><a name="line717">717  </a></b>							break;
+<b><a name="line718">718  </a></b>		               	}
+<b><a name="line719">719  </a></b>					}
+<b><a name="line720">720  </a></b>				}
+<b><a name="line721">721  </a></b>	
+<b><a name="line722">722  </a></b>				if (false == IsValidResolution)
+<b><a name="line723">723  </a></b>				{
+<b><a name="line724">724  </a></b>					/* Boot with  the Resolution Supported by TV and Platform*/
+<b><a name="line725">725  </a></b>	                for (i = 0; i &lt; numResolutions; i++)
+<b><a name="line726">726  </a></b>	                {
+<b><a name="line727">727  </a></b>	                    setResn = &amp;(edidData.suppResolutionList[i]);
+<b><a name="line728">728  </a></b>	                    size_t numResolutions = dsUTL_DIM(kResolutions);
+<b><a name="line729">729  </a></b>	                    for (size_t j = 0; j &lt; numResolutions; j++)
+<b><a name="line730">730  </a></b>			            {
+<b><a name="line731">731  </a></b>			                dsVideoPortResolution_t *pfResolution = &amp;kResolutions[j];
+<b><a name="line732">732  </a></b>			                if (0 == (strcmp(pfResolution-&gt;name,setResn-&gt;name)))
+<b><a name="line733">733  </a></b>			                {
+<b><a name="line734">734  </a></b>			                    INT_INFO(&quot;[DsMgr] Boot with TV Supported Resolution %s \r\n&quot;,pfResolution-&gt;name);
+<b><a name="line735">735  </a></b>			                    IsValidResolution = true;
+<b><a name="line736">736  </a></b>			                    break;
+<b><a name="line737">737  </a></b>			                }    
+<b><a name="line738">738  </a></b>			            }
+<b><a name="line739">739  </a></b>					}
+<b><a name="line740">740  </a></b>				}
+<b><a name="line741">741  </a></b>			}
+<b><a name="line742">742  </a></b>		}
+<b><a name="line743">743  </a></b>		else if (PortType == dsVIDEOPORT_TYPE_COMPONENT || PortType == dsVIDEOPORT_TYPE_BB || PortType == dsVIDEOPORT_TYPE_RF)
+<b><a name="line744">744  </a></b>		{
+<b><a name="line745">745  </a></b>			/* Set the Component / Composite  Resolution */	
+<b><a name="line746">746  </a></b>			numResolutions = dsUTL_DIM(kResolutions);
+<b><a name="line747">747  </a></b>	    	for (i = 0; i &lt; numResolutions; i++)
+<b><a name="line748">748  </a></b>	    	{
+<b><a name="line749">749  </a></b>	    		setResn = &amp;kResolutions[i];
+<b><a name="line750">750  </a></b>	    		if ((strcmp(presolution-&gt;name,setResn-&gt;name) == 0 ))
+<b><a name="line751">751  </a></b>	    		{
+<b><a name="line752">752  </a></b>					INT_INFO(&quot;Breaking..Got Platform Resolution - %s..\r\n&quot;,setResn-&gt;name);
+<b><a name="line753">753  </a></b>	        		IsValidResolution = true;
+<b><a name="line754">754  </a></b>	        		break;
+<b><a name="line755">755  </a></b>	    		}
+<b><a name="line756">756  </a></b>	    	}
+<b><a name="line757">757  </a></b>		}
+<b><a name="line758">758  </a></b>			/*  If the Persisted Resolution settings does not matches with Platform Resolution - 
+<b><a name="line759">759  </a></b>				Force Default on Component/Composite 
+<b><a name="line760">760  </a></b>				This is to keep upward compatible and if we intend to 
+<b><a name="line761">761  </a></b>				remove any resolution from Dynamic Resolution List
+<b><a name="line762">762  </a></b>			*/
+<b><a name="line763">763  </a></b>		if(false == IsValidResolution)
+<b><a name="line764">764  </a></b>		{
+<b><a name="line765">765  </a></b>			setResn = &amp;kResolutions[kDefaultResIndex];
+<b><a name="line766">766  </a></b>		}
+<b><a name="line767">767  </a></b>		
+<b><a name="line768">768  </a></b>		/* Set The Video Port Resolution in Requested Handle */
+<b><a name="line769">769  </a></b>		Setparam.handle = _handle;
+<b><a name="line770">770  </a></b>		Setparam.toPersist = false;
+<b><a name="line771">771  </a></b>		
+<b><a name="line772">772  </a></b>		/* If 4K support is disabled and last known resolution is 4K, default to 720p (aka default resolution) */
+<b><a name="line773">773  </a></b>		dsForceDisable4KParam_t res_4K_override;
+<b><a name="line774">774  </a></b>		memset(&amp;res_4K_override, 0, sizeof(res_4K_override));
+<b><a name="line775">775  </a></b>		_dsGetForceDisable4K((void *) &amp;res_4K_override);
+<b><a name="line776">776  </a></b>		if(true == res_4K_override.disable)
+<b><a name="line777">777  </a></b>		{
+<b><a name="line778">778  </a></b>			if(0 == strncmp(presolution-&gt;name, &quot;2160&quot;, 4))
+<b><a name="line779">779  </a></b>			{
+<b><a name="line780">780  </a></b>				INT_INFO(&quot;User persisted 4K resolution. Now limiting to default (720p?) as 4K support is now disabled.\n&quot;);
+<b><a name="line781">781  </a></b>				setResn = &amp;kResolutions[kDefaultResIndex];
+<b><a name="line782">782  </a></b>			}
+<b><a name="line783">783  </a></b>		}
+<b><a name="line784">784  </a></b>		
+<b><a name="line785">785  </a></b>		Setparam.resolution = *setResn;
+<b><a name="line786">786  </a></b>	
+<b><a name="line787">787  </a></b>		/* Call during Init*/
+<b><a name="line788">788  </a></b>		#ifdef _INIT_RESN_SETTINGS
+<b><a name="line789">789  </a></b>			if(0 == iInitResnFlag)
+<b><a name="line790">790  </a></b>			{
+<b><a name="line791">791  </a></b>				INT_INFO(&quot;Init Platform Resolution - %s..\r\n&quot;,setResn-&gt;name);
+<b><a name="line792">792  </a></b>				_dsInitResolution(&amp;Setparam);
+<b><a name="line793">793  </a></b>				return 0 ;
+<b><a name="line794">794  </a></b>			}
+<b><a name="line795">795  </a></b>		#endif
+<b><a name="line796">796  </a></b>	
+<b><a name="line797">797  </a></b>		_dsSetResolution(&amp;Setparam);
+<b><a name="line798">798  </a></b>		return 0 ;
+<b><a name="line799">799  </a></b>	}
+<b><a name="line800">800  </a></b>	
+<b><a name="line801">801  </a></b>	/**
+<b><a name="line802">802  </a></b>	 * @brief Thread entry fuction to post Resolution on Hot Plug and Tune ready Events
+<b><a name="line803">803  </a></b>	 *
+<b><a name="line804">804  </a></b>	 * This functions changes the device resolution on Hot Plug and Tune ready Events
+<b><a name="line805">805  </a></b>	 *
+<b><a name="line806">806  </a></b>	 * @param void pointer (NULL)
+<b><a name="line807">807  </a></b>	 *
+<b><a name="line808">808  </a></b>	 * @return void pointer (NULL)
+<b><a name="line809">809  </a></b>	 */
+<b><a name="line810">810  </a></b>	static void* _DSMgrResnThreadFunc(void *arg)
+<b><a name="line811">811  </a></b>	{
+<b><a name="line812">812  </a></b>	   
+<b><a name="line813">813  </a></b>		/* Loop */
+<b><a name="line814">814  </a></b>	    while (1)
+<b><a name="line815">815  </a></b>	    {
+<b><a name="line816">816  </a></b>			 INT_INFO (&quot;_DSMgrResnThreadFunc... wait for for HDMI or Tune Ready Events \r\n&quot;);
+<b><a name="line817">817  </a></b>			
+<b><a name="line818">818  </a></b>			/*Wait for the Event*/
+<b><a name="line819">819  </a></b>			pthread_mutex_lock(&amp;tdsMutexLock);
+<b><a name="line820">820  </a></b>			pthread_cond_wait(&amp;tdsMutexCond, &amp;tdsMutexLock);
+<b><a name="line821">821  </a></b>			pthread_mutex_unlock(&amp;tdsMutexLock);
+<b><a name="line822">822  </a></b>		  
+<b><a name="line823">823  </a></b>		    INT_INFO(&quot;%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n&quot;,__FUNCTION__, (edisplayEventStatus == dsDISPLAY_EVENT_CONNECTED ? &quot;Connect&quot; : &quot;Disconnect&quot;),iTuneReady);
+<b><a name="line824">824  </a></b>	
+<b><a name="line825">825  </a></b>	
+<b><a name="line826">826  </a></b>			//On hot plug event , Remove event source 
+<b><a name="line827">827  </a></b>			if(hotplug_event_src)
+<b><a name="line828">828  </a></b>			{
+<b><a name="line829">829  </a></b>				g_source_remove(hotplug_event_src);
+<b><a name="line830">830  </a></b>				INT_INFO(&quot;Removed Hot Plug Event Time source %d  \r\n&quot;,hotplug_event_src);
+<b><a name="line831">831  </a></b>	      hotplug_event_src = 0;
+<b><a name="line832">832  </a></b>			}
+<b><a name="line833">833  </a></b>	
+<b><a name="line834">834  </a></b>			/*Set the Resolution only on HDMI Hot plug Connect and Tune Ready events */
+<b><a name="line835">835  </a></b>			if((1 == iTuneReady) &amp;&amp; (dsDISPLAY_EVENT_CONNECTED == edisplayEventStatus)) {
+<b><a name="line836">836  </a></b>				/*Set Video Output Port  Resolution */
+<b><a name="line837">837  </a></b>	                        if(bHDCPAuthenticated)
+<b><a name="line838">838  </a></b>	                        {
+<b><a name="line839">839  </a></b>	                            _SetVideoPortResolution();
+<b><a name="line840">840  </a></b>				}
+<b><a name="line841">841  </a></b>	                        /* Set audio mode on HDMI hot plug */
+<b><a name="line842">842  </a></b>				_setAudioMode();	
+<b><a name="line843">843  </a></b>			}/*Set the Resolution only on HDMI Hot plug - Disconnect and Tune Ready event */
+<b><a name="line844">844  </a></b>			else if((1 == iTuneReady) &amp;&amp; (dsDISPLAY_EVENT_DISCONNECTED == edisplayEventStatus)) {
+<b><a name="line845">845  </a></b>				 /* * To avoid reoslution settings of HDMI hot plug when TV goes from power OFF to ON condition 
+<b><a name="line846">846  </a></b>				 	* Delay the setting of resolution by 5 sec. This will help to filter out un-necessary 
+<b><a name="line847">847  </a></b>				 	* resolution settings on HDMI hot plug.  
+<b><a name="line848">848  </a></b>				 */
+<b><a name="line849">849  </a></b>		             bHDCPAuthenticated = false;
+<b><a name="line850">850  </a></b>	                     if(isComponentPortPresent())
+<b><a name="line851">851  </a></b>	                     {
+<b><a name="line852">852  </a></b>				 hotplug_event_src = g_timeout_add_seconds((guint)5,_SetResolutionHandler,dsMgr_Gloop); 
+<b><a name="line853">853  </a></b>				 INT_INFO(&quot;Schedule a handler to set the resolution after 5 sec for %d time src.. \r\n&quot;,hotplug_event_src);
+<b><a name="line854">854  </a></b>	                     }
+<b><a name="line855">855  </a></b>			}
+<b><a name="line856">856  </a></b>	 
+<b><a name="line857">857  </a></b>	     }
+<b><a name="line858">858  </a></b>	    return arg;
+<b><a name="line859">859  </a></b>	}
+<b><a name="line860">860  </a></b>	
+<b><a name="line861">861  </a></b>	
+<b><a name="line862">862  </a></b>	static gboolean _SetResolutionHandler(gpointer data)
+<b><a name="line863">863  </a></b>	{
+<b><a name="line864">864  </a></b>	        INT_INFO(&quot;Set Video Resolution after delayed time .. \r\n&quot;);
+<b><a name="line865">865  </a></b>		_SetVideoPortResolution();
+<b><a name="line866">866  </a></b>		hotplug_event_src = 0;
+<b><a name="line867">867  </a></b>		return FALSE;
+<b><a name="line868">868  </a></b>	}
+<b><a name="line869">869  </a></b>	
+<b><a name="line870">870  </a></b>	
+<b><a name="line871">871  </a></b>	void _setEASAudioMode()
+<b><a name="line872">872  </a></b>	{
+<b><a name="line873">873  </a></b>	    
+<b><a name="line874">874  </a></b>	    if (isEAS != IARM_BUS_SYS_MODE_EAS) {
+<b><a name="line875">875  </a></b>	        INT_INFO(&quot;EAS Not In progress..Do not Modify Audio \r\n&quot;);
+<b><a name="line876">876  </a></b>	        return;
+<b><a name="line877">877  </a></b>	    }
+<b><a name="line878">878  </a></b>	
+<b><a name="line879">879  </a></b>		dsAudioGetHandleParam_t getHandle;
+<b><a name="line880">880  </a></b>		dsAudioSetStereoModeParam_t setMode;
+<b><a name="line881">881  </a></b>		int numPorts, i = 0;
+<b><a name="line882">882  </a></b>	
+<b><a name="line883">883  </a></b>		numPorts = dsUTL_DIM(kSupportedPortTypes);
+<b><a name="line884">884  </a></b>		for (i=0; i &lt; numPorts; i++)
+<b><a name="line885">885  </a></b>		{
+<b><a name="line886">886  </a></b>			const dsAudioPortType_t *audioPort = &amp;kSupportedPortTypes[i];
+<b><a name="line887">887  </a></b>			memset(&amp;getHandle, 0, sizeof(getHandle));
+<b><a name="line888">888  </a></b>			getHandle.type = *audioPort;
+<b><a name="line889">889  </a></b>			getHandle.index = 0;
+<b><a name="line890">890  </a></b>			_dsGetAudioPort (&amp;getHandle);
+<b><a name="line891">891  </a></b>	
+<b><a name="line892">892  </a></b>			memset(&amp;setMode, 0, sizeof(setMode));
+<b><a name="line893">893  </a></b>			setMode.handle = getHandle.handle;
+<b><a name="line894">894  </a></b>			setMode.toPersist = false;
+<b><a name="line895">895  </a></b>			_dsGetStereoMode(&amp;setMode);
+<b><a name="line896">896  </a></b>	
+<b><a name="line897">897  </a></b>			if (setMode.mode == dsAUDIO_STEREO_PASSTHRU) {
+<b><a name="line898">898  </a></b>				/* In EAS, fallsback to Stereo */
+<b><a name="line899">899  </a></b>				setMode.mode = dsAUDIO_STEREO_STEREO;  
+<b><a name="line900">900  </a></b>			} 
+<b><a name="line901">901  </a></b>	
+<b><a name="line902">902  </a></b>			INT_INFO(&quot;EAS Audio mode for audio port %d is : %d \r\n&quot;,getHandle.type, setMode.mode);
+<b><a name="line903">903  </a></b>			setMode.toPersist = false;
+<b><a name="line904">904  </a></b>			_dsSetStereoMode (&amp;setMode);
+<b><a name="line905">905  </a></b>		}
+<b><a name="line906">906  </a></b>	}
+<b><a name="line907">907  </a></b>	/**
+<b><a name="line908">908  </a></b>	 * @brief Local function to get and set audio mode 
+<b><a name="line909">909  </a></b>	 *
+<b><a name="line910">910  </a></b>	 * This functions gets the audio mode from persistent and sets it
+<b><a name="line911">911  </a></b>	 *
+<b><a name="line912">912  </a></b>	 * @param NULL
+<b><a name="line913">913  </a></b>	 *
+<b><a name="line914">914  </a></b>	 * @return NULL
+<b><a name="line915">915  </a></b>	 */
+<b><a name="line916">916  </a></b>	static void _setAudioMode()
+<b><a name="line917">917  </a></b>	{
+<b><a name="line918">918  </a></b>	    if (isEAS == IARM_BUS_SYS_MODE_EAS) {
+<b><a name="line919">919  </a></b>	        INT_INFO(&quot;EAS In progress..Do not Modify Audio \r\n&quot;);
+<b><a name="line920">920  </a></b>	        return;
+<b><a name="line921">921  </a></b>	    }
+<b><a name="line922">922  </a></b>	
+<b><a name="line923">923  </a></b>		dsAudioGetHandleParam_t getHandle;
+<b><a name="line924">924  </a></b>		dsAudioSetStereoModeParam_t setMode;
+<b><a name="line925">925  </a></b>		int numPorts, i = 0;
+<b><a name="line926">926  </a></b>	
+<b><a name="line927">927  </a></b>		numPorts = dsUTL_DIM(kSupportedPortTypes);
+<b><a name="line928">928  </a></b>		for (i=0; i &lt; numPorts; i++)
+<b><a name="line929">929  </a></b>		{
+<b><a name="line930">930  </a></b>			const dsAudioPortType_t *audioPort = &amp;kSupportedPortTypes[i];
+<b><a name="line931">931  </a></b>			memset(&amp;getHandle, 0, sizeof(getHandle));
+<b><a name="line932">932  </a></b>			getHandle.type = *audioPort;
+<b><a name="line933">933  </a></b>			getHandle.index = 0;
+<b><a name="line934">934  </a></b>			_dsGetAudioPort (&amp;getHandle);
+<b><a name="line935">935  </a></b>				
+<b><a name="line936">936  </a></b>			memset(&amp;setMode, 0, sizeof(setMode));
+<b><a name="line937">937  </a></b>			setMode.handle = getHandle.handle;
+<b><a name="line938">938  </a></b>			setMode.toPersist = true;
+<b><a name="line939">939  </a></b>			_dsGetStereoMode(&amp;setMode);
+<b><a name="line940">940  </a></b>	        if (getHandle.type == dsAUDIOPORT_TYPE_SPDIF) {
+<b><a name="line941">941  </a></b>	        }
+<b><a name="line942">942  </a></b>	        else if (getHandle.type == dsAUDIOPORT_TYPE_HDMI) {
+<b><a name="line943">943  </a></b>	            //check if it is connected
+<b><a name="line944">944  </a></b>	            intptr_t vHandle = 0;
+<b><a name="line945">945  </a></b>	            int autoMode = 0;
+<b><a name="line946">946  </a></b>	            bool connected = 0;
+<b><a name="line947">947  </a></b>	            bool IsSurround = false;
+<b><a name="line948">948  </a></b>	            {
+<b><a name="line949">949  </a></b>	                dsVideoPortGetHandleParam_t param;
+<b><a name="line950">950  </a></b>	                memset(&amp;param, 0, sizeof(param));
+<b><a name="line951">951  </a></b>	                param.type = dsVIDEOPORT_TYPE_HDMI;
+<b><a name="line952">952  </a></b>	                param.index = 0;
+<b><a name="line953">953  </a></b>	                _dsGetVideoPort(&amp;param);
+<b><a name="line954">954  </a></b>	                vHandle = param.handle;
+<b><a name="line955">955  </a></b>	                //INT_DEBUG(&quot;Audio port has HDMI handle\r\n&quot;);
+<b><a name="line956">956  </a></b>	            }
+<b><a name="line957">957  </a></b>	            {
+<b><a name="line958">958  </a></b>	                dsVideoPortIsDisplayConnectedParam_t param;
+<b><a name="line959">959  </a></b>	                memset(&amp;param, 0, sizeof(param));
+<b><a name="line960">960  </a></b>	                param.handle = vHandle;
+<b><a name="line961">961  </a></b>	                _dsIsDisplayConnected(&amp;param);
+<b><a name="line962">962  </a></b>	                connected = param.connected;
+<b><a name="line963">963  </a></b>	                //INT_DEBUG(&quot;Audio port HDMI is connected to sink %d\r\n&quot;, connected);
+<b><a name="line964">964  </a></b>	            }
+<b><a name="line965">965  </a></b>	
+<b><a name="line966">966  </a></b>	            if (!(connected)) {
+<b><a name="line967">967  </a></b>			INT_INFO(&quot;HDMI Not Connected ..Do not Set Audio on HDMI !!! \r\n&quot;);
+<b><a name="line968">968  </a></b>	            	continue;
+<b><a name="line969">969  </a></b>	            }
+<b><a name="line970">970  </a></b>	
+<b><a name="line971">971  </a></b>	            {
+<b><a name="line972">972  </a></b>	                dsAudioSetStereoAutoParam_t param;
+<b><a name="line973">973  </a></b>	                memset(&amp;param, 0, sizeof(param));
+<b><a name="line974">974  </a></b>	                param.handle = getHandle.handle;
+<b><a name="line975">975  </a></b>	                _dsGetStereoAuto(&amp;param);
+<b><a name="line976">976  </a></b>	                autoMode = param.autoMode;
+<b><a name="line977">977  </a></b>	                //INT_DEBUG(&quot;Audio port HDMI is Auto mode %d\r\n&quot;, autoMode);
+<b><a name="line978">978  </a></b>	            }
+<b><a name="line979">979  </a></b>	           
+<b><a name="line980">980  </a></b>	           //INT_DEBUG(&quot;Audio port HDMI %d is connected %d Auto mode %d\r\n&quot;, vHandle, connected, autoMode);
+<b><a name="line981">981  </a></b>	           if (autoMode) {
+<b><a name="line982">982  </a></b>	            /* If auto, then force surround */
+<b><a name="line983">983  </a></b>	                setMode.mode = dsAUDIO_STEREO_SURROUND;
+<b><a name="line984">984  </a></b>	            }
+<b><a name="line985">985  </a></b>	          
+<b><a name="line986">986  </a></b>	           if (0) /* Do not enforce surround protection, let HAL do it*/
+<b><a name="line987">987  </a></b>	            {
+<b><a name="line988">988  </a></b>					dsVideoPortIsDisplaySurroundParam_t param;
+<b><a name="line989">989  </a></b>					param.handle = vHandle;
+<b><a name="line990">990  </a></b>					param.surround = false;
+<b><a name="line991">991  </a></b>					_dsIsDisplaySurround(&amp;param);
+<b><a name="line992">992  </a></b>					IsSurround = param.surround;
+<b><a name="line993">993  </a></b>				}
+<b><a name="line994">994  </a></b>	           else 
+<b><a name="line995">995  </a></b>	           {
+<b><a name="line996">996  </a></b>	               IsSurround = true;
+<b><a name="line997">997  </a></b>	           }
+<b><a name="line998">998  </a></b>					if (!(IsSurround)) {
+<b><a name="line999">999  </a></b>	            	/* If Surround not supported , then force Stereo */
+<b><a name="line1000">1000 </a></b>	                setMode.mode = dsAUDIO_STEREO_STEREO;
+<b><a name="line1001">1001 </a></b>	                INT_DEBUG(&quot;Surround mode not Supported on HDMI ..Set Stereo \r\n&quot;);
+<b><a name="line1002">1002 </a></b>	            }
+<b><a name="line1003">1003 </a></b>		    }
+<b><a name="line1004">1004 </a></b>			INT_INFO(&quot;Audio mode for audio port %d is : %d \r\n&quot;,getHandle.type, setMode.mode);
+<b><a name="line1005">1005 </a></b>			setMode.toPersist = false;
+<b><a name="line1006">1006 </a></b>			_dsSetStereoMode (&amp;setMode);
+<b><a name="line1007">1007 </a></b>		}
+<b><a name="line1008">1008 </a></b>	}
+<b><a name="line1009">1009 </a></b>	
+<b><a name="line1010">1010 </a></b>	/* This functions Dump the HDMI EDID Information of the box.
+<b><a name="line1011">1011 </a></b>	 *
+<b><a name="line1012">1012 </a></b>	 * @param NULL
+<b><a name="line1013">1013 </a></b>	 *
+<b><a name="line1014">1014 </a></b>	 * @return NULL
+<b><a name="line1015">1015 </a></b>	 */
+<b><a name="line1016">1016 </a></b>	static void dumpHdmiEdidInfo(dsDisplayEDID_t* pedidData)
+<b><a name="line1017">1017 </a></b>	{
+<b><a name="line1018">1018 </a></b>		INT_DEBUG(&quot;Connected HDMI Display Device Info !!!!!\r\n&quot;);
+<b><a name="line1019">1019 </a></b>	
+<b><a name="line1020">1020 </a></b>		if ((NULL != pedidData) &amp;&amp; (pedidData-&gt;monitorName)) {
+<b><a name="line1021">1021 </a></b>			INT_DEBUG(&quot;HDMI  Monitor Name is %s \r\n&quot;,pedidData-&gt;monitorName);
+<b><a name="line1022">1022 </a></b>			INT_DEBUG(&quot;HDMI  Manufacturing ID is %d \r\n&quot;,pedidData-&gt;serialNumber);
+<b><a name="line1023">1023 </a></b>			INT_DEBUG(&quot;HDMI  Product Code is %d \r\n&quot;,pedidData-&gt;productCode);
+<b><a name="line1024">1024 </a></b>			INT_DEBUG(&quot;HDMI  Device Type is  %s \r\n&quot;, (pedidData-&gt;hdmiDeviceType == true)?&quot;HDMI&quot;:&quot;DVI&quot;);
+<b><a name="line1025">1025 </a></b>			INT_DEBUG(&quot;HDMI  Sink Device %s a Repeater \r\n&quot;,pedidData-&gt;isRepeater?&quot;is&quot;:&quot;is not&quot;);
+<b><a name="line1026">1026 </a></b>			INT_DEBUG(&quot;HDMI  Physical Address is %d:%d:%d:%d \r\n&quot;,pedidData-&gt;physicalAddressA,
+<b><a name="line1027">1027 </a></b>					pedidData-&gt;physicalAddressB,pedidData-&gt;physicalAddressC,pedidData-&gt;physicalAddressD);
+<b><a name="line1028">1028 </a></b>		} else {
+<b><a name="line1029">1029 </a></b>			INT_INFO(&quot;Received EDID is NULL or pedidData-&gt;monitorName is NULL\r\n&quot;);
+<b><a name="line1030">1030 </a></b>		}
+<b><a name="line1031">1031 </a></b>	}
+<b><a name="line1032">1032 </a></b>	
+<b><a name="line1033">1033 </a></b>	
+<b><a name="line1034">1034 </a></b>	static gboolean dumpEdidOnChecksumDiff(gpointer data) {
+<b><a name="line1035">1035 </a></b>	        INT_INFO(&quot;dumpEdidOnChecksumDiff HDMI-EDID Dump&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;\r\n&quot;);
+<b><a name="line1036">1036 </a></b>	        intptr_t _displayHandle = 0;
+<b><a name="line1037">1037 </a></b>	        dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &amp;_displayHandle);
+<b><a name="line1038">1038 </a></b>	        if (_displayHandle) {
+<b><a name="line1039">1039 </a></b>	                int length = 0;
+<b><a name="line1040">1040 </a></b>	                dsDisplayGetEDIDBytesParam_t EdidBytesParam;
+<b><a name="line1041">1041 </a></b>	                static int cached_EDID_checksum = 0;
+<b><a name="line1042">1042 </a></b>	                int current_EDID_checksum = 0;
+<b><a name="line1043">1043 </a></b>	                memset(&amp;EdidBytesParam,0,sizeof(EdidBytesParam));
+<b><a name="line1044">1044 </a></b>	                EdidBytesParam.handle = _displayHandle;
+<b><a name="line1045">1045 </a></b>	                _dsGetEDIDBytes(&amp;EdidBytesParam);
+<b><a name="line1046">1046 </a></b>			length = EdidBytesParam.length;
+<b><a name="line1047">1047 </a></b>	
+<b><a name="line1048">1048 </a></b>			if((length &gt; 0) &amp;&amp; (length &lt;= 512)) {
+<b><a name="line1049">1049 </a></b>	                    unsigned char* edidBytes = EdidBytesParam.bytes;
+<b><a name="line1050">1050 </a></b>	                    for (int i = 0; i &lt; (length / 128); i++)
+<b><a name="line1051">1051 </a></b>	                            current_EDID_checksum += edidBytes[(i+1)*128 - 1];
+<b><a name="line1052">1052 </a></b>	
+<b><a name="line1053">1053 </a></b>	                    if((cached_EDID_checksum == 0) || (current_EDID_checksum != cached_EDID_checksum)) {
+<b><a name="line1054">1054 </a></b>	                            cached_EDID_checksum = current_EDID_checksum;
+<b><a name="line1055">1055 </a></b>	                            INT_DEBUG(&quot;HDMI-EDID Dump BEGIN&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;\r\n&quot;);
+<b><a name="line1056">1056 </a></b>	                            for (int i = 0; i &lt; length; i++) {
+<b><a name="line1057">1057 </a></b>	                                    if (i % 16 == 0) {
+<b><a name="line1058">1058 </a></b>	                                            INT_DEBUG(&quot;\r\n&quot;);
+<b><a name="line1059">1059 </a></b>	                                    }
+<b><a name="line1060">1060 </a></b>	                                    if (i % 128 == 0) {
+<b><a name="line1061">1061 </a></b>	                                            INT_DEBUG(&quot;\r\n&quot;);
+<b><a name="line1062">1062 </a></b>	                                    }
+<b><a name="line1063">1063 </a></b>	                                    INT_DEBUG(&quot;%02X &quot;, edidBytes[i]);
+<b><a name="line1064">1064 </a></b>	                            }
+<b><a name="line1065">1065 </a></b>	                            INT_INFO(&quot;\nHDMI-EDID Dump END&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;&gt;\r\n&quot;);
+<b><a name="line1066">1066 </a></b>	                    }
+<b><a name="line1067">1067 </a></b>			}
+<b><a name="line1068">1068 </a></b>	        }
+<b><a name="line1069">1069 </a></b>	        return false;
+<b><a name="line1070">1070 </a></b>	}
+<b><a name="line1071">1071 </a></b>	
+<b><a name="line1072">1072 </a></b>	/** @} */
+<b><a name="line1073">1073 </a></b>	/** @} */
+<b><a name="line1074">1074 </a></b>	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre></body>
+</html>

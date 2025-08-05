@@ -1,0 +1,349 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Coverity error reader: /home/amadha013/community/mw-dev/build-raspberrypi4-64-rdke/tmp/work/raspberrypi4-64-rdke-middleware-rdkmllib32-linux-gnueabi/lib32-iarmmgrs/1.0.13-r0/lib32-recipe-sysroot/usr/include/c++/11.5.0/bits/unique_lock.h</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head>
+<body link="#000000" vlink="#000000"><pre>
+<b><a name="line1">1    </a></b>	// std::unique_lock implementation -*- C++ -*-
+<b><a name="line2">2    </a></b>	
+<b><a name="line3">3    </a></b>	// Copyright (C) 2008-2021 Free Software Foundation, Inc.
+<b><a name="line4">4    </a></b>	//
+<b><a name="line5">5    </a></b>	// This file is part of the GNU ISO C++ Library.  This library is free
+<b><a name="line6">6    </a></b>	// software; you can redistribute it and/or modify it under the
+<b><a name="line7">7    </a></b>	// terms of the GNU General Public License as published by the
+<b><a name="line8">8    </a></b>	// Free Software Foundation; either version 3, or (at your option)
+<b><a name="line9">9    </a></b>	// any later version.
+<b><a name="line10">10   </a></b>	
+<b><a name="line11">11   </a></b>	// This library is distributed in the hope that it will be useful,
+<b><a name="line12">12   </a></b>	// but WITHOUT ANY WARRANTY; without even the implied warranty of
+<b><a name="line13">13   </a></b>	// MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
+<b><a name="line14">14   </a></b>	// GNU General Public License for more details.
+<b><a name="line15">15   </a></b>	
+<b><a name="line16">16   </a></b>	// Under Section 7 of GPL version 3, you are granted additional
+<b><a name="line17">17   </a></b>	// permissions described in the GCC Runtime Library Exception, version
+<b><a name="line18">18   </a></b>	// 3.1, as published by the Free Software Foundation.
+<b><a name="line19">19   </a></b>	
+<b><a name="line20">20   </a></b>	// You should have received a copy of the GNU General Public License and
+<b><a name="line21">21   </a></b>	// a copy of the GCC Runtime Library Exception along with this program;
+<b><a name="line22">22   </a></b>	// see the files COPYING3 and COPYING.RUNTIME respectively.  If not, see
+<b><a name="line23">23   </a></b>	// &lt;http://www.gnu.org/licenses/&gt;.
+<b><a name="line24">24   </a></b>	
+<b><a name="line25">25   </a></b>	/** @file bits/unique_lock.h
+<b><a name="line26">26   </a></b>	 *  This is an internal header file, included by other library headers.
+<b><a name="line27">27   </a></b>	 *  Do not attempt to use it directly. @headername{mutex}
+<b><a name="line28">28   </a></b>	 */
+<b><a name="line29">29   </a></b>	
+<b><a name="line30">30   </a></b>	#ifndef _GLIBCXX_UNIQUE_LOCK_H
+<b><a name="line31">31   </a></b>	#define _GLIBCXX_UNIQUE_LOCK_H 1
+<b><a name="line32">32   </a></b>	
+<b><a name="line33">33   </a></b>	#pragma GCC system_header
+<b><a name="line34">34   </a></b>	
+<b><a name="line35">35   </a></b>	#if __cplusplus &lt; 201103L
+<b><a name="line36">36   </a></b>	# include &lt;bits/c++0x_warning.h&gt;
+<b><a name="line37">37   </a></b>	#else
+<b><a name="line38">38   </a></b>	
+<b><a name="line39">39   </a></b>	#include &lt;chrono&gt;
+<b><a name="line40">40   </a></b>	#include &lt;bits/move.h&gt; // for std::swap
+<b><a name="line41">41   </a></b>	#include &lt;bits/std_mutex.h&gt; // for std::defer_lock_t
+<b><a name="line42">42   </a></b>	
+<b><a name="line43">43   </a></b>	namespace std _GLIBCXX_VISIBILITY(default)
+<b><a name="line44">44   </a></b>	{
+<b><a name="line45">45   </a></b>	_GLIBCXX_BEGIN_NAMESPACE_VERSION
+<b><a name="line46">46   </a></b>	
+<b><a name="line47">47   </a></b>	  /** @brief A movable scoped lock type.
+<b><a name="line48">48   </a></b>	   *
+<b><a name="line49">49   </a></b>	   * A unique_lock controls mutex ownership within a scope. Ownership of the
+<b><a name="line50">50   </a></b>	   * mutex can be delayed until after construction and can be transferred
+<b><a name="line51">51   </a></b>	   * to another unique_lock by move construction or move assignment. If a
+<b><a name="line52">52   </a></b>	   * mutex lock is owned when the destructor runs ownership will be released.
+<b><a name="line53">53   </a></b>	   *
+<b><a name="line54">54   </a></b>	   * @ingroup mutexes
+<b><a name="line55">55   </a></b>	   */
+<b><a name="line56">56   </a></b>	  template&lt;typename _Mutex&gt;
+<b><a name="line57">57   </a></b>	    class unique_lock
+<b><a name="line58">58   </a></b>	    {
+<b><a name="line59">59   </a></b>	    public:
+<b><a name="line60">60   </a></b>	      typedef _Mutex mutex_type;
+<b><a name="line61">61   </a></b>	
+<b><a name="line62">62   </a></b>	      unique_lock() noexcept
+<b><a name="line63">63   </a></b>	      : _M_device(0), _M_owns(false)
+<b><a name="line64">64   </a></b>	      { }
+<b><a name="line65">65   </a></b>	
+<b><a name="line66">66   </a></b>	      explicit unique_lock(mutex_type&amp; __m)
+<b><a name="line67">67   </a></b>	      : _M_device(std::__addressof(__m)), _M_owns(false)
+<b><a name="line68">68   </a></b>	      {
+<b><a name="line69">69   </a></b>		lock();
+<b><a name="line70">70   </a></b>		_M_owns = true;
+<b><a name="line71">71   </a></b>	      }
+<b><a name="line72">72   </a></b>	
+<b><a name="line73">73   </a></b>	      unique_lock(mutex_type&amp; __m, defer_lock_t) noexcept
+<b><a name="line74">74   </a></b>	      : _M_device(std::__addressof(__m)), _M_owns(false)
+<b><a name="line75">75   </a></b>	      { }
+<b><a name="line76">76   </a></b>	
+<b><a name="line77">77   </a></b>	      unique_lock(mutex_type&amp; __m, try_to_lock_t)
+<b><a name="line78">78   </a></b>	      : _M_device(std::__addressof(__m)), _M_owns(_M_device-&gt;try_lock())
+<b><a name="line79">79   </a></b>	      { }
+<b><a name="line80">80   </a></b>	
+<b><a name="line81">81   </a></b>	      unique_lock(mutex_type&amp; __m, adopt_lock_t) noexcept
+<b><a name="line82">82   </a></b>	      : _M_device(std::__addressof(__m)), _M_owns(true)
+<b><a name="line83">83   </a></b>	      {
+<b><a name="line84">84   </a></b>		// XXX calling thread owns mutex
+<b><a name="line85">85   </a></b>	      }
+<b><a name="line86">86   </a></b>	
+<b><a name="line87">87   </a></b>	      template&lt;typename _Clock, typename _Duration&gt;
+<b><a name="line88">88   </a></b>		unique_lock(mutex_type&amp; __m,
+<b><a name="line89">89   </a></b>			    const chrono::time_point&lt;_Clock, _Duration&gt;&amp; __atime)
+<b><a name="line90">90   </a></b>		: _M_device(std::__addressof(__m)),
+<b><a name="line91">91   </a></b>		  _M_owns(_M_device-&gt;try_lock_until(__atime))
+<b><a name="line92">92   </a></b>		{ }
+<b><a name="line93">93   </a></b>	
+<b><a name="line94">94   </a></b>	      template&lt;typename _Rep, typename _Period&gt;
+<b><a name="line95">95   </a></b>		unique_lock(mutex_type&amp; __m,
+<b><a name="line96">96   </a></b>			    const chrono::duration&lt;_Rep, _Period&gt;&amp; __rtime)
+<b><a name="line97">97   </a></b>		: _M_device(std::__addressof(__m)),
+<b><a name="line98">98   </a></b>		  _M_owns(_M_device-&gt;try_lock_for(__rtime))
+<b><a name="line99">99   </a></b>		{ }
+<b><a name="line100">100  </a></b>	
+<b><a name="line101">101  </a></b>	      ~unique_lock()
+<b><a name="line102">102  </a></b>	      {
+<b><a name="line103">103  </a></b>		if (_M_owns)
+<b><a name="line104">104  </a></b>		  unlock();
+<b><a name="line105">105  </a></b>	      }
+<b><a name="line106">106  </a></b>	
+<b><a name="line107">107  </a></b>	      unique_lock(const unique_lock&amp;) = delete;
+<b><a name="line108">108  </a></b>	      unique_lock&amp; operator=(const unique_lock&amp;) = delete;
+<b><a name="line109">109  </a></b>	
+<b><a name="line110">110  </a></b>	      unique_lock(unique_lock&amp;&amp; __u) noexcept
+<b><a name="line111">111  </a></b>	      : _M_device(__u._M_device), _M_owns(__u._M_owns)
+<b><a name="line112">112  </a></b>	      {
+<b><a name="line113">113  </a></b>		__u._M_device = 0;
+<b><a name="line114">114  </a></b>		__u._M_owns = false;
+<b><a name="line115">115  </a></b>	      }
+<b><a name="line116">116  </a></b>	
+<b><a name="line117">117  </a></b>	      unique_lock&amp; operator=(unique_lock&amp;&amp; __u) noexcept
+<b><a name="line118">118  </a></b>	      {
+<b><a name="line119">119  </a></b>		if(_M_owns)
+<b><a name="line120">120  </a></b>		  unlock();
+<b><a name="line121">121  </a></b>	
+<b><a name="line122">122  </a></b>		unique_lock(std::move(__u)).swap(*this);
+<b><a name="line123">123  </a></b>	
+<b><a name="line124">124  </a></b>		__u._M_device = 0;
+<b><a name="line125">125  </a></b>		__u._M_owns = false;
+<b><a name="line126">126  </a></b>	
+<b><a name="line127">127  </a></b>		return *this;
+<b><a name="line128">128  </a></b>	      }
+<b><a name="line129">129  </a></b>	
+<b><a name="line130">130  </a></b>	      void
+<b><a name="line131">131  </a></b>	      lock()
+<b><a name="line132">132  </a></b>	      {
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:0"></a>
+<!-- merge-key 581d48134dd05e6f769a78d5edf311dd -->
+<b>(1) Event cond_false</b>: </font></td>
+<td><font color="green">Condition &quot;!this-&gt;_M_device&quot;, taking false branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line133">133  </a></b>		if (!_M_device)
+<b><a name="line134">134  </a></b>		  __throw_system_error(int(errc::operation_not_permitted));
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:1"></a>
+<!-- merge-key 581d48134dd05e6f769a78d5edf311dd -->
+<b>(2) Event else_branch</b>: </font></td>
+<td><font color="green">Reached else branch.</font></td>
+</tr>
+<tr><td><font color="red">
+<a name="error:2"></a>
+<a name="error"></a>
+<!-- merge-key 581d48134dd05e6f769a78d5edf311dd -->
+<b>(3) Event missing_lock</b>: </font></td>
+<td><font color="red">Accessing &quot;this-&gt;_M_owns&quot; without holding lock &quot;std::unique_lock&lt;std::mutex&gt;._M_device&quot;. Elsewhere, &quot;std::unique_lock&lt;std::mutex&gt;._M_owns&quot; is written to with &quot;unique_lock._M_device&quot; held 1 out of 2 times (1 of these accesses strongly imply that it is necessary).</font></td>
+</tr>
+<tr><td><font color="red">Also see events: </font></td>
+<td><font color="red">[<a href="#error:3">lock_acquire</a>][<a href="#error:4">example_access</a>]</font></td></tr>
+</table>
+<pre><b><a name="line135">135  </a></b>		else if (_M_owns)
+<b><a name="line136">136  </a></b>		  __throw_system_error(int(errc::resource_deadlock_would_occur));
+<b><a name="line137">137  </a></b>		else
+<b><a name="line138">138  </a></b>		  {
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="red">
+<a name="error:3"></a>
+<!-- merge-key 581d48134dd05e6f769a78d5edf311dd -->
+<b>(4) Event lock_acquire</b>: </font></td>
+<td><font color="red">Example 1: Calling &quot;lock&quot; acquires lock &quot;std::unique_lock&lt;std::mutex&gt;._M_device&quot;. [Note: The source code implementation of the function has been overridden by a builtin model.]</font></td>
+</tr>
+<tr><td><font color="red">Also see events: </font></td>
+<td><font color="red">[<a href="#error:2">missing_lock</a>][<a href="#error:4">example_access</a>]</font></td></tr>
+</table>
+<pre><b><a name="line139">139  </a></b>		    _M_device-&gt;lock();
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="red">
+<a name="error:4"></a>
+<!-- merge-key 581d48134dd05e6f769a78d5edf311dd -->
+<b>(5) Event example_access</b>: </font></td>
+<td><font color="red">Example 1 (cont.): &quot;std::unique_lock&lt;std::mutex&gt;._M_owns&quot; is written to with lock &quot;std::unique_lock&lt;std::mutex&gt;._M_device&quot; held.</font></td>
+</tr>
+<tr><td><font color="red">Also see events: </font></td>
+<td><font color="red">[<a href="#error:2">missing_lock</a>][<a href="#error:3">lock_acquire</a>]</font></td></tr>
+</table>
+<pre><b><a name="line140">140  </a></b>		    _M_owns = true;
+<b><a name="line141">141  </a></b>		  }
+<b><a name="line142">142  </a></b>	      }
+<b><a name="line143">143  </a></b>	
+<b><a name="line144">144  </a></b>	      bool
+<b><a name="line145">145  </a></b>	      try_lock()
+<b><a name="line146">146  </a></b>	      {
+<b><a name="line147">147  </a></b>		if (!_M_device)
+<b><a name="line148">148  </a></b>		  __throw_system_error(int(errc::operation_not_permitted));
+<b><a name="line149">149  </a></b>		else if (_M_owns)
+<b><a name="line150">150  </a></b>		  __throw_system_error(int(errc::resource_deadlock_would_occur));
+<b><a name="line151">151  </a></b>		else
+<b><a name="line152">152  </a></b>		  {
+<b><a name="line153">153  </a></b>		    _M_owns = _M_device-&gt;try_lock();
+<b><a name="line154">154  </a></b>		    return _M_owns;
+<b><a name="line155">155  </a></b>		  }
+<b><a name="line156">156  </a></b>	      }
+<b><a name="line157">157  </a></b>	
+<b><a name="line158">158  </a></b>	      template&lt;typename _Clock, typename _Duration&gt;
+<b><a name="line159">159  </a></b>		bool
+<b><a name="line160">160  </a></b>		try_lock_until(const chrono::time_point&lt;_Clock, _Duration&gt;&amp; __atime)
+<b><a name="line161">161  </a></b>		{
+<b><a name="line162">162  </a></b>		  if (!_M_device)
+<b><a name="line163">163  </a></b>		    __throw_system_error(int(errc::operation_not_permitted));
+<b><a name="line164">164  </a></b>		  else if (_M_owns)
+<b><a name="line165">165  </a></b>		    __throw_system_error(int(errc::resource_deadlock_would_occur));
+<b><a name="line166">166  </a></b>		  else
+<b><a name="line167">167  </a></b>		    {
+<b><a name="line168">168  </a></b>		      _M_owns = _M_device-&gt;try_lock_until(__atime);
+<b><a name="line169">169  </a></b>		      return _M_owns;
+<b><a name="line170">170  </a></b>		    }
+<b><a name="line171">171  </a></b>		}
+<b><a name="line172">172  </a></b>	
+<b><a name="line173">173  </a></b>	      template&lt;typename _Rep, typename _Period&gt;
+<b><a name="line174">174  </a></b>		bool
+<b><a name="line175">175  </a></b>		try_lock_for(const chrono::duration&lt;_Rep, _Period&gt;&amp; __rtime)
+<b><a name="line176">176  </a></b>		{
+<b><a name="line177">177  </a></b>		  if (!_M_device)
+<b><a name="line178">178  </a></b>		    __throw_system_error(int(errc::operation_not_permitted));
+<b><a name="line179">179  </a></b>		  else if (_M_owns)
+<b><a name="line180">180  </a></b>		    __throw_system_error(int(errc::resource_deadlock_would_occur));
+<b><a name="line181">181  </a></b>		  else
+<b><a name="line182">182  </a></b>		    {
+<b><a name="line183">183  </a></b>		      _M_owns = _M_device-&gt;try_lock_for(__rtime);
+<b><a name="line184">184  </a></b>		      return _M_owns;
+<b><a name="line185">185  </a></b>		    }
+<b><a name="line186">186  </a></b>		 }
+<b><a name="line187">187  </a></b>	
+<b><a name="line188">188  </a></b>	      void
+<b><a name="line189">189  </a></b>	      unlock()
+<b><a name="line190">190  </a></b>	      {
+<b><a name="line191">191  </a></b>		if (!_M_owns)
+<b><a name="line192">192  </a></b>		  __throw_system_error(int(errc::operation_not_permitted));
+<b><a name="line193">193  </a></b>		else if (_M_device)
+<b><a name="line194">194  </a></b>		  {
+<b><a name="line195">195  </a></b>		    _M_device-&gt;unlock();
+<b><a name="line196">196  </a></b>		    _M_owns = false;
+<b><a name="line197">197  </a></b>		  }
+<b><a name="line198">198  </a></b>	      }
+<b><a name="line199">199  </a></b>	
+<b><a name="line200">200  </a></b>	      void
+<b><a name="line201">201  </a></b>	      swap(unique_lock&amp; __u) noexcept
+<b><a name="line202">202  </a></b>	      {
+<b><a name="line203">203  </a></b>		std::swap(_M_device, __u._M_device);
+<b><a name="line204">204  </a></b>		std::swap(_M_owns, __u._M_owns);
+<b><a name="line205">205  </a></b>	      }
+<b><a name="line206">206  </a></b>	
+<b><a name="line207">207  </a></b>	      mutex_type*
+<b><a name="line208">208  </a></b>	      release() noexcept
+<b><a name="line209">209  </a></b>	      {
+<b><a name="line210">210  </a></b>		mutex_type* __ret = _M_device;
+<b><a name="line211">211  </a></b>		_M_device = 0;
+<b><a name="line212">212  </a></b>		_M_owns = false;
+<b><a name="line213">213  </a></b>		return __ret;
+<b><a name="line214">214  </a></b>	      }
+<b><a name="line215">215  </a></b>	
+<b><a name="line216">216  </a></b>	      bool
+<b><a name="line217">217  </a></b>	      owns_lock() const noexcept
+<b><a name="line218">218  </a></b>	      { return _M_owns; }
+<b><a name="line219">219  </a></b>	
+<b><a name="line220">220  </a></b>	      explicit operator bool() const noexcept
+<b><a name="line221">221  </a></b>	      { return owns_lock(); }
+<b><a name="line222">222  </a></b>	
+<b><a name="line223">223  </a></b>	      mutex_type*
+<b><a name="line224">224  </a></b>	      mutex() const noexcept
+<b><a name="line225">225  </a></b>	      { return _M_device; }
+<b><a name="line226">226  </a></b>	
+<b><a name="line227">227  </a></b>	    private:
+<b><a name="line228">228  </a></b>	      mutex_type*	_M_device;
+<b><a name="line229">229  </a></b>	      bool		_M_owns;
+<b><a name="line230">230  </a></b>	    };
+<b><a name="line231">231  </a></b>	
+<b><a name="line232">232  </a></b>	  /// Swap overload for unique_lock objects.
+<b><a name="line233">233  </a></b>	  /// @relates unique_lock
+<b><a name="line234">234  </a></b>	  template&lt;typename _Mutex&gt;
+<b><a name="line235">235  </a></b>	    inline void
+<b><a name="line236">236  </a></b>	    swap(unique_lock&lt;_Mutex&gt;&amp; __x, unique_lock&lt;_Mutex&gt;&amp; __y) noexcept
+<b><a name="line237">237  </a></b>	    { __x.swap(__y); }
+<b><a name="line238">238  </a></b>	
+<b><a name="line239">239  </a></b>	_GLIBCXX_END_NAMESPACE_VERSION
+<b><a name="line240">240  </a></b>	} // namespace
+<b><a name="line241">241  </a></b>	
+<b><a name="line242">242  </a></b>	#endif // C++11
+<b><a name="line243">243  </a></b>	#endif // _GLIBCXX_UNIQUE_LOCK_H
+<b><a name="line244">244  </a></b>	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre></body>
+</html>

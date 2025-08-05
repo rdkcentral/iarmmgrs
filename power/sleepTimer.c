@@ -22,10 +22,12 @@
 #include <pthread.h>
 #include <time.h>
 
+
 #include <assert.h>
 #include <stdint.h>
-_Static_assert(sizeof(double) == 8, "Expected double to be 8 bytes");
-_Static_assert(sizeof(time_t) >= 8, "Y2K38 safety: time_t must be at least 64 bits");
+/* Portable static assertions for C89/C99/C11 */
+typedef char static_assert_double_size[(sizeof(double) == 8) ? 1 : -1];
+typedef char static_assert_time_t_size[(sizeof(time_t) >= 8) ? 1 : -1];
 
 #include "libIBus.h"
 #include "pwrlogger.h"
