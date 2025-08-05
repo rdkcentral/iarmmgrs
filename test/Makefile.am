@@ -32,10 +32,9 @@ CC = $(CXX)
 
 AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 $(CFLAGS_CLIENT)
 
-bin_PROGRAMS = test_mode_change_client test_pwrMgr test_vrex_client test_sys_client
+bin_PROGRAMS = test_mode_change_client test_vrex_client test_sys_client
 
 test_mode_change_client_SOURCES = test_mode_change_client.c
-test_pwrMgr_SOURCES = test_pwrMgr.c
 test_vrex_client_SOURCES = test_vrex_client.c
 test_sys_client_SOURCES = test_sys_client.c
 
