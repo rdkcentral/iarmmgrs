@@ -143,7 +143,10 @@ int main()
             {
                 IARM_Bus_PWRMgr_SetDeepSleepTimeOut_Param_t param;
                 printf("Enter time out \n :");
-                scanf("%d",&timeOut);
+		if (scanf("%d",&timeOut) != 1) {
+		    printf("Error in scanf input, retry.\n");
+		    break;
+		}
                 param.timeout = timeOut;
                 err = IARM_Bus_Call(IARM_BUS_PWRMGR_NAME,
                             IARM_BUS_PWRMGR_API_SetDeepSleepTimeOut,
@@ -173,10 +176,16 @@ int main()
                 IARM_Bus_PWRMgr_SetTempThresholds_Param_t param;
                int temperature;
                 printf("Enter high temperature level \n :");
-                scanf("%d",&temperature);
+		if (scanf("%d",&temperature) != 1) {
+		    printf("Error in scanf input, retry.\n");
+		    break;
+		}
                 param.tempHigh = temperature;
                 printf("Enter critical temperature level \n :");
-                scanf("%d",&temperature);
+		if (scanf("%d",&temperature) != 1) {
+		    printf("Error in scanf input, retry.\n");
+		    break;
+		}
                 param.tempCritical = temperature;
 
                 err = IARM_Bus_Call(IARM_BUS_PWRMGR_NAME,
