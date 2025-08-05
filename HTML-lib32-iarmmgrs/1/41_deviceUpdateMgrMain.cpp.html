@@ -1,0 +1,1229 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Coverity error reader: /home/amadha013/community/mw-dev/build-raspberrypi4-64-rdke/tmp/work/raspberrypi4-64-rdke-middleware-rdkmllib32-linux-gnueabi/lib32-iarmmgrs/1.0.13-r0/git/deviceUpdateMgr/deviceUpdateMgrMain.cpp</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head>
+<body link="#000000" vlink="#000000"><pre>
+<b><a name="line1">1    </a></b>	/*
+<b><a name="line2">2    </a></b>	 * If not stated otherwise in this file or this component's LICENSE file the
+<b><a name="line3">3    </a></b>	 * following copyright and licenses apply:
+<b><a name="line4">4    </a></b>	 *
+<b><a name="line5">5    </a></b>	 * Copyright 2016 RDK Management
+<b><a name="line6">6    </a></b>	 *
+<b><a name="line7">7    </a></b>	 * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+<b><a name="line8">8    </a></b>	 * you may not use this file except in compliance with the License.
+<b><a name="line9">9    </a></b>	 * You may obtain a copy of the License at
+<b><a name="line10">10   </a></b>	 *
+<b><a name="line11">11   </a></b>	 * http://www.apache.org/licenses/LICENSE-2.0
+<b><a name="line12">12   </a></b>	 *
+<b><a name="line13">13   </a></b>	 * Unless required by applicable law or agreed to in writing, software
+<b><a name="line14">14   </a></b>	 * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<b><a name="line15">15   </a></b>	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<b><a name="line16">16   </a></b>	 * See the License for the specific language governing permissions and
+<b><a name="line17">17   </a></b>	 * limitations under the License.
+<b><a name="line18">18   </a></b>	*/
+<b><a name="line19">19   </a></b>	/* * imgUpdateMgrMain.cpp
+<b><a name="line20">20   </a></b>	 *
+<b><a name="line21">21   </a></b>	 *  Created on: Jul 23, 2014
+<b><a name="line22">22   </a></b>	 *      Author: tlemmons
+<b><a name="line23">23   </a></b>	 */
+<b><a name="line24">24   </a></b>	
+<b><a name="line25">25   </a></b>	
+<b><a name="line26">26   </a></b>	
+<b><a name="line27">27   </a></b>	/**
+<b><a name="line28">28   </a></b>	* @defgroup iarmmgrs
+<b><a name="line29">29   </a></b>	* @{
+<b><a name="line30">30   </a></b>	* @defgroup deviceUpdateMgr
+<b><a name="line31">31   </a></b>	* @{
+<b><a name="line32">32   </a></b>	**/
+<b><a name="line33">33   </a></b>	
+<b><a name="line34">34   </a></b>	
+<b><a name="line35">35   </a></b>	#ifdef __cplusplus
+<b><a name="line36">36   </a></b>	extern &quot;C&quot;
+<b><a name="line37">37   </a></b>	{
+<b><a name="line38">38   </a></b>	#endif
+<b><a name="line39">39   </a></b>	#include &lt;stdio.h&gt;
+<b><a name="line40">40   </a></b>	#include &lt;stdlib.h&gt;
+<b><a name="line41">41   </a></b>	#ifdef __cplusplus
+<b><a name="line42">42   </a></b>	}
+<b><a name="line43">43   </a></b>	#endif
+<b><a name="line44">44   </a></b>	
+<b><a name="line45">45   </a></b>	#include &quot;libIBus.h&quot;
+<b><a name="line46">46   </a></b>	#include &quot;iarmUtil.h&quot;
+<b><a name="line47">47   </a></b>	#include &quot;deviceUpdateMgr.h&quot;
+<b><a name="line48">48   </a></b>	#include &quot;deviceUpdateMgrInternal.h&quot;
+<b><a name="line49">49   </a></b>	#include &quot;jsonParser.h&quot;
+<b><a name="line50">50   </a></b>	#include &lt;assert.h&gt;
+<b><a name="line51">51   </a></b>	#include &lt;iostream&gt;
+<b><a name="line52">52   </a></b>	#include &lt;fstream&gt;
+<b><a name="line53">53   </a></b>	#include &lt;list&gt;
+<b><a name="line54">54   </a></b>	#include  &lt;sys/stat.h&gt;
+<b><a name="line55">55   </a></b>	#include &lt;dirent.h&gt;
+<b><a name="line56">56   </a></b>	#include &lt;errno.h&gt;
+<b><a name="line57">57   </a></b>	#include &lt;vector&gt;
+<b><a name="line58">58   </a></b>	#include &lt;string&gt;
+<b><a name="line59">59   </a></b>	#include &lt;iostream&gt;
+<b><a name="line60">60   </a></b>	#include &lt;utils.h&gt;
+<b><a name="line61">61   </a></b>	#include &lt;time.h&gt;
+<b><a name="line62">62   </a></b>	
+<b><a name="line63">63   </a></b>	#include &quot;safec_lib.h&quot;
+<b><a name="line64">64   </a></b>	
+<b><a name="line65">65   </a></b>	extern &quot;C&quot;
+<b><a name="line66">66   </a></b>	{
+<b><a name="line67">67   </a></b>	#ifdef YOCTO_BUILD
+<b><a name="line68">68   </a></b>	#include &quot;secure_wrapper.h&quot;
+<b><a name="line69">69   </a></b>	#endif  
+<b><a name="line70">70   </a></b>	bool loadConfig();
+<b><a name="line71">71   </a></b>	pthread_mutex_t tMutexLock;
+<b><a name="line72">72   </a></b>	IARM_Result_t AcceptUpdate(void *arg);
+<b><a name="line73">73   </a></b>	void sendDownLoadInit(int id);
+<b><a name="line74">74   </a></b>	void sendLoadInit(int id);
+<b><a name="line75">75   </a></b>	bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData);
+<b><a name="line76">76   </a></b>	void processDeviceFile(string filePath, string);
+<b><a name="line77">77   </a></b>	void processDeviceFolder(string updatePath, string);
+<b><a name="line78">78   </a></b>	IARM_Result_t deviceUpdateStart(void);
+<b><a name="line79">79   </a></b>	void deviceUpdateRun(list&lt;JSONParser::varVal *&gt; *folders);
+<b><a name="line80">80   </a></b>	IARM_Result_t deviceUpdateStop(void);
+<b><a name="line81">81   </a></b>	bool initialized = false;
+<b><a name="line82">82   </a></b>	void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
+<b><a name="line83">83   </a></b>	int nextID = 1;
+<b><a name="line84">84   </a></b>	map&lt;string, JSONParser::varVal *&gt; configuration;
+<b><a name="line85">85   </a></b>	
+<b><a name="line86">86   </a></b>	string serverUpdatePath= &quot;/srv/device_update/&quot;;
+<b><a name="line87">87   </a></b>	string tempFilePath=&quot;/tmp/devUpdate/&quot;;
+<b><a name="line88">88   </a></b>	bool interactiveDownload=false;
+<b><a name="line89">89   </a></b>	bool interactiveLoad=false;
+<b><a name="line90">90   </a></b>	int loadDelayType=0;
+<b><a name="line91">91   </a></b>	int loadTimeAfterInactive=0;
+<b><a name="line92">92   </a></b>	int timeToLoad=0;
+<b><a name="line93">93   </a></b>	bool backgroundDownload=true;
+<b><a name="line94">94   </a></b>	int requestedPercentIncrement=10;
+<b><a name="line95">95   </a></b>	int recheckForUpdatesMin=0;
+<b><a name="line96">96   </a></b>	bool loadImageImmediately=false;
+<b><a name="line97">97   </a></b>	bool forceUpdate=false;
+<b><a name="line98">98   </a></b>	int loadBeforeHour=4;
+<b><a name="line99">99   </a></b>	int delayTillAnnounceTimeMin=10; // default is announce after 10 min;
+<b><a name="line100">100  </a></b>	int announceCounter=10; // counter for wait seconds
+<b><a name="line101">101  </a></b>	bool oneAnnouncePerRun=false;
+<b><a name="line102">102  </a></b>	
+<b><a name="line103">103  </a></b>	
+<b><a name="line104">104  </a></b>	
+<b><a name="line105">105  </a></b>	
+<b><a name="line106">106  </a></b>	static pthread_mutex_t mapMutex;
+<b><a name="line107">107  </a></b>	}
+<b><a name="line108">108  </a></b>	typedef struct updateInProgress_t
+<b><a name="line109">109  </a></b>	{
+<b><a name="line110">110  </a></b>		_IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t *acceptParams;
+<b><a name="line111">111  </a></b>		int downloadPercent;
+<b><a name="line112">112  </a></b>		bool loadComplete;
+<b><a name="line113">113  </a></b>		int errorCode;
+<b><a name="line114">114  </a></b>		string errorMsg;
+<b><a name="line115">115  </a></b>	
+<b><a name="line116">116  </a></b>	} updateInProgress_t;
+<b><a name="line117">117  </a></b>	
+<b><a name="line118">118  </a></b>	map&lt;int, updateInProgress_t *&gt; *updatesInProgress = new map&lt;int, updateInProgress_t *&gt;();
+<b><a name="line119">119  </a></b>	bool running = true;
+<b><a name="line120">120  </a></b>	
+<b><a name="line121">121  </a></b>	#ifdef RDK_LOGGER_ENABLED
+<b><a name="line122">122  </a></b>	
+<b><a name="line123">123  </a></b>	int b_rdk_logger_enabled = 0;
+<b><a name="line124">124  </a></b>	
+<b><a name="line125">125  </a></b>	void logCallback(const char *buff)
+<b><a name="line126">126  </a></b>	{
+<b><a name="line127">127  </a></b>		INT_LOG(&quot;%s&quot;,buff);
+<b><a name="line128">128  </a></b>	}
+<b><a name="line129">129  </a></b>	#endif
+<b><a name="line130">130  </a></b>	int main(int argc, char *argv[])
+<b><a name="line131">131  </a></b>	{
+<b><a name="line132">132  </a></b>		const char* debugConfigFile = NULL;
+<b><a name="line133">133  </a></b>		int itr = 0;
+<b><a name="line134">134  </a></b>	
+<b><a name="line135">135  </a></b>		while (itr &lt; argc)
+<b><a name="line136">136  </a></b>		{
+<b><a name="line137">137  </a></b>			if (strcmp(argv[itr], &quot;--debugconfig&quot;) == 0)
+<b><a name="line138">138  </a></b>			{
+<b><a name="line139">139  </a></b>				itr++;
+<b><a name="line140">140  </a></b>				if (itr &lt; argc)
+<b><a name="line141">141  </a></b>				{
+<b><a name="line142">142  </a></b>					debugConfigFile = argv[itr];
+<b><a name="line143">143  </a></b>				}
+<b><a name="line144">144  </a></b>				else
+<b><a name="line145">145  </a></b>				{
+<b><a name="line146">146  </a></b>					break;
+<b><a name="line147">147  </a></b>				}
+<b><a name="line148">148  </a></b>			}
+<b><a name="line149">149  </a></b>			itr++;
+<b><a name="line150">150  </a></b>		}
+<b><a name="line151">151  </a></b>	
+<b><a name="line152">152  </a></b>	#ifdef RDK_LOGGER_ENABLED
+<b><a name="line153">153  </a></b>	
+<b><a name="line154">154  </a></b>		if(rdk_logger_init(debugConfigFile) == 0) b_rdk_logger_enabled = 1;
+<b><a name="line155">155  </a></b>		IARM_Bus_RegisterForLog(logCallback);
+<b><a name="line156">156  </a></b>	
+<b><a name="line157">157  </a></b>	#endif
+<b><a name="line158">158  </a></b>	
+<b><a name="line159">159  </a></b>	
+<b><a name="line160">160  </a></b>	    time_t tim=time(NULL);
+<b><a name="line161">161  </a></b>	     tm *now=localtime(&amp;tim);
+<b><a name="line162">162  </a></b>	     INT_LOG(&quot;Date is %d/%02d/%02d\n&quot;, now-&gt;tm_year+1900, now-&gt;tm_mon+1, now-&gt;tm_mday);
+<b><a name="line163">163  </a></b>	     INT_LOG(&quot;Time is %02d:%02d\n&quot;, now-&gt;tm_hour, now-&gt;tm_min);
+<b><a name="line164">164  </a></b>	
+<b><a name="line165">165  </a></b>	
+<b><a name="line166">166  </a></b>		if (deviceUpdateStart() == IARM_RESULT_SUCCESS)
+<b><a name="line167">167  </a></b>		{
+<b><a name="line168">168  </a></b>			loadConfig();
+<b><a name="line169">169  </a></b>			JSONParser::varVal *folderRef=configuration[&quot;deviceFoldersToWatch&quot;];
+<b><a name="line170">170  </a></b>			if(folderRef!=NULL){
+<b><a name="line171">171  </a></b>			list&lt;JSONParser::varVal *&gt; *folders = folderRef-&gt;array;
+<b><a name="line172">172  </a></b>			deviceUpdateRun(folders);
+<b><a name="line173">173  </a></b>			}else{
+<b><a name="line174">174  </a></b>				INT_LOG(&quot;NO FOLDERS IN CONFIG FILE!!!!!!!!!!&quot;);
+<b><a name="line175">175  </a></b>			}
+<b><a name="line176">176  </a></b>		}
+<b><a name="line177">177  </a></b>		deviceUpdateStop();
+<b><a name="line178">178  </a></b>		return 0;
+<b><a name="line179">179  </a></b>	}
+<b><a name="line180">180  </a></b>	
+<b><a name="line181">181  </a></b>	IARM_Result_t deviceUpdateStart()
+<b><a name="line182">182  </a></b>	{
+<b><a name="line183">183  </a></b>	
+<b><a name="line184">184  </a></b>		IARM_Result_t status = IARM_RESULT_INVALID_STATE;
+<b><a name="line185">185  </a></b>	
+<b><a name="line186">186  </a></b>		INT_LOG(&quot;Entering [%s] - [%s] - disabling io redirect buf\n&quot;, __FUNCTION__, IARM_BUS_DEVICE_UPDATE_NAME);
+<b><a name="line187">187  </a></b>		setvbuf(stdout, NULL, _IOLBF, 0);
+<b><a name="line188">188  </a></b>		int ret = pthread_mutex_init(&amp;mapMutex, NULL);
+<b><a name="line189">189  </a></b>	        if(ret != 0) {
+<b><a name="line190">190  </a></b>	        INT_LOG(&quot; pthread_mutex_init Error case: %d\n&quot;, __LINE__);
+<b><a name="line191">191  </a></b>	        status = IARM_RESULT_INVALID_STATE;  
+<b><a name="line192">192  </a></b>	        }
+<b><a name="line193">193  </a></b>		if (!initialized)
+<b><a name="line194">194  </a></b>		{
+<b><a name="line195">195  </a></b>			IARM_Result_t rc;
+<b><a name="line196">196  </a></b>	
+<b><a name="line197">197  </a></b>			int retval = pthread_mutex_init(&amp;tMutexLock, NULL);
+<b><a name="line198">198  </a></b>	                if(retval != 0) {
+<b><a name="line199">199  </a></b>	                INT_LOG(&quot; pthread_mutex_init Error case: %d\n&quot;, __LINE__);
+<b><a name="line200">200  </a></b>	                }
+<b><a name="line201">201  </a></b>			pthread_mutex_lock(&amp;tMutexLock);
+<b><a name="line202">202  </a></b>			rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
+<b><a name="line203">203  </a></b>			INT_LOG(&quot;dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n&quot;, rc);
+<b><a name="line204">204  </a></b>	
+<b><a name="line205">205  </a></b>			rc = IARM_Bus_Connect();
+<b><a name="line206">206  </a></b>			INT_LOG(&quot;dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n&quot;, rc);
+<b><a name="line207">207  </a></b>	
+<b><a name="line208">208  </a></b>			rc = IARM_Bus_RegisterEvent(IARM_BUS_DEVICE_UPDATE_EVENT_MAX);
+<b><a name="line209">209  </a></b>			INT_LOG(&quot;dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n&quot;, rc);
+<b><a name="line210">210  </a></b>	
+<b><a name="line211">211  </a></b>			rc = IARM_Bus_RegisterCall( IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate, AcceptUpdate); /* RPC Method Implementation*/
+<b><a name="line212">212  </a></b>			INT_LOG(&quot;dumMgr:I-ARM IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate Mgr: %d\n&quot;, rc);
+<b><a name="line213">213  </a></b>	
+<b><a name="line214">214  </a></b>			IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
+<b><a name="line215">215  </a></b>					_deviceUpdateEventHandler);
+<b><a name="line216">216  </a></b>			IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
+<b><a name="line217">217  </a></b>					_deviceUpdateEventHandler);
+<b><a name="line218">218  </a></b>			IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS,
+<b><a name="line219">219  </a></b>					_deviceUpdateEventHandler);
+<b><a name="line220">220  </a></b>			IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_ERROR,
+<b><a name="line221">221  </a></b>					_deviceUpdateEventHandler);
+<b><a name="line222">222  </a></b>	
+<b><a name="line223">223  </a></b>			initialized = 1;
+<b><a name="line224">224  </a></b>	
+<b><a name="line225">225  </a></b>			pthread_mutex_unlock(&amp;tMutexLock);
+<b><a name="line226">226  </a></b>			status = IARM_RESULT_SUCCESS;
+<b><a name="line227">227  </a></b>		}
+<b><a name="line228">228  </a></b>		else
+<b><a name="line229">229  </a></b>		{
+<b><a name="line230">230  </a></b>			__TIMESTAMP();
+<b><a name="line231">231  </a></b>			INT_LOG(&quot;dumMgr: I-ARM Device Update Mgr Error case: %d\n&quot;, __LINE__);
+<b><a name="line232">232  </a></b>			status = IARM_RESULT_INVALID_STATE;
+<b><a name="line233">233  </a></b>		}
+<b><a name="line234">234  </a></b>		return status;
+<b><a name="line235">235  </a></b>	}
+<b><a name="line236">236  </a></b>	
+<b><a name="line237">237  </a></b>	bool loadConfig()
+<b><a name="line238">238  </a></b>	{
+<b><a name="line239">239  </a></b>		string confName = &quot;deviceUpdateConfig.json&quot;;
+<b><a name="line240">240  </a></b>		FILE *fp = NULL;
+<b><a name="line241">241  </a></b>		string filePath;
+<b><a name="line242">242  </a></b>	
+<b><a name="line243">243  </a></b>	// Check if file exists in /opt
+<b><a name="line244">244  </a></b>		filePath = &quot;/opt/&quot; + confName;
+<b><a name="line245">245  </a></b>	
+<b><a name="line246">246  </a></b>		if (!_fileExists(filePath))
+<b><a name="line247">247  </a></b>		{
+<b><a name="line248">248  </a></b>			filePath = &quot;/mnt/nfs/env/&quot; + confName;
+<b><a name="line249">249  </a></b>			if (!_fileExists(filePath))
+<b><a name="line250">250  </a></b>			{
+<b><a name="line251">251  </a></b>				filePath = &quot;/etc/&quot; + confName;
+<b><a name="line252">252  </a></b>				if (!_fileExists(filePath))
+<b><a name="line253">253  </a></b>				{
+<b><a name="line254">254  </a></b>					filePath = std::move(confName);
+<b><a name="line255">255  </a></b>					if (!_fileExists(filePath))
+<b><a name="line256">256  </a></b>					{
+<b><a name="line257">257  </a></b>						__TIMESTAMP();
+<b><a name="line258">258  </a></b>						INT_LOG(
+<b><a name="line259">259  </a></b>							&quot;I-ARM DevUpdate Mgr: Configuration error. Configuration file(s) missing, no folders to watch!!\n&quot;);
+<b><a name="line260">260  </a></b>						return false;
+<b><a name="line261">261  </a></b>					}
+<b><a name="line262">262  </a></b>				}
+<b><a name="line263">263  </a></b>			}
+<b><a name="line264">264  </a></b>		}
+<b><a name="line265">265  </a></b>	
+<b><a name="line266">266  </a></b>		__TIMESTAMP();
+<b><a name="line267">267  </a></b>		INT_LOG(&quot;loading config file %s\n&quot;, filePath.c_str());
+<b><a name="line268">268  </a></b>		if ((fp = fopen(filePath.c_str(), &quot;r&quot;)) != NULL)
+<b><a name="line269">269  </a></b>		{
+<b><a name="line270">270  </a></b>			string confData;
+<b><a name="line271">271  </a></b>			char buf[2048] = &quot;&quot;;  //CID:136517 - string null
+<b><a name="line272">272  </a></b>	
+<b><a name="line273">273  </a></b>			while (!feof(fp) &amp;&amp; confData.length() &lt; 65535)
+<b><a name="line274">274  </a></b>			{
+<b><a name="line275">275  </a></b>	                        memset(buf,'\0', sizeof(buf));                 //CID:136517 - checked null argument
+<b><a name="line276">276  </a></b>	     			if (0 &gt;= fread(buf, 1, sizeof(buf) - 1, fp))   //cID:86017 - checked return
+<b><a name="line277">277  </a></b>	                        {
+<b><a name="line278">278  </a></b>				    INT_LOG(&quot;dumMgr fread failed  \n&quot;);
+<b><a name="line279">279  </a></b>				    break; // Do not continue since READ has failed.
+<b><a name="line280">280  </a></b>	                        }
+<b><a name="line281">281  </a></b>	                        else
+<b><a name="line282">282  </a></b>	                        {
+<b><a name="line283">283  </a></b>	                            confData.append(buf);
+<b><a name="line284">284  </a></b>	                        }
+<b><a name="line285">285  </a></b>			}
+<b><a name="line286">286  </a></b>	
+<b><a name="line287">287  </a></b>			if (fp)
+<b><a name="line288">288  </a></b>				fclose(fp);
+<b><a name="line289">289  </a></b>	
+<b><a name="line290">290  </a></b>	//		LOG(&quot;dumMgr: Configuration Read &lt;%s&gt;\n&quot;, confData.c_str());
+<b><a name="line291">291  </a></b>	
+<b><a name="line292">292  </a></b>			JSONParser parser;
+<b><a name="line293">293  </a></b>	
+<b><a name="line294">294  </a></b>			configuration = parser.parse((const unsigned char *) confData.c_str());
+<b><a name="line295">295  </a></b>	
+<b><a name="line296">296  </a></b>	//		for (map&lt;string, JSONParser::varVal *&gt;::iterator pos = configuration.begin(); pos != configuration.end(); pos++)
+<b><a name="line297">297  </a></b>	//		{
+<b><a name="line298">298  </a></b>	//			if (pos-&gt;second-&gt;str.length() &gt; 0)
+<b><a name="line299">299  </a></b>	//			{
+<b><a name="line300">300  </a></b>	////				LOG(&quot;config string:  %s=%s\n&quot;, pos-&gt;first.c_str(), pos-&gt;second-&gt;str.c_str());
+<b><a name="line301">301  </a></b>	//			}
+<b><a name="line302">302  </a></b>	//			else if (pos-&gt;second-&gt;array != NULL)
+<b><a name="line303">303  </a></b>	//			{
+<b><a name="line304">304  </a></b>	//				for (list&lt;JSONParser::varVal *&gt;::iterator arrayItr = pos-&gt;second-&gt;array-&gt;begin();
+<b><a name="line305">305  </a></b>	//						arrayItr != pos-&gt;second-&gt;array-&gt;end(); arrayItr++)
+<b><a name="line306">306  </a></b>	//				{
+<b><a name="line307">307  </a></b>	//					if ((*arrayItr)-&gt;str.length() &gt; 0)
+<b><a name="line308">308  </a></b>	//						LOG(&quot;array:%s string:  %s\n&quot;, pos-&gt;first.c_str(), (*arrayItr)-&gt;str.c_str());
+<b><a name="line309">309  </a></b>	//				}
+<b><a name="line310">310  </a></b>	//			}
+<b><a name="line311">311  </a></b>	//			else
+<b><a name="line312">312  </a></b>	//			{
+<b><a name="line313">313  </a></b>	//				LOG(&quot;config string:  %s=%s\n&quot;, pos-&gt;first.c_str(), pos-&gt;second-&gt;boolean ? &quot;true&quot; : &quot;false&quot;);
+<b><a name="line314">314  </a></b>	//			}
+<b><a name="line315">315  </a></b>	//		}
+<b><a name="line316">316  </a></b>	
+<b><a name="line317">317  </a></b>		}
+<b><a name="line318">318  </a></b>	
+<b><a name="line319">319  </a></b>		if(configuration[&quot;serverUpdatePath&quot;]!=NULL)
+<b><a name="line320">320  </a></b>		{
+<b><a name="line321">321  </a></b>			serverUpdatePath=configuration[&quot;serverUpdatePath&quot;]-&gt;str;
+<b><a name="line322">322  </a></b>		}
+<b><a name="line323">323  </a></b>		else{
+<b><a name="line324">324  </a></b>			INT_LOG(&quot;error: no serverUpdatePath  in config\n&quot;);
+<b><a name="line325">325  </a></b>		}
+<b><a name="line326">326  </a></b>		if(configuration[&quot;tempFilePath&quot;]!=NULL)
+<b><a name="line327">327  </a></b>		{
+<b><a name="line328">328  </a></b>			tempFilePath=configuration[&quot;tempFilePath&quot;]-&gt;str;
+<b><a name="line329">329  </a></b>		}
+<b><a name="line330">330  </a></b>		else{
+<b><a name="line331">331  </a></b>			INT_LOG(&quot;error: no  tempFilePath in config\n&quot;);
+<b><a name="line332">332  </a></b>		}
+<b><a name="line333">333  </a></b>		if(configuration[&quot;forceUpdate&quot;]!=NULL)
+<b><a name="line334">334  </a></b>		{
+<b><a name="line335">335  </a></b>			forceUpdate=configuration[&quot;forceUpdate&quot;]-&gt;boolean;
+<b><a name="line336">336  </a></b>		}
+<b><a name="line337">337  </a></b>		else{
+<b><a name="line338">338  </a></b>			INT_LOG(&quot;error: no forceUpdate  in config\n&quot;);
+<b><a name="line339">339  </a></b>		}
+<b><a name="line340">340  </a></b>		if(configuration[&quot;interactiveDownload&quot;]!=NULL)
+<b><a name="line341">341  </a></b>		{
+<b><a name="line342">342  </a></b>			interactiveDownload=configuration[&quot;interactiveDownload&quot;]-&gt;boolean;
+<b><a name="line343">343  </a></b>		}
+<b><a name="line344">344  </a></b>		else{
+<b><a name="line345">345  </a></b>			INT_LOG(&quot;error: no interactiveDownload  in config\n&quot;);
+<b><a name="line346">346  </a></b>		}
+<b><a name="line347">347  </a></b>		if(configuration[&quot;interactiveLoad&quot;]!=NULL)
+<b><a name="line348">348  </a></b>		{
+<b><a name="line349">349  </a></b>			interactiveLoad=configuration[&quot;interactiveLoad&quot;]-&gt;boolean;
+<b><a name="line350">350  </a></b>		}
+<b><a name="line351">351  </a></b>		else{
+<b><a name="line352">352  </a></b>			INT_LOG(&quot;error: no  interactiveLoad in config\n&quot;);
+<b><a name="line353">353  </a></b>		}
+<b><a name="line354">354  </a></b>		if(configuration[&quot;loadDelayType&quot;]!=NULL)
+<b><a name="line355">355  </a></b>		{
+<b><a name="line356">356  </a></b>			loadDelayType=atoi(configuration[&quot;loadDelayType&quot;]-&gt;str.c_str());
+<b><a name="line357">357  </a></b>		}
+<b><a name="line358">358  </a></b>		else{
+<b><a name="line359">359  </a></b>			INT_LOG(&quot;error: no loadDelayType  in config\n&quot;);
+<b><a name="line360">360  </a></b>		}
+<b><a name="line361">361  </a></b>		if(configuration[&quot;loadTimeAfterInactive&quot;]!=NULL)
+<b><a name="line362">362  </a></b>		{
+<b><a name="line363">363  </a></b>			loadTimeAfterInactive=atoi(configuration[&quot;loadTimeAfterInactive&quot;]-&gt;str.c_str());
+<b><a name="line364">364  </a></b>		}
+<b><a name="line365">365  </a></b>		else{
+<b><a name="line366">366  </a></b>			INT_LOG(&quot;error: no  loadTimeAfterInactive in config\n&quot;);
+<b><a name="line367">367  </a></b>		}
+<b><a name="line368">368  </a></b>		if(configuration[&quot;timeToLoad&quot;]!=NULL)
+<b><a name="line369">369  </a></b>		{
+<b><a name="line370">370  </a></b>			timeToLoad=atoi(configuration[&quot;timeToLoad&quot;]-&gt;str.c_str());
+<b><a name="line371">371  </a></b>		}
+<b><a name="line372">372  </a></b>		else{
+<b><a name="line373">373  </a></b>			INT_LOG(&quot;error: no  timeToLoad in config\n&quot;);
+<b><a name="line374">374  </a></b>		}
+<b><a name="line375">375  </a></b>		if(configuration[&quot;backgroundDownload&quot;]!=NULL)
+<b><a name="line376">376  </a></b>		{
+<b><a name="line377">377  </a></b>			backgroundDownload=configuration[&quot;backgroundDownload&quot;]-&gt;boolean;
+<b><a name="line378">378  </a></b>			INT_LOG (&quot;setting  backgroundDownload=%s\n&quot;,backgroundDownload?&quot;true&quot;:&quot;false&quot;);
+<b><a name="line379">379  </a></b>		}
+<b><a name="line380">380  </a></b>		else{
+<b><a name="line381">381  </a></b>			INT_LOG(&quot;error: no backgroundDownload  in config\n&quot;);
+<b><a name="line382">382  </a></b>		}
+<b><a name="line383">383  </a></b>	
+<b><a name="line384">384  </a></b>		if(configuration[&quot;loadImageImmediately&quot;]!=NULL)
+<b><a name="line385">385  </a></b>		{
+<b><a name="line386">386  </a></b>			loadImageImmediately=configuration[&quot;loadImageImmediately&quot;]-&gt;boolean;
+<b><a name="line387">387  </a></b>			INT_LOG (&quot;setting  loadImageImmediately=%s\n&quot;,loadImageImmediately?&quot;true&quot;:&quot;false&quot;);
+<b><a name="line388">388  </a></b>		}
+<b><a name="line389">389  </a></b>		else{
+<b><a name="line390">390  </a></b>			INT_LOG(&quot;error: no loadImageImmediately  in config\n&quot;);
+<b><a name="line391">391  </a></b>		}
+<b><a name="line392">392  </a></b>	
+<b><a name="line393">393  </a></b>		if(configuration[&quot;loadBeforeHour&quot;]!=NULL)
+<b><a name="line394">394  </a></b>		{
+<b><a name="line395">395  </a></b>			loadBeforeHour=atoi(configuration[&quot;loadBeforeHour&quot;]-&gt;str.c_str());;
+<b><a name="line396">396  </a></b>		}
+<b><a name="line397">397  </a></b>		else{
+<b><a name="line398">398  </a></b>			INT_LOG(&quot;error: no loadBeforeHour  in config\n&quot;);
+<b><a name="line399">399  </a></b>		}
+<b><a name="line400">400  </a></b>	
+<b><a name="line401">401  </a></b>		if(configuration[&quot;requestedPercentIncrement&quot;]!=NULL)
+<b><a name="line402">402  </a></b>		{
+<b><a name="line403">403  </a></b>			requestedPercentIncrement=atoi(configuration[&quot;requestedPercentIncrement&quot;]-&gt;str.c_str());
+<b><a name="line404">404  </a></b>		}
+<b><a name="line405">405  </a></b>		else{
+<b><a name="line406">406  </a></b>			INT_LOG(&quot;error: no  requestedPercentIncrement in config\n&quot;);
+<b><a name="line407">407  </a></b>		}
+<b><a name="line408">408  </a></b>		if(configuration[&quot;recheckForUpdatesMin&quot;]!=NULL)
+<b><a name="line409">409  </a></b>		{
+<b><a name="line410">410  </a></b>			recheckForUpdatesMin=atoi(configuration[&quot;recheckForUpdatesMin&quot;]-&gt;str.c_str());
+<b><a name="line411">411  </a></b>		}
+<b><a name="line412">412  </a></b>	   if(configuration[&quot;delayTillAnnounceTimeMin&quot;]!=NULL)
+<b><a name="line413">413  </a></b>	    {
+<b><a name="line414">414  </a></b>	    	delayTillAnnounceTimeMin=atoi(configuration[&quot;delayTillAnnounceTimeMin&quot;]-&gt;str.c_str());
+<b><a name="line415">415  </a></b>	        INT_LOG (&quot;setting delayTillAnnounceTimeMin=%d\n&quot;,delayTillAnnounceTimeMin);
+<b><a name="line416">416  </a></b>	    }
+<b><a name="line417">417  </a></b>	    else{
+<b><a name="line418">418  </a></b>	        INT_LOG(&quot;warning: no delayTillAnnounceTimeMin in config!\n&quot;);
+<b><a name="line419">419  </a></b>	    }
+<b><a name="line420">420  </a></b>	    if(configuration[&quot;oneAnnouncePerRun&quot;]!=NULL)
+<b><a name="line421">421  </a></b>	    {
+<b><a name="line422">422  </a></b>	    	oneAnnouncePerRun=configuration[&quot;oneAnnouncePerRun&quot;]-&gt;boolean;
+<b><a name="line423">423  </a></b>	        INT_LOG (&quot;setting oneAnnouncePerRun=%s\n&quot;,oneAnnouncePerRun?&quot;true&quot;:&quot;false&quot;);
+<b><a name="line424">424  </a></b>	    }
+<b><a name="line425">425  </a></b>	    else{
+<b><a name="line426">426  </a></b>	        INT_LOG(&quot;warning: no oneAnnouncePerRun in config!\n&quot;);
+<b><a name="line427">427  </a></b>	    }
+<b><a name="line428">428  </a></b>	
+<b><a name="line429">429  </a></b>		__TIMESTAMP();
+<b><a name="line430">430  </a></b>		INT_LOG(&quot;running with config:\n&quot;);
+<b><a name="line431">431  </a></b>		INT_LOG (&quot;   serverUpdatePath= %s\n&quot;,serverUpdatePath.c_str());
+<b><a name="line432">432  </a></b>		INT_LOG (&quot;   tempFilePath=%s\n&quot;,tempFilePath.c_str());
+<b><a name="line433">433  </a></b>		INT_LOG (&quot;   interactiveDownload=%s\n&quot;,interactiveDownload?&quot;true&quot;:&quot;false&quot;);
+<b><a name="line434">434  </a></b>		INT_LOG (&quot;   interactiveLoad=%s\n&quot;,interactiveLoad?&quot;true&quot;:&quot;false&quot;);
+<b><a name="line435">435  </a></b>		INT_LOG (&quot;   loadDelayType=%d\n&quot;,loadDelayType);
+<b><a name="line436">436  </a></b>		INT_LOG (&quot;   loadTimeAfterInactive=%d\n&quot;,loadTimeAfterInactive);
+<b><a name="line437">437  </a></b>		INT_LOG (&quot;   timeToLoad=%d\n&quot;,timeToLoad);
+<b><a name="line438">438  </a></b>		INT_LOG (&quot;   backgroundDownload=%s\n&quot;,backgroundDownload?&quot;true&quot;:&quot;false&quot;);
+<b><a name="line439">439  </a></b>		INT_LOG (&quot;   loadImageImmediately=%s\n&quot;,loadImageImmediately?&quot;true&quot;:&quot;false&quot;);
+<b><a name="line440">440  </a></b>		INT_LOG (&quot;   loadBeforeHour=%d\n&quot;,loadBeforeHour);
+<b><a name="line441">441  </a></b>		INT_LOG (&quot;   requestedPercentIncrement=%d\n&quot;,requestedPercentIncrement);
+<b><a name="line442">442  </a></b>		INT_LOG (&quot;   recheckForUpdatesMin=%d\n&quot;,recheckForUpdatesMin);
+<b><a name="line443">443  </a></b>	   INT_LOG (&quot;   delayTillAnnounceTimeMin=%d\n&quot;,delayTillAnnounceTimeMin);
+<b><a name="line444">444  </a></b>		return true;
+<b><a name="line445">445  </a></b>	}
+<b><a name="line446">446  </a></b>	
+<b><a name="line447">447  </a></b>	//bool loadTextConfig()
+<b><a name="line448">448  </a></b>	//{
+<b><a name="line449">449  </a></b>	//	string confName = &quot;deviceUpdateConfig.json&quot;;
+<b><a name="line450">450  </a></b>	//	string filePath;
+<b><a name="line451">451  </a></b>	//
+<b><a name="line452">452  </a></b>	//// Check if file exists in /opt
+<b><a name="line453">453  </a></b>	//	filePath = &quot;/opt/&quot; + confName;
+<b><a name="line454">454  </a></b>	//
+<b><a name="line455">455  </a></b>	//	if (!_fileExists(filePath))
+<b><a name="line456">456  </a></b>	//	{
+<b><a name="line457">457  </a></b>	//		filePath = &quot;/mnt/nfs/env/&quot; + confName;
+<b><a name="line458">458  </a></b>	//		if (!_fileExists(filePath))
+<b><a name="line459">459  </a></b>	//		{
+<b><a name="line460">460  </a></b>	//			filePath = confName;
+<b><a name="line461">461  </a></b>	//			if (!_fileExists(filePath))
+<b><a name="line462">462  </a></b>	//			{
+<b><a name="line463">463  </a></b>	//				LOG(
+<b><a name="line464">464  </a></b>	//						&quot;I-ARM DevUpdate Mgr: Configuration error. Configuration file(s) missing, no folders to watch!!\n&quot;);
+<b><a name="line465">465  </a></b>	//				return false;
+<b><a name="line466">466  </a></b>	//			}
+<b><a name="line467">467  </a></b>	//		}
+<b><a name="line468">468  </a></b>	//	}
+<b><a name="line469">469  </a></b>	//
+<b><a name="line470">470  </a></b>	//	LOG(&quot;loading config file %s\n&quot;, filePath.c_str());
+<b><a name="line471">471  </a></b>	//	string line;
+<b><a name="line472">472  </a></b>	//	std::ifstream myfile(filePath.c_str(), ios_base::in);
+<b><a name="line473">473  </a></b>	//	string updatePath;
+<b><a name="line474">474  </a></b>	//// TODO decide on config format.  Currently one device type to watch per line in text file
+<b><a name="line475">475  </a></b>	//	if (myfile.is_open())
+<b><a name="line476">476  </a></b>	//	{
+<b><a name="line477">477  </a></b>	//		while (myfile.good())
+<b><a name="line478">478  </a></b>	//		{
+<b><a name="line479">479  </a></b>	//			getline(myfile, line);
+<b><a name="line480">480  </a></b>	//			if (line.size() &gt; 0)
+<b><a name="line481">481  </a></b>	//			{
+<b><a name="line482">482  </a></b>	//				updatePath = serverUpdatePath + line;
+<b><a name="line483">483  </a></b>	//				LOG(&quot;I-ARM DevUpdate Mgr: checking folder location &lt;%s&gt;\n&quot;, updatePath.c_str());
+<b><a name="line484">484  </a></b>	//				if (_folderExists(updatePath))
+<b><a name="line485">485  </a></b>	//				{
+<b><a name="line486">486  </a></b>	//					LOG(&quot;I-ARM DevUpdate Mgr: processing folder location &lt;%s&gt;\n&quot;, updatePath.c_str());
+<b><a name="line487">487  </a></b>	//					processDeviceFolder(updatePath, line);
+<b><a name="line488">488  </a></b>	//
+<b><a name="line489">489  </a></b>	//				}
+<b><a name="line490">490  </a></b>	//			}
+<b><a name="line491">491  </a></b>	//		}
+<b><a name="line492">492  </a></b>	//		myfile.close();
+<b><a name="line493">493  </a></b>	//	}
+<b><a name="line494">494  </a></b>	//	else
+<b><a name="line495">495  </a></b>	//	{
+<b><a name="line496">496  </a></b>	//		LOG(&quot;I-ARM DevUpdate Mgr: Configuration error. Unable to open file\n&quot;);
+<b><a name="line497">497  </a></b>	//		return false;
+<b><a name="line498">498  </a></b>	//	}
+<b><a name="line499">499  </a></b>	//	return true;
+<b><a name="line500">500  </a></b>	//}
+<b><a name="line501">501  </a></b>	
+<b><a name="line502">502  </a></b>	void processDeviceFolder(string updatePath, string deviceName)
+<b><a name="line503">503  </a></b>	{
+<b><a name="line504">504  </a></b>		DIR *dp;
+<b><a name="line505">505  </a></b>		struct dirent *dirp;
+<b><a name="line506">506  </a></b>		INT_LOG(&quot;dumMgr:processing device folder:%s\n&quot;, updatePath.c_str());
+<b><a name="line507">507  </a></b>		if ((dp = opendir(updatePath.c_str())) == NULL)
+<b><a name="line508">508  </a></b>		{
+<b><a name="line509">509  </a></b>			INT_LOG(&quot;dumMgr:Error(%d) opening updatePath \n&quot;, errno);
+<b><a name="line510">510  </a></b>			return;
+<b><a name="line511">511  </a></b>		}
+<b><a name="line512">512  </a></b>	
+<b><a name="line513">513  </a></b>	// loop through dir listing and get normal files
+<b><a name="line514">514  </a></b>		INT_LOG(&quot;dumMgr:checking folder files\n&quot;);
+<b><a name="line515">515  </a></b>		while ((dirp = readdir(dp)) != NULL)
+<b><a name="line516">516  </a></b>		{
+<b><a name="line517">517  </a></b>			INT_LOG(&quot;dumMgr:checking folder files:%s  - type=%d\n&quot;,dirp-&gt;d_name,dirp-&gt;d_type);
+<b><a name="line518">518  </a></b>			if (dirp-&gt;d_type != DT_DIR)
+<b><a name="line519">519  </a></b>			{
+<b><a name="line520">520  </a></b>				// check for it being either a tgz or tar.gz file
+<b><a name="line521">521  </a></b>				string filename = dirp-&gt;d_name;
+<b><a name="line522">522  </a></b>				INT_LOG(&quot;dumMgr:checking file:%s\n&quot;, filename.c_str());
+<b><a name="line523">523  </a></b>				unsigned int idx = filename.rfind('.');
+<b><a name="line524">524  </a></b>				if (idx != string::npos)
+<b><a name="line525">525  </a></b>				{
+<b><a name="line526">526  </a></b>					string ext = filename.substr(idx + 1);
+<b><a name="line527">527  </a></b>					if (ext == &quot;gz&quot;)
+<b><a name="line528">528  </a></b>					{
+<b><a name="line529">529  </a></b>						idx = filename.rfind('.', idx);
+<b><a name="line530">530  </a></b>						if (idx == string::npos)
+<b><a name="line531">531  </a></b>						{
+<b><a name="line532">532  </a></b>							continue;
+<b><a name="line533">533  </a></b>						}
+<b><a name="line534">534  </a></b>						string ext = filename.substr(idx + 1);
+<b><a name="line535">535  </a></b>						if (ext == &quot;tar.gz&quot;)
+<b><a name="line536">536  </a></b>						{
+<b><a name="line537">537  </a></b>							processDeviceFile(updatePath + &quot;/&quot; + filename, deviceName);
+<b><a name="line538">538  </a></b>							continue;
+<b><a name="line539">539  </a></b>						}
+<b><a name="line540">540  </a></b>					}
+<b><a name="line541">541  </a></b>					if (ext == &quot;tgz&quot;)
+<b><a name="line542">542  </a></b>					{
+<b><a name="line543">543  </a></b>						processDeviceFile(updatePath + &quot;/&quot; + filename, deviceName);
+<b><a name="line544">544  </a></b>						continue;
+<b><a name="line545">545  </a></b>					}
+<b><a name="line546">546  </a></b>				}
+<b><a name="line547">547  </a></b>	
+<b><a name="line548">548  </a></b>			}
+<b><a name="line549">549  </a></b>		}
+<b><a name="line550">550  </a></b>		closedir(dp);
+<b><a name="line551">551  </a></b>	}
+<b><a name="line552">552  </a></b>	
+<b><a name="line553">553  </a></b>	void processDeviceFile(string filePath, string deviceName)
+<b><a name="line554">554  </a></b>	{
+<b><a name="line555">555  </a></b>		INT_LOG(&quot;dumMgr:processing Device File:%s\n&quot;, filePath.c_str());
+<b><a name="line556">556  </a></b>		string cmd = &quot;rm -rf &quot;;
+<b><a name="line557">557  </a></b>		cmd += tempFilePath;
+<b><a name="line558">558  </a></b>	#ifdef YOCTO_BUILD
+<b><a name="line559">559  </a></b>		v_secure_system(cmd.c_str());
+<b><a name="line560">560  </a></b>	#else
+<b><a name="line561">561  </a></b>		system(cmd.c_str());
+<b><a name="line562">562  </a></b>	#endif
+<b><a name="line563">563  </a></b>		cmd = &quot;mkdir &quot;;
+<b><a name="line564">564  </a></b>		cmd += tempFilePath;
+<b><a name="line565">565  </a></b>	#ifdef YOCTO_BUILD
+<b><a name="line566">566  </a></b>	        v_secure_system(cmd.c_str());
+<b><a name="line567">567  </a></b>	#else
+<b><a name="line568">568  </a></b>	        system(cmd.c_str());
+<b><a name="line569">569  </a></b>	#endif
+<b><a name="line570">570  </a></b>		cmd = &quot;tar -xzpf  &quot; + filePath + &quot; -C &quot; + tempFilePath;
+<b><a name="line571">571  </a></b>	#ifdef YOCTO_BUILD
+<b><a name="line572">572  </a></b>	        v_secure_system(cmd.c_str());
+<b><a name="line573">573  </a></b>	#else
+<b><a name="line574">574  </a></b>	        system(cmd.c_str());
+<b><a name="line575">575  </a></b>	#endif
+<b><a name="line576">576  </a></b>		vector&lt;string&gt; *myfiles = getdir(tempFilePath);
+<b><a name="line577">577  </a></b>		vector&lt;string&gt;::iterator itr;
+<b><a name="line578">578  </a></b>		if(myfiles != NULL)
+<b><a name="line579">579  </a></b>		{
+<b><a name="line580">580  </a></b>			INT_LOG(&quot;dumMgr: searching Device File:%s\n&quot;, filePath.c_str());
+<b><a name="line581">581  </a></b>			for (itr = myfiles-&gt;begin(); itr != myfiles-&gt;end(); itr++)
+<b><a name="line582">582  </a></b>			{
+<b><a name="line583">583  </a></b>				string filename = *itr;
+<b><a name="line584">584  </a></b>		//		LOG(&quot;dumMgr:found file:%s\n&quot;, filename.c_str());
+<b><a name="line585">585  </a></b>				int idx = filename.rfind('.');
+<b><a name="line586">586  </a></b>				if (idx == string::npos)
+<b><a name="line587">587  </a></b>				{
+<b><a name="line588">588  </a></b>					continue;
+<b><a name="line589">589  </a></b>				}
+<b><a name="line590">590  </a></b>				string ext = filename.substr(idx + 1);
+<b><a name="line591">591  </a></b>		//		LOG(&quot;dumMgr:extension:%s\n&quot;, ext.c_str());
+<b><a name="line592">592  </a></b>				if (ext == &quot;xml&quot;)
+<b><a name="line593">593  </a></b>				{
+<b><a name="line594">594  </a></b>					_IARM_Bus_DeviceUpdate_Announce_t myData;
+<b><a name="line595">595  </a></b>					strncpy(myData.deviceImageFilePath, filePath.c_str(), (IARM_BUS_DEVICE_UPDATE_PATH_LENGTH - 1));
+<b><a name="line596">596  </a></b>					myData.deviceImageFilePath[IARM_BUS_DEVICE_UPDATE_PATH_LENGTH - 1] = 0;
+<b><a name="line597">597  </a></b>					if (getEventData(tempFilePath + filename, &amp;myData))
+<b><a name="line598">598  </a></b>					{
+<b><a name="line599">599  </a></b>						__TIMESTAMP();
+<b><a name="line600">600  </a></b>						INT_LOG(&quot;dumMgr:sending announce event&quot;);
+<b><a name="line601">601  </a></b>						IARM_Result_t retval = IARM_Bus_BroadcastEvent(
+<b><a name="line602">602  </a></b>						IARM_BUS_DEVICE_UPDATE_NAME, (IARM_EventId_t) IARM_BUS_DEVICE_UPDATE_EVENT_ANNOUNCE, (void *) &amp;myData,
+<b><a name="line603">603  </a></b>								sizeof(_IARM_Bus_DeviceUpdate_Announce_t));
+<b><a name="line604">604  </a></b>						if (retval == IARM_RESULT_SUCCESS)
+<b><a name="line605">605  </a></b>						{
+<b><a name="line606">606  </a></b>		//					__TIMESTAMP();
+<b><a name="line607">607  </a></b>		//					LOG(&quot;dumMgr:Announce Event sent successfully\n&quot;);
+<b><a name="line608">608  </a></b>						}
+<b><a name="line609">609  </a></b>						else
+<b><a name="line610">610  </a></b>						{
+<b><a name="line611">611  </a></b>							__TIMESTAMP();
+<b><a name="line612">612  </a></b>							INT_LOG(&quot;dumMgr:Announce Event problem, %i\n&quot;, retval);
+<b><a name="line613">613  </a></b>						}
+<b><a name="line614">614  </a></b>					}
+<b><a name="line615">615  </a></b>				}
+<b><a name="line616">616  </a></b>			}
+<b><a name="line617">617  </a></b>			delete myfiles;
+<b><a name="line618">618  </a></b>		}
+<b><a name="line619">619  </a></b>		else
+<b><a name="line620">620  </a></b>		{
+<b><a name="line621">621  </a></b>			INT_LOG(&quot;dumMgr: Failed in searching Device File:[%s]. getdir returned NULL\n&quot;, filePath.c_str());;
+<b><a name="line622">622  </a></b>		}
+<b><a name="line623">623  </a></b>	
+<b><a name="line624">624  </a></b>	}
+<b><a name="line625">625  </a></b>	
+<b><a name="line626">626  </a></b>	string getXMLTagText(string xml, string tag)
+<b><a name="line627">627  </a></b>	{
+<b><a name="line628">628  </a></b>	
+<b><a name="line629">629  </a></b>	//TODO currently this assume no spaces or tabs in the tag brackets. and no leading trailing spaces in text content
+<b><a name="line630">630  </a></b>		int idx = xml.find(&quot;&lt;&quot; + tag);
+<b><a name="line631">631  </a></b>		if (idx == string::npos)
+<b><a name="line632">632  </a></b>		{
+<b><a name="line633">633  </a></b>			INT_LOG(&quot;dumMgr:tag &lt;%s&gt; not found in xml file: aborting\n&quot;, tag.c_str());
+<b><a name="line634">634  </a></b>			return &quot;&quot;;
+<b><a name="line635">635  </a></b>		}
+<b><a name="line636">636  </a></b>	// skip past the tag and its two brackets:
+<b><a name="line637">637  </a></b>		idx += tag.length() + 2;
+<b><a name="line638">638  </a></b>	
+<b><a name="line639">639  </a></b>	// find end tag
+<b><a name="line640">640  </a></b>		int idx2 = xml.find(&quot;&lt;/&quot; + tag);
+<b><a name="line641">641  </a></b>	
+<b><a name="line642">642  </a></b>	//grab all content between start and end tag
+<b><a name="line643">643  </a></b>		return xml.substr(idx, idx2 - idx);
+<b><a name="line644">644  </a></b>	
+<b><a name="line645">645  </a></b>	}
+<b><a name="line646">646  </a></b>	
+<b><a name="line647">647  </a></b>	bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData)
+<b><a name="line648">648  </a></b>	{
+<b><a name="line649">649  </a></b>		errno_t rc = -1;
+<b><a name="line650">650  </a></b>		string fileContents;
+<b><a name="line651">651  </a></b>		std::ifstream myfile;
+<b><a name="line652">652  </a></b>	
+<b><a name="line653">653  </a></b>		INT_LOG(&quot;dumMgr:--------------------Checking tar File %s\n&quot;, filename.c_str());
+<b><a name="line654">654  </a></b>		myfile.open(filename.c_str(), std::ifstream::in);
+<b><a name="line655">655  </a></b>		if (myfile.is_open())
+<b><a name="line656">656  </a></b>		{
+<b><a name="line657">657  </a></b>			myfile.seekg(0, myfile.end);
+<b><a name="line658">658  </a></b>			int length = myfile.tellg();
+<b><a name="line659">659  </a></b>			myfile.seekg(0, myfile.beg);
+<b><a name="line660">660  </a></b>			char * buffer = new char[length + 1];
+<b><a name="line661">661  </a></b>			if(buffer == NULL)
+<b><a name="line662">662  </a></b>			{
+<b><a name="line663">663  </a></b>				return false;
+<b><a name="line664">664  </a></b>			}
+<b><a name="line665">665  </a></b>			myfile.read(buffer, length);
+<b><a name="line666">666  </a></b>			myfile.close();
+<b><a name="line667">667  </a></b>			fileContents = buffer;
+<b><a name="line668">668  </a></b>			delete[] buffer;
+<b><a name="line669">669  </a></b>		}
+<b><a name="line670">670  </a></b>	
+<b><a name="line671">671  </a></b>		string text = getXMLTagText(fileContents, &quot;image:softwareVersion&quot;);
+<b><a name="line672">672  </a></b>		if (text.length() == 0)
+<b><a name="line673">673  </a></b>		{
+<b><a name="line674">674  </a></b>			INT_LOG(&quot;dumMgr:--------------------Missing Version %s\n&quot;, filename.c_str());
+<b><a name="line675">675  </a></b>			return false;
+<b><a name="line676">676  </a></b>		}
+<b><a name="line677">677  </a></b>			rc = strcpy_s(myData-&gt;deviceImageVersion,sizeof(myData-&gt;deviceImageVersion), std::move(text).c_str());
+<b><a name="line678">678  </a></b>			if(rc!=EOK)
+<b><a name="line679">679  </a></b>			{
+<b><a name="line680">680  </a></b>				ERR_CHK(rc);
+<b><a name="line681">681  </a></b>			}
+<b><a name="line682">682  </a></b>	
+<b><a name="line683">683  </a></b>		text = getXMLTagText(fileContents, &quot;image:type&quot;);
+<b><a name="line684">684  </a></b>		myData-&gt;deviceImageType = atoi(text.c_str());
+<b><a name="line685">685  </a></b>	
+<b><a name="line686">686  </a></b>		text = getXMLTagText(fileContents, &quot;image:productName&quot;);
+<b><a name="line687">687  </a></b>			rc = strcpy_s(myData-&gt;deviceName,sizeof(myData-&gt;deviceName), std::move(text).c_str());
+<b><a name="line688">688  </a></b>			if(rc!=EOK)
+<b><a name="line689">689  </a></b>			{
+<b><a name="line690">690  </a></b>				ERR_CHK(rc);
+<b><a name="line691">691  </a></b>			}
+<b><a name="line692">692  </a></b>	//	LOG(&quot;dumMgr:version:%s&quot;, text.c_str());
+<b><a name="line693">693  </a></b>	//	LOG(&quot; type:%s&quot;, text.c_str());
+<b><a name="line694">694  </a></b>	//	LOG(&quot;product name:%s\n&quot;, text.c_str());
+<b><a name="line695">695  </a></b>	
+<b><a name="line696">696  </a></b>		myData-&gt;forceUpdate = forceUpdate;
+<b><a name="line697">697  </a></b>		INT_LOG(&quot;dumMgr:--------------------Done with tar File %s\n&quot;, filename.c_str());
+<b><a name="line698">698  </a></b>		return true;
+<b><a name="line699">699  </a></b>	}
+<b><a name="line700">700  </a></b>	
+<b><a name="line701">701  </a></b>	void deviceUpdateRun(list&lt;JSONParser::varVal *&gt; *folders)
+<b><a name="line702">702  </a></b>	{
+<b><a name="line703">703  </a></b>		int i=0;
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:0"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(1) Event cond_true</b>: </font></td>
+<td><font color="green">Condition &quot;running&quot;, taking true branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line704">704  </a></b>		while (running)
+<b><a name="line705">705  </a></b>		{
+<b><a name="line706">706  </a></b>			i++;
+<b><a name="line707">707  </a></b>			sleep(1);
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:1"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(2) Event cond_true</b>: </font></td>
+<td><font color="green">Condition &quot;announceCounter == delayTillAnnounceTimeMin * 60&quot;, taking true branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line708">708  </a></b>			if(announceCounter==(delayTillAnnounceTimeMin*60)){
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:2"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(3) Event cond_true</b>: </font></td>
+<td><font color="green">Condition &quot;folders != NULL&quot;, taking true branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line709">709  </a></b>				if (folders != NULL)
+<b><a name="line710">710  </a></b>				{
+<b><a name="line711">711  </a></b>						int numFolders=folders-&gt;size();
+<b><a name="line712">712  </a></b>					INT_LOG(&quot;We have %d folders to watch\n&quot;,numFolders);
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:3"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(4) Event cond_true</b>: </font></td>
+<td><font color="green">Condition &quot;oneAnnouncePerRun&quot;, taking true branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line713">713  </a></b>					if(oneAnnouncePerRun){
+<b><a name="line714">714  </a></b>						// since TI boxes can only announce one update we space updates on days of month to make
+<b><a name="line715">715  </a></b>						// sure all types get updated.  This is a temporary hack until control manager takes over from
+<b><a name="line716">716  </a></b>						// rfMgr
+<b><a name="line717">717  </a></b>						time_t theTime = time(NULL);
+<b><a name="line718">718  </a></b>						struct tm *aTime = localtime(&amp;theTime);
+<b><a name="line719">719  </a></b>						int day = aTime-&gt;tm_mday;
+<b><a name="line720">720  </a></b>						int selectedUpdate=day%(numFolders);
+<b><a name="line721">721  </a></b>						INT_LOG(&quot;today is :%d, so only checking folder %d (mod %d)\n&quot;,day,selectedUpdate,numFolders);
+<b><a name="line722">722  </a></b>	
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:4"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(5) Event cond_true</b>: </font></td>
+<td><font color="green">Condition &quot;arrayItr != std::__cxx11::list&lt;JSONParser::varVal *, std::allocator&lt;JSONParser::varVal *&gt; &gt;::iterator(folders-&gt;end())&quot;, taking true branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line723">723  </a></b>						for (list&lt;JSONParser::varVal *&gt;::iterator arrayItr = folders-&gt;begin(); arrayItr != folders-&gt;end();arrayItr++)
+<b><a name="line724">724  </a></b>						{
+<b><a name="line725">725  </a></b>							string updateFolder = std::move((*arrayItr)-&gt;str);
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:5"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(6) Event cond_true</b>: </font></td>
+<td><font color="green">Condition &quot;selectedUpdate &lt;= 0&quot;, taking true branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line726">726  </a></b>							if(selectedUpdate&lt;=0){
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="red">
+<a name="error:6"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(7) Event move</b>: </font></td>
+<td><font color="red">&quot;updateFolder&quot; is moved (indicated by &quot;std::move(updateFolder)&quot;).</font></td>
+</tr>
+<tr><td><font color="red">Also see events: </font></td>
+<td><font color="red">[<a href="#error:9">use_after_move</a>]</font></td></tr>
+</table>
+<pre><b><a name="line727">727  </a></b>								string updatePath = std::move(serverUpdatePath) + std::move(updateFolder);
+<b><a name="line728">728  </a></b>								INT_LOG(&quot;checking folder:%s\n&quot;,updatePath.c_str());
+<b><a name="line729">729  </a></b>	
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:7"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(8) Event cond_true</b>: </font></td>
+<td><font color="green">Condition &quot;updatePath.length() &gt; 0&quot;, taking true branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line730">730  </a></b>								if (updatePath.length() &gt; 0)
+<b><a name="line731">731  </a></b>								{
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="green">
+<a name="error:8"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(9) Event cond_true</b>: </font></td>
+<td><font color="green">Condition &quot;_folderExists(std::string(updatePath))&quot;, taking true branch.</font></td>
+</tr>
+</table>
+<pre><b><a name="line732">732  </a></b>									if (_folderExists(updatePath))
+<b><a name="line733">733  </a></b>									{
+<b><a name="line734">734  </a></b>										INT_LOG(&quot;I-ARM DevUpdate Mgr: processing folder location &lt;%s&gt;\n&quot;, updatePath.c_str());
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="red">
+<a name="error:9"></a>
+<a name="error"></a>
+<!-- merge-key aa5b2481f11f9d7bd8919689a5921b57 -->
+<b>(10) Event use_after_move</b>: </font></td>
+<td><font color="red">&quot;updateFolder&quot; is used after it has been already moved.</font></td>
+</tr>
+<tr><td><font color="red">Also see events: </font></td>
+<td><font color="red">[<a href="#error:6">move</a>]</font></td></tr>
+</table>
+<pre><b><a name="line735">735  </a></b>										processDeviceFolder(updatePath, updateFolder);
+<b><a name="line736">736  </a></b>	
+<b><a name="line737">737  </a></b>									}
+<b><a name="line738">738  </a></b>								}
+<b><a name="line739">739  </a></b>								break;
+<b><a name="line740">740  </a></b>							}else{
+<b><a name="line741">741  </a></b>								INT_LOG(&quot;skipping folder:%s\n&quot;,updateFolder.c_str());  //CID:127614 - Print args
+<b><a name="line742">742  </a></b>							}
+<b><a name="line743">743  </a></b>							selectedUpdate--;
+<b><a name="line744">744  </a></b>						}
+<b><a name="line745">745  </a></b>					}
+<b><a name="line746">746  </a></b>					else
+<b><a name="line747">747  </a></b>					{
+<b><a name="line748">748  </a></b>						for (list&lt;JSONParser::varVal *&gt;::iterator arrayItr = folders-&gt;begin(); arrayItr != folders-&gt;end();arrayItr++)
+<b><a name="line749">749  </a></b>						{
+<b><a name="line750">750  </a></b>							string updateFolder = std::move((*arrayItr)-&gt;str);
+<b><a name="line751">751  </a></b>							string updatePath = std::move(serverUpdatePath) + std::move(updateFolder);
+<b><a name="line752">752  </a></b>							INT_LOG(&quot;checking folder:%s\n&quot;,updatePath.c_str());
+<b><a name="line753">753  </a></b>	
+<b><a name="line754">754  </a></b>							if (updatePath.length() &gt; 0)
+<b><a name="line755">755  </a></b>							{
+<b><a name="line756">756  </a></b>								if (_folderExists(updatePath))
+<b><a name="line757">757  </a></b>								{
+<b><a name="line758">758  </a></b>									INT_LOG(&quot;I-ARM DevUpdate Mgr: processing folder location &lt;%s&gt;\n&quot;, updatePath.c_str());
+<b><a name="line759">759  </a></b>									processDeviceFolder(updatePath, updateFolder);
+<b><a name="line760">760  </a></b>	
+<b><a name="line761">761  </a></b>								}
+<b><a name="line762">762  </a></b>							}
+<b><a name="line763">763  </a></b>						}
+<b><a name="line764">764  </a></b>					}
+<b><a name="line765">765  </a></b>					__TIMESTAMP();
+<b><a name="line766">766  </a></b>					INT_LOG(&quot;Done with FOLDERS TO WATCH!!!  \n&quot;);
+<b><a name="line767">767  </a></b>	
+<b><a name="line768">768  </a></b>				}
+<b><a name="line769">769  </a></b>				else
+<b><a name="line770">770  </a></b>				{
+<b><a name="line771">771  </a></b>					INT_LOG(&quot;ERROR - NO FOLDERS TO WATCH!!!  \n&quot;);
+<b><a name="line772">772  </a></b>				}
+<b><a name="line773">773  </a></b>			}
+<b><a name="line774">774  </a></b>	
+<b><a name="line775">775  </a></b>		announceCounter++;
+<b><a name="line776">776  </a></b>	
+<b><a name="line777">777  </a></b>	
+<b><a name="line778">778  </a></b>			if(i&gt;60){
+<b><a name="line779">779  </a></b>			if (updatesInProgress-&gt;size() &gt; 0)
+<b><a name="line780">780  </a></b>			{
+<b><a name="line781">781  </a></b>				__TIMESTAMP();
+<b><a name="line782">782  </a></b>				INT_LOG(&quot;deviceUpdateMgr - updates in progress:\n&quot;);
+<b><a name="line783">783  </a></b>				map&lt;int, updateInProgress_t *&gt;::iterator pos = updatesInProgress-&gt;begin();
+<b><a name="line784">784  </a></b>				while (pos != updatesInProgress-&gt;end())
+<b><a name="line785">785  </a></b>				{
+<b><a name="line786">786  </a></b>					INT_LOG(&quot;     UpdateID:%d deviceID:%d percentDownload:%d Loaded:%d file:%s\n&quot;, pos-&gt;first,
+<b><a name="line787">787  </a></b>							pos-&gt;second-&gt;acceptParams-&gt;deviceID, pos-&gt;second-&gt;downloadPercent, pos-&gt;second-&gt;loadComplete,
+<b><a name="line788">788  </a></b>							pos-&gt;second-&gt;acceptParams-&gt;deviceImageFilePath);
+<b><a name="line789">789  </a></b>					if (pos-&gt;second-&gt;errorCode &gt; 0)
+<b><a name="line790">790  </a></b>					{
+<b><a name="line791">791  </a></b>						INT_LOG(&quot;              ERROR on UpdateID:%d Type:%d Message:%s\n&quot;, pos-&gt;first, pos-&gt;second-&gt;errorCode,
+<b><a name="line792">792  </a></b>								pos-&gt;second-&gt;errorMsg.c_str());
+<b><a name="line793">793  </a></b>					}
+<b><a name="line794">794  </a></b>					pos++;
+<b><a name="line795">795  </a></b>				}
+<b><a name="line796">796  </a></b>	
+<b><a name="line797">797  </a></b>			}
+<b><a name="line798">798  </a></b>	i=0;
+<b><a name="line799">799  </a></b>			}
+<b><a name="line800">800  </a></b>				fflush(stdout);
+<b><a name="line801">801  </a></b>		}
+<b><a name="line802">802  </a></b>		return;
+<b><a name="line803">803  </a></b>	}
+<b><a name="line804">804  </a></b>	
+<b><a name="line805">805  </a></b>	IARM_Result_t AcceptUpdate(void *arg)
+<b><a name="line806">806  </a></b>	{
+<b><a name="line807">807  </a></b>		errno_t rc = -1;
+<b><a name="line808">808  </a></b>		__TIMESTAMP();
+<b><a name="line809">809  </a></b>		INT_LOG(&quot;dumMgr:Accept Update recieved\n&quot;);
+<b><a name="line810">810  </a></b>		_IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t *updateParams = new _IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t();
+<b><a name="line811">811  </a></b>		IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t *param = (IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t *) arg;
+<b><a name="line812">812  </a></b>		param-&gt;updateSessionID = nextID++;
+<b><a name="line813">813  </a></b>		INT_LOG(&quot;dumMgr:update Session ID=%d\n&quot;, param-&gt;updateSessionID);
+<b><a name="line814">814  </a></b>		param-&gt;interactiveDownload = interactiveDownload;
+<b><a name="line815">815  </a></b>		param-&gt;interactiveLoad = interactiveLoad;
+<b><a name="line816">816  </a></b>			rc = memcpy_s(updateParams,sizeof(_IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t), param, sizeof(_IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t));
+<b><a name="line817">817  </a></b>			if(rc!=EOK)
+<b><a name="line818">818  </a></b>			{
+<b><a name="line819">819  </a></b>				ERR_CHK(rc);
+<b><a name="line820">820  </a></b>			}
+<b><a name="line821">821  </a></b>		updateInProgress_t *uip = new updateInProgress_t();
+<b><a name="line822">822  </a></b>		uip-&gt;acceptParams = updateParams;
+<b><a name="line823">823  </a></b>		pthread_mutex_lock(&amp;mapMutex);
+<b><a name="line824">824  </a></b>		updatesInProgress-&gt;insert(pair&lt;int, updateInProgress_t *&gt;(param-&gt;updateSessionID, uip));
+<b><a name="line825">825  </a></b>		pthread_mutex_unlock(&amp;mapMutex);
+<b><a name="line826">826  </a></b>	
+<b><a name="line827">827  </a></b>		__TIMESTAMP();
+<b><a name="line828">828  </a></b>		INT_LOG(&quot;dumMgr:Accept Update return success\n&quot;);
+<b><a name="line829">829  </a></b>		return IARM_RESULT_SUCCESS;
+<b><a name="line830">830  </a></b>	}
+<b><a name="line831">831  </a></b>	
+<b><a name="line832">832  </a></b>	IARM_Result_t deviceUpdateStop(void)
+<b><a name="line833">833  </a></b>	{
+<b><a name="line834">834  </a></b>		if (initialized)
+<b><a name="line835">835  </a></b>		{
+<b><a name="line836">836  </a></b>			pthread_mutex_lock(&amp;tMutexLock);
+<b><a name="line837">837  </a></b>			IARM_Bus_UnRegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD);
+<b><a name="line838">838  </a></b>			IARM_Bus_Disconnect();
+<b><a name="line839">839  </a></b>			IARM_Bus_Term();
+<b><a name="line840">840  </a></b>			pthread_mutex_unlock(&amp;tMutexLock);
+<b><a name="line841">841  </a></b>			pthread_mutex_destroy(&amp;tMutexLock);
+<b><a name="line842">842  </a></b>			initialized = false;
+<b><a name="line843">843  </a></b>			return IARM_RESULT_SUCCESS;
+<b><a name="line844">844  </a></b>		}
+<b><a name="line845">845  </a></b>		else
+<b><a name="line846">846  </a></b>		{
+<b><a name="line847">847  </a></b>			return IARM_RESULT_INVALID_STATE;
+<b><a name="line848">848  </a></b>		}
+<b><a name="line849">849  </a></b>	}
+<b><a name="line850">850  </a></b>	
+<b><a name="line851">851  </a></b>	typedef struct
+<b><a name="line852">852  </a></b>	{
+<b><a name="line853">853  </a></b>		string mimeType;
+<b><a name="line854">854  </a></b>		string subType;
+<b><a name="line855">855  </a></b>		string language;
+<b><a name="line856">856  </a></b>	} AudioInfo;
+<b><a name="line857">857  </a></b>	
+<b><a name="line858">858  </a></b>	updateInProgress_t *getUpdateInProgress(int id)
+<b><a name="line859">859  </a></b>	{
+<b><a name="line860">860  </a></b>		pthread_mutex_lock(&amp;mapMutex);
+<b><a name="line861">861  </a></b>		updateInProgress_t *uip = updatesInProgress-&gt;find(id)-&gt;second;
+<b><a name="line862">862  </a></b>		pthread_mutex_unlock(&amp;mapMutex);
+<b><a name="line863">863  </a></b>		return uip;
+<b><a name="line864">864  </a></b>	
+<b><a name="line865">865  </a></b>	}
+<b><a name="line866">866  </a></b>	
+<b><a name="line867">867  </a></b>	void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
+<b><a name="line868">868  </a></b>	{
+<b><a name="line869">869  </a></b>	
+<b><a name="line870">870  </a></b>		/*Handle only Device Update Manager Events */
+<b><a name="line871">871  </a></b>		__TIMESTAMP();
+<b><a name="line872">872  </a></b>		if (strcmp(owner, IARM_BUS_DEVICE_UPDATE_NAME) == 0)
+<b><a name="line873">873  </a></b>		{
+<b><a name="line874">874  </a></b>			pthread_mutex_lock(&amp;tMutexLock);
+<b><a name="line875">875  </a></b>	
+<b><a name="line876">876  </a></b>			switch (eventId)
+<b><a name="line877">877  </a></b>			{
+<b><a name="line878">878  </a></b>			case IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD:
+<b><a name="line879">879  </a></b>			{
+<b><a name="line880">880  </a></b>				IARM_Bus_DeviceUpdate_ReadyToDownload_t *eventData = (IARM_Bus_DeviceUpdate_ReadyToDownload_t *) data;
+<b><a name="line881">881  </a></b>				INT_LOG(&quot;I-ARM: got event IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD\n&quot;);
+<b><a name="line882">882  </a></b>	
+<b><a name="line883">883  </a></b>				updateInProgress_t *uip = getUpdateInProgress(eventData-&gt;updateSessionID);
+<b><a name="line884">884  </a></b>	
+<b><a name="line885">885  </a></b>				if (uip != NULL)
+<b><a name="line886">886  </a></b>				{
+<b><a name="line887">887  </a></b>					INT_LOG(&quot;I-ARM: got valid updateSessionID  Details:\n&quot;);
+<b><a name="line888">888  </a></b>					INT_LOG(&quot;I-ARM: 			currentSWVersion:%s\n&quot;, eventData-&gt;deviceCurrentSWVersion);
+<b><a name="line889">889  </a></b>					INT_LOG(&quot;I-ARM: 			newSWVersion:%s\n&quot;, eventData-&gt;deviceNewSoftwareVersion);
+<b><a name="line890">890  </a></b>					INT_LOG(&quot;I-ARM: 			deviceHWVersion:%s\n&quot;, eventData-&gt;deviceHWVersion);
+<b><a name="line891">891  </a></b>					INT_LOG(&quot;I-ARM: 			deviceBootloaderVersion:%s\n&quot;, eventData-&gt;deviceBootloaderVersion);
+<b><a name="line892">892  </a></b>					INT_LOG(&quot;I-ARM: 			deviceName:%s\n&quot;, eventData-&gt;deviceName);
+<b><a name="line893">893  </a></b>					INT_LOG(&quot;I-ARM: 			totalSize:%i\n&quot;, eventData-&gt;totalSize);
+<b><a name="line894">894  </a></b>					INT_LOG(&quot;I-ARM: 			deviceImageType:%i\n&quot;, eventData-&gt;deviceImageType);
+<b><a name="line895">895  </a></b>	
+<b><a name="line896">896  </a></b>					if(interactiveDownload==false){
+<b><a name="line897">897  </a></b>						sendDownLoadInit(eventData-&gt;updateSessionID);
+<b><a name="line898">898  </a></b>					}else
+<b><a name="line899">899  </a></b>					{
+<b><a name="line900">900  </a></b>						INT_LOG(&quot;I-ARM: 	Interactive Download is true so not sending download Init message\n&quot;);
+<b><a name="line901">901  </a></b>					}
+<b><a name="line902">902  </a></b>				}
+<b><a name="line903">903  </a></b>				else
+<b><a name="line904">904  </a></b>				{
+<b><a name="line905">905  </a></b>					INT_LOG(&quot;I-ARM: did not get valid updateSessionID  Got id:%d\n&quot;, eventData-&gt;updateSessionID);
+<b><a name="line906">906  </a></b>				}
+<b><a name="line907">907  </a></b>	
+<b><a name="line908">908  </a></b>			}
+<b><a name="line909">909  </a></b>				break;
+<b><a name="line910">910  </a></b>			case IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS:
+<b><a name="line911">911  </a></b>			{
+<b><a name="line912">912  </a></b>				IARM_Bus_DeviceUpdate_DownloadStatus_t *eventData = (IARM_Bus_DeviceUpdate_DownloadStatus_t *) data;
+<b><a name="line913">913  </a></b>				INT_LOG(&quot;I-ARM: got event IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS\n&quot;);
+<b><a name="line914">914  </a></b>				updateInProgress_t *uip = getUpdateInProgress(eventData-&gt;updateSessionID);
+<b><a name="line915">915  </a></b>	
+<b><a name="line916">916  </a></b>				if (uip != NULL)
+<b><a name="line917">917  </a></b>				{
+<b><a name="line918">918  </a></b>					INT_LOG(&quot;I-ARM: 			percentComplete:%i\n&quot;, eventData-&gt;percentComplete);
+<b><a name="line919">919  </a></b>	
+<b><a name="line920">920  </a></b>					uip-&gt;downloadPercent = eventData-&gt;percentComplete;
+<b><a name="line921">921  </a></b>					if(uip-&gt;downloadPercent&gt;=100){
+<b><a name="line922">922  </a></b>						if(interactiveLoad==false){
+<b><a name="line923">923  </a></b>							sendLoadInit(eventData-&gt;updateSessionID);
+<b><a name="line924">924  </a></b>						}
+<b><a name="line925">925  </a></b>						else{
+<b><a name="line926">926  </a></b>							INT_LOG(&quot;I-ARM: 	Interactive load is true so not sending load Init message\n&quot;);
+<b><a name="line927">927  </a></b>						}
+<b><a name="line928">928  </a></b>					}
+<b><a name="line929">929  </a></b>					else{
+<b><a name="line930">930  </a></b>						INT_LOG(&quot;I-ARM: 			Not ready to load yet:%i\n&quot;, eventData-&gt;percentComplete);
+<b><a name="line931">931  </a></b>					}
+<b><a name="line932">932  </a></b>				}
+<b><a name="line933">933  </a></b>				else
+<b><a name="line934">934  </a></b>				{
+<b><a name="line935">935  </a></b>					INT_LOG(&quot;I-ARM: IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS invalid updateSessionID  Got id:%d\n&quot;,
+<b><a name="line936">936  </a></b>							eventData-&gt;updateSessionID);
+<b><a name="line937">937  </a></b>				}
+<b><a name="line938">938  </a></b>			}
+<b><a name="line939">939  </a></b>				break;
+<b><a name="line940">940  </a></b>			case IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS:
+<b><a name="line941">941  </a></b>			{
+<b><a name="line942">942  </a></b>				_IARM_Bus_DeviceUpdate_LoadStatus_t *eventData = (_IARM_Bus_DeviceUpdate_LoadStatus_t *) data;
+<b><a name="line943">943  </a></b>				INT_LOG(&quot;I-ARM: got event IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS\n&quot;);
+<b><a name="line944">944  </a></b>				updateInProgress_t *uip = getUpdateInProgress(eventData-&gt;updateSessionID);
+<b><a name="line945">945  </a></b>	
+<b><a name="line946">946  </a></b>				if (uip != NULL)
+<b><a name="line947">947  </a></b>				{
+<b><a name="line948">948  </a></b>					INT_LOG(&quot;I-ARM: 			Complete:%s\n&quot;, eventData-&gt;loadStatus == 1 ? &quot;true&quot; : &quot;false&quot;);
+<b><a name="line949">949  </a></b>					uip-&gt;loadComplete = eventData-&gt;loadStatus == 1 ? true : false;
+<b><a name="line950">950  </a></b>					if (uip-&gt;loadComplete == 1)
+<b><a name="line951">951  </a></b>					{
+<b><a name="line952">952  </a></b>						INT_LOG(&quot;I-ARM:load Complete!!!\n&quot;);
+<b><a name="line953">953  </a></b>						// TODO should remove update from list???
+<b><a name="line954">954  </a></b>					}
+<b><a name="line955">955  </a></b>	
+<b><a name="line956">956  </a></b>				}
+<b><a name="line957">957  </a></b>				else
+<b><a name="line958">958  </a></b>				{
+<b><a name="line959">959  </a></b>					INT_LOG(&quot;I-ARM: IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS invalid updateSessionID  Got id:%d\n&quot;,
+<b><a name="line960">960  </a></b>							eventData-&gt;updateSessionID);
+<b><a name="line961">961  </a></b>				}
+<b><a name="line962">962  </a></b>			}
+<b><a name="line963">963  </a></b>				break;
+<b><a name="line964">964  </a></b>			case IARM_BUS_DEVICE_UPDATE_EVENT_ERROR:
+<b><a name="line965">965  </a></b>			{
+<b><a name="line966">966  </a></b>				IARM_Bus_Device_Update_Error_t *eventData = (IARM_Bus_Device_Update_Error_t *) data;
+<b><a name="line967">967  </a></b>				INT_LOG(&quot;I-ARM: got event IARM_BUS_DEVICE_UPDATE_EVENT_ERROR\n&quot;);
+<b><a name="line968">968  </a></b>	
+<b><a name="line969">969  </a></b>				updateInProgress_t *uip = getUpdateInProgress(eventData-&gt;updateSessionID);
+<b><a name="line970">970  </a></b>	
+<b><a name="line971">971  </a></b>				if (uip != NULL)
+<b><a name="line972">972  </a></b>				{
+<b><a name="line973">973  </a></b>					uip-&gt;errorCode = eventData-&gt;errorType;
+<b><a name="line974">974  </a></b>					uip-&gt;errorMsg.assign((const char *) (eventData-&gt;errorMessage));
+<b><a name="line975">975  </a></b>					INT_LOG(&quot;I-ARM: 			errorMessage:%s\n&quot;, eventData-&gt;errorMessage);
+<b><a name="line976">976  </a></b>					INT_LOG(&quot;I-ARM: 			errorType:%i\n&quot;, eventData-&gt;errorType);
+<b><a name="line977">977  </a></b>				}
+<b><a name="line978">978  </a></b>				else
+<b><a name="line979">979  </a></b>				{
+<b><a name="line980">980  </a></b>					INT_LOG(&quot;I-ARM: IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS invalid updateSessionID  Got id:%d\n&quot;,
+<b><a name="line981">981  </a></b>							eventData-&gt;updateSessionID);
+<b><a name="line982">982  </a></b>				}
+<b><a name="line983">983  </a></b>			}
+<b><a name="line984">984  </a></b>				break;
+<b><a name="line985">985  </a></b>			default:
+<b><a name="line986">986  </a></b>				INT_LOG(&quot;I-ARM: unknown event type \n&quot;);
+<b><a name="line987">987  </a></b>				break;
+<b><a name="line988">988  </a></b>			}
+<b><a name="line989">989  </a></b>	
+<b><a name="line990">990  </a></b>			pthread_mutex_unlock(&amp;tMutexLock);
+<b><a name="line991">991  </a></b>		}
+<b><a name="line992">992  </a></b>		else
+<b><a name="line993">993  </a></b>		{
+<b><a name="line994">994  </a></b>			__TIMESTAMP();
+<b><a name="line995">995  </a></b>			INT_LOG(&quot;I-ARM:_DevUpdateEventHandler event type not meant for me &lt;%s&gt;...\n&quot;, owner);
+<b><a name="line996">996  </a></b>		}
+<b><a name="line997">997  </a></b>	}
+<b><a name="line998">998  </a></b>	
+<b><a name="line999">999  </a></b>	void sendDownLoadInit(int id)
+<b><a name="line1000">1000 </a></b>	{
+<b><a name="line1001">1001 </a></b>		_IARM_Bus_DeviceUpdate_DownloadInitiate_t eventData;
+<b><a name="line1002">1002 </a></b>		updateInProgress_t *uip = getUpdateInProgress(id);
+<b><a name="line1003">1003 </a></b>	
+<b><a name="line1004">1004 </a></b>		memset(&amp;eventData, 0, sizeof(eventData));
+<b><a name="line1005">1005 </a></b>		eventData.updateSessionID = id;
+<b><a name="line1006">1006 </a></b>		eventData.backgroundDownload = backgroundDownload;
+<b><a name="line1007">1007 </a></b>		eventData.requestedPercentIncrement = requestedPercentIncrement;
+<b><a name="line1008">1008 </a></b>		eventData.loadImageImmediately=loadImageImmediately;
+<b><a name="line1009">1009 </a></b>		IARM_Result_t retval = IARM_Bus_BroadcastEvent(IARM_BUS_DEVICE_UPDATE_NAME,
+<b><a name="line1010">1010 </a></b>				(IARM_EventId_t) IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_INITIATE, (void *) &amp;eventData, sizeof(eventData));
+<b><a name="line1011">1011 </a></b>		if (retval == IARM_RESULT_SUCCESS)
+<b><a name="line1012">1012 </a></b>		{
+<b><a name="line1013">1013 </a></b>			__TIMESTAMP();
+<b><a name="line1014">1014 </a></b>			INT_LOG(&quot;I-ARM:IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_INITIATE Event sent successfully&quot;);
+<b><a name="line1015">1015 </a></b>		}
+<b><a name="line1016">1016 </a></b>		else
+<b><a name="line1017">1017 </a></b>		{
+<b><a name="line1018">1018 </a></b>			__TIMESTAMP();
+<b><a name="line1019">1019 </a></b>			INT_LOG(&quot;I-ARM:IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_INITIATE Event problem, %i&quot;, retval);
+<b><a name="line1020">1020 </a></b>		}
+<b><a name="line1021">1021 </a></b>	}
+<b><a name="line1022">1022 </a></b>	
+<b><a name="line1023">1023 </a></b>	void sendLoadInit(int id)
+<b><a name="line1024">1024 </a></b>	{
+<b><a name="line1025">1025 </a></b>		_IARM_Bus_DeviceUpdate_LoadInitiate_t eventData;
+<b><a name="line1026">1026 </a></b>		updateInProgress_t *uip = getUpdateInProgress(id);
+<b><a name="line1027">1027 </a></b>	
+<b><a name="line1028">1028 </a></b>		memset(&amp;eventData, 0, sizeof(eventData));
+<b><a name="line1029">1029 </a></b>		eventData.updateSessionID = id;
+<b><a name="line1030">1030 </a></b>		eventData.loadDelayType = (IARM_Bus_Device_Update_LoadDelayType_t)loadDelayType;
+<b><a name="line1031">1031 </a></b>		eventData.timeAfterInactive = loadTimeAfterInactive;
+<b><a name="line1032">1032 </a></b>	
+<b><a name="line1033">1033 </a></b>		// time to load is set to immediate if we are before the time of day as we normally reboot very early
+<b><a name="line1034">1034 </a></b>		// morning and time to load should also be early morning
+<b><a name="line1035">1035 </a></b>		// however we do a sanity check so if we reboot later in the day we hold off till load time using time to load
+<b><a name="line1036">1036 </a></b>	    time_t tim=time(NULL);
+<b><a name="line1037">1037 </a></b>	     tm *now=localtime(&amp;tim);
+<b><a name="line1038">1038 </a></b>	     INT_LOG(&quot;Time is %02d:%02d\n&quot;, now-&gt;tm_hour, now-&gt;tm_min);
+<b><a name="line1039">1039 </a></b>	
+<b><a name="line1040">1040 </a></b>	
+<b><a name="line1041">1041 </a></b>	
+<b><a name="line1042">1042 </a></b>	     INT_LOG(&quot;diff time is %i hours\n&quot;,loadBeforeHour-now-&gt;tm_hour);
+<b><a name="line1043">1043 </a></b>		if(loadBeforeHour&gt;now-&gt;tm_hour){
+<b><a name="line1044">1044 </a></b>			// we are before the load time so load immedialy
+<b><a name="line1045">1045 </a></b>			eventData.timeToLoad = 0;
+<b><a name="line1046">1046 </a></b>			__TIMESTAMP();
+<b><a name="line1047">1047 </a></b>			INT_LOG(&quot;doing immediate load\n&quot;);
+<b><a name="line1048">1048 </a></b>		}else
+<b><a name="line1049">1049 </a></b>		{
+<b><a name="line1050">1050 </a></b>			// we are after the time so load at that time tomorrow
+<b><a name="line1051">1051 </a></b>			// 24 hours worth of seconds pluss the negative number of diff time
+<b><a name="line1052">1052 </a></b>			eventData.timeToLoad=(24+(loadBeforeHour-now-&gt;tm_hour))*60*60;
+<b><a name="line1053">1053 </a></b>			__TIMESTAMP();
+<b><a name="line1054">1054 </a></b>			INT_LOG(&quot;Waiting till tomorrow - delay of %i seconds\n&quot;,eventData.timeToLoad);
+<b><a name="line1055">1055 </a></b>		}
+<b><a name="line1056">1056 </a></b>	
+<b><a name="line1057">1057 </a></b>		// force now
+<b><a name="line1058">1058 </a></b>	//	eventData.timeToLoad=60;
+<b><a name="line1059">1059 </a></b>	
+<b><a name="line1060">1060 </a></b>		IARM_Result_t retval = IARM_Bus_BroadcastEvent(IARM_BUS_DEVICE_UPDATE_NAME,
+<b><a name="line1061">1061 </a></b>				(IARM_EventId_t) IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_INITIATE, (void *) &amp;eventData, sizeof(eventData));
+<b><a name="line1062">1062 </a></b>		if (retval == IARM_RESULT_SUCCESS)
+<b><a name="line1063">1063 </a></b>		{
+<b><a name="line1064">1064 </a></b>	
+<b><a name="line1065">1065 </a></b>			__TIMESTAMP();
+<b><a name="line1066">1066 </a></b>			INT_LOG(&quot;I-ARM:IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_INITIATE Event sent successfully&quot;);
+<b><a name="line1067">1067 </a></b>		}
+<b><a name="line1068">1068 </a></b>		else
+<b><a name="line1069">1069 </a></b>		{
+<b><a name="line1070">1070 </a></b>			__TIMESTAMP();
+<b><a name="line1071">1071 </a></b>			INT_LOG(&quot;I-ARM:IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_INITIATE Event problem, %i&quot;, retval);
+<b><a name="line1072">1072 </a></b>		}
+<b><a name="line1073">1073 </a></b>	}
+<b><a name="line1074">1074 </a></b>	
+<b><a name="line1075">1075 </a></b>	
+<b><a name="line1076">1076 </a></b>	/** @} */
+<b><a name="line1077">1077 </a></b>	/** @} */
+<b><a name="line1078">1078 </a></b>	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre></body>
+</html>

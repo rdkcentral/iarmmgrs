@@ -1,0 +1,761 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Coverity error reader: /home/amadha013/community/mw-dev/build-raspberrypi4-64-rdke/tmp/work/raspberrypi4-64-rdke-middleware-rdkmllib32-linux-gnueabi/lib32-iarmmgrs/1.0.13-r0/lib32-recipe-sysroot/usr/include/glib-2.0/glib/gmessages.h</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head>
+<body link="#000000" vlink="#000000"><pre>
+<b><a name="line1">1    </a></b>	/* GLIB - Library of useful routines for C programming
+<b><a name="line2">2    </a></b>	 * Copyright (C) 1995-1997  Peter Mattis, Spencer Kimball and Josh MacDonald
+<b><a name="line3">3    </a></b>	 *
+<b><a name="line4">4    </a></b>	 * This library is free software; you can redistribute it and/or
+<b><a name="line5">5    </a></b>	 * modify it under the terms of the GNU Lesser General Public
+<b><a name="line6">6    </a></b>	 * License as published by the Free Software Foundation; either
+<b><a name="line7">7    </a></b>	 * version 2.1 of the License, or (at your option) any later version.
+<b><a name="line8">8    </a></b>	 *
+<b><a name="line9">9    </a></b>	 * This library is distributed in the hope that it will be useful,
+<b><a name="line10">10   </a></b>	 * but WITHOUT ANY WARRANTY; without even the implied warranty of
+<b><a name="line11">11   </a></b>	 * MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.	 See the GNU
+<b><a name="line12">12   </a></b>	 * Lesser General Public License for more details.
+<b><a name="line13">13   </a></b>	 *
+<b><a name="line14">14   </a></b>	 * You should have received a copy of the GNU Lesser General Public
+<b><a name="line15">15   </a></b>	 * License along with this library; if not, see &lt;http://www.gnu.org/licenses/&gt;.
+<b><a name="line16">16   </a></b>	 */
+<b><a name="line17">17   </a></b>	
+<b><a name="line18">18   </a></b>	/*
+<b><a name="line19">19   </a></b>	 * Modified by the GLib Team and others 1997-2000.  See the AUTHORS
+<b><a name="line20">20   </a></b>	 * file for a list of people on the GLib Team.  See the ChangeLog
+<b><a name="line21">21   </a></b>	 * files for a list of changes.  These files are distributed with
+<b><a name="line22">22   </a></b>	 * GLib at ftp://ftp.gtk.org/pub/gtk/.
+<b><a name="line23">23   </a></b>	 */
+<b><a name="line24">24   </a></b>	
+<b><a name="line25">25   </a></b>	#ifndef __G_MESSAGES_H__
+<b><a name="line26">26   </a></b>	#define __G_MESSAGES_H__
+<b><a name="line27">27   </a></b>	
+<b><a name="line28">28   </a></b>	#if !defined (__GLIB_H_INSIDE__) &amp;&amp; !defined (GLIB_COMPILATION)
+<b><a name="line29">29   </a></b>	#error &quot;Only &lt;glib.h&gt; can be included directly.&quot;
+<b><a name="line30">30   </a></b>	#endif
+<b><a name="line31">31   </a></b>	
+<b><a name="line32">32   </a></b>	#include &lt;stdarg.h&gt;
+<b><a name="line33">33   </a></b>	#include &lt;glib/gatomic.h&gt;
+<b><a name="line34">34   </a></b>	#include &lt;glib/gtypes.h&gt;
+<b><a name="line35">35   </a></b>	#include &lt;glib/gmacros.h&gt;
+<b><a name="line36">36   </a></b>	#include &lt;glib/gvariant.h&gt;
+<b><a name="line37">37   </a></b>	
+<b><a name="line38">38   </a></b>	G_BEGIN_DECLS
+<b><a name="line39">39   </a></b>	
+<b><a name="line40">40   </a></b>	/* calculate a string size, guaranteed to fit format + args.
+<b><a name="line41">41   </a></b>	 */
+<b><a name="line42">42   </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line43">43   </a></b>	gsize	g_printf_string_upper_bound (const gchar* format,
+<b><a name="line44">44   </a></b>					     va_list	  args) G_GNUC_PRINTF(1, 0);
+<b><a name="line45">45   </a></b>	
+<b><a name="line46">46   </a></b>	/* Log level shift offset for user defined
+<b><a name="line47">47   </a></b>	 * log levels (0-7 are used by GLib).
+<b><a name="line48">48   </a></b>	 */
+<b><a name="line49">49   </a></b>	#define G_LOG_LEVEL_USER_SHIFT  (8)
+<b><a name="line50">50   </a></b>	
+<b><a name="line51">51   </a></b>	/* Glib log levels and flags.
+<b><a name="line52">52   </a></b>	 */
+<b><a name="line53">53   </a></b>	typedef enum
+<b><a name="line54">54   </a></b>	{
+<b><a name="line55">55   </a></b>	  /* log flags */
+<b><a name="line56">56   </a></b>	  G_LOG_FLAG_RECURSION          = 1 &lt;&lt; 0,
+<b><a name="line57">57   </a></b>	  G_LOG_FLAG_FATAL              = 1 &lt;&lt; 1,
+<b><a name="line58">58   </a></b>	
+<b><a name="line59">59   </a></b>	  /* GLib log levels */
+<b><a name="line60">60   </a></b>	  G_LOG_LEVEL_ERROR             = 1 &lt;&lt; 2,       /* always fatal */
+<b><a name="line61">61   </a></b>	  G_LOG_LEVEL_CRITICAL          = 1 &lt;&lt; 3,
+<b><a name="line62">62   </a></b>	  G_LOG_LEVEL_WARNING           = 1 &lt;&lt; 4,
+<b><a name="line63">63   </a></b>	  G_LOG_LEVEL_MESSAGE           = 1 &lt;&lt; 5,
+<b><a name="line64">64   </a></b>	  G_LOG_LEVEL_INFO              = 1 &lt;&lt; 6,
+<b><a name="line65">65   </a></b>	  G_LOG_LEVEL_DEBUG             = 1 &lt;&lt; 7,
+<b><a name="line66">66   </a></b>	
+<b><a name="line67">67   </a></b>	  G_LOG_LEVEL_MASK              = ~(G_LOG_FLAG_RECURSION | G_LOG_FLAG_FATAL)
+<b><a name="line68">68   </a></b>	} GLogLevelFlags;
+<b><a name="line69">69   </a></b>	
+<b><a name="line70">70   </a></b>	/* GLib log levels that are considered fatal by default */
+<b><a name="line71">71   </a></b>	#define G_LOG_FATAL_MASK        (G_LOG_FLAG_RECURSION | G_LOG_LEVEL_ERROR)
+<b><a name="line72">72   </a></b>	
+<b><a name="line73">73   </a></b>	typedef void            (*GLogFunc)             (const gchar   *log_domain,
+<b><a name="line74">74   </a></b>	                                                 GLogLevelFlags log_level,
+<b><a name="line75">75   </a></b>	                                                 const gchar   *message,
+<b><a name="line76">76   </a></b>	                                                 gpointer       user_data);
+<b><a name="line77">77   </a></b>	
+<b><a name="line78">78   </a></b>	/* Logging mechanism
+<b><a name="line79">79   </a></b>	 */
+<b><a name="line80">80   </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line81">81   </a></b>	guint           g_log_set_handler       (const gchar    *log_domain,
+<b><a name="line82">82   </a></b>	                                         GLogLevelFlags  log_levels,
+<b><a name="line83">83   </a></b>	                                         GLogFunc        log_func,
+<b><a name="line84">84   </a></b>	                                         gpointer        user_data);
+<b><a name="line85">85   </a></b>	GLIB_AVAILABLE_IN_2_46
+<b><a name="line86">86   </a></b>	guint           g_log_set_handler_full  (const gchar    *log_domain,
+<b><a name="line87">87   </a></b>	                                         GLogLevelFlags  log_levels,
+<b><a name="line88">88   </a></b>	                                         GLogFunc        log_func,
+<b><a name="line89">89   </a></b>	                                         gpointer        user_data,
+<b><a name="line90">90   </a></b>	                                         GDestroyNotify  destroy);
+<b><a name="line91">91   </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line92">92   </a></b>	void            g_log_remove_handler    (const gchar    *log_domain,
+<b><a name="line93">93   </a></b>	                                         guint           handler_id);
+<b><a name="line94">94   </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line95">95   </a></b>	void            g_log_default_handler   (const gchar    *log_domain,
+<b><a name="line96">96   </a></b>	                                         GLogLevelFlags  log_level,
+<b><a name="line97">97   </a></b>	                                         const gchar    *message,
+<b><a name="line98">98   </a></b>	                                         gpointer        unused_data);
+<b><a name="line99">99   </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line100">100  </a></b>	GLogFunc        g_log_set_default_handler (GLogFunc      log_func,
+<b><a name="line101">101  </a></b>						   gpointer      user_data);
+<b><a name="line102">102  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line103">103  </a></b>	void            g_log                   (const gchar    *log_domain,
+<b><a name="line104">104  </a></b>	                                         GLogLevelFlags  log_level,
+<b><a name="line105">105  </a></b>	                                         const gchar    *format,
+<b><a name="line106">106  </a></b>	                                         ...) G_GNUC_PRINTF (3, 4);
+<b><a name="line107">107  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line108">108  </a></b>	void            g_logv                  (const gchar    *log_domain,
+<b><a name="line109">109  </a></b>	                                         GLogLevelFlags  log_level,
+<b><a name="line110">110  </a></b>	                                         const gchar    *format,
+<b><a name="line111">111  </a></b>	                                         va_list         args) G_GNUC_PRINTF(3, 0);
+<b><a name="line112">112  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line113">113  </a></b>	GLogLevelFlags  g_log_set_fatal_mask    (const gchar    *log_domain,
+<b><a name="line114">114  </a></b>	                                         GLogLevelFlags  fatal_mask);
+<b><a name="line115">115  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line116">116  </a></b>	GLogLevelFlags  g_log_set_always_fatal  (GLogLevelFlags  fatal_mask);
+<b><a name="line117">117  </a></b>	
+<b><a name="line118">118  </a></b>	/* Structured logging mechanism. */
+<b><a name="line119">119  </a></b>	
+<b><a name="line120">120  </a></b>	/**
+<b><a name="line121">121  </a></b>	 * GLogWriterOutput:
+<b><a name="line122">122  </a></b>	 * @G_LOG_WRITER_HANDLED: Log writer has handled the log entry.
+<b><a name="line123">123  </a></b>	 * @G_LOG_WRITER_UNHANDLED: Log writer could not handle the log entry.
+<b><a name="line124">124  </a></b>	 *
+<b><a name="line125">125  </a></b>	 * Return values from #GLogWriterFuncs to indicate whether the given log entry
+<b><a name="line126">126  </a></b>	 * was successfully handled by the writer, or whether there was an error in
+<b><a name="line127">127  </a></b>	 * handling it (and hence a fallback writer should be used).
+<b><a name="line128">128  </a></b>	 *
+<b><a name="line129">129  </a></b>	 * If a #GLogWriterFunc ignores a log entry, it should return
+<b><a name="line130">130  </a></b>	 * %G_LOG_WRITER_HANDLED.
+<b><a name="line131">131  </a></b>	 *
+<b><a name="line132">132  </a></b>	 * Since: 2.50
+<b><a name="line133">133  </a></b>	 */
+<b><a name="line134">134  </a></b>	typedef enum
+<b><a name="line135">135  </a></b>	{
+<b><a name="line136">136  </a></b>	  G_LOG_WRITER_HANDLED = 1,
+<b><a name="line137">137  </a></b>	  G_LOG_WRITER_UNHANDLED = 0,
+<b><a name="line138">138  </a></b>	} GLogWriterOutput;
+<b><a name="line139">139  </a></b>	
+<b><a name="line140">140  </a></b>	/**
+<b><a name="line141">141  </a></b>	 * GLogField:
+<b><a name="line142">142  </a></b>	 * @key: field name (UTF-8 string)
+<b><a name="line143">143  </a></b>	 * @value: field value (arbitrary bytes)
+<b><a name="line144">144  </a></b>	 * @length: length of @value, in bytes, or -1 if it is nul-terminated
+<b><a name="line145">145  </a></b>	 *
+<b><a name="line146">146  </a></b>	 * Structure representing a single field in a structured log entry. See
+<b><a name="line147">147  </a></b>	 * g_log_structured() for details.
+<b><a name="line148">148  </a></b>	 *
+<b><a name="line149">149  </a></b>	 * Log fields may contain arbitrary values, including binary with embedded nul
+<b><a name="line150">150  </a></b>	 * bytes. If the field contains a string, the string must be UTF-8 encoded and
+<b><a name="line151">151  </a></b>	 * have a trailing nul byte. Otherwise, @length must be set to a non-negative
+<b><a name="line152">152  </a></b>	 * value.
+<b><a name="line153">153  </a></b>	 *
+<b><a name="line154">154  </a></b>	 * Since: 2.50
+<b><a name="line155">155  </a></b>	 */
+<b><a name="line156">156  </a></b>	typedef struct _GLogField GLogField;
+<b><a name="line157">157  </a></b>	struct _GLogField
+<b><a name="line158">158  </a></b>	{
+<b><a name="line159">159  </a></b>	  const gchar *key;
+<b><a name="line160">160  </a></b>	  gconstpointer value;
+<b><a name="line161">161  </a></b>	  gssize length;
+<b><a name="line162">162  </a></b>	};
+<b><a name="line163">163  </a></b>	
+<b><a name="line164">164  </a></b>	/**
+<b><a name="line165">165  </a></b>	 * GLogWriterFunc:
+<b><a name="line166">166  </a></b>	 * @log_level: log level of the message
+<b><a name="line167">167  </a></b>	 * @fields: (array length=n_fields): fields forming the message
+<b><a name="line168">168  </a></b>	 * @n_fields: number of @fields
+<b><a name="line169">169  </a></b>	 * @user_data: user data passed to g_log_set_writer_func()
+<b><a name="line170">170  </a></b>	 *
+<b><a name="line171">171  </a></b>	 * Writer function for log entries. A log entry is a collection of one or more
+<b><a name="line172">172  </a></b>	 * #GLogFields, using the standard [field names from journal
+<b><a name="line173">173  </a></b>	 * specification](https://www.freedesktop.org/software/systemd/man/systemd.journal-fields.html).
+<b><a name="line174">174  </a></b>	 * See g_log_structured() for more information.
+<b><a name="line175">175  </a></b>	 *
+<b><a name="line176">176  </a></b>	 * Writer functions must ignore fields which they do not recognise, unless they
+<b><a name="line177">177  </a></b>	 * can write arbitrary binary output, as field values may be arbitrary binary.
+<b><a name="line178">178  </a></b>	 *
+<b><a name="line179">179  </a></b>	 * @log_level is guaranteed to be included in @fields as the `PRIORITY` field,
+<b><a name="line180">180  </a></b>	 * but is provided separately for convenience of deciding whether or where to
+<b><a name="line181">181  </a></b>	 * output the log entry.
+<b><a name="line182">182  </a></b>	 *
+<b><a name="line183">183  </a></b>	 * Writer functions should return %G_LOG_WRITER_HANDLED if they handled the log
+<b><a name="line184">184  </a></b>	 * message successfully or if they deliberately ignored it. If there was an
+<b><a name="line185">185  </a></b>	 * error handling the message (for example, if the writer function is meant to
+<b><a name="line186">186  </a></b>	 * send messages to a remote logging server and there is a network error), it
+<b><a name="line187">187  </a></b>	 * should return %G_LOG_WRITER_UNHANDLED. This allows writer functions to be
+<b><a name="line188">188  </a></b>	 * chained and fall back to simpler handlers in case of failure.
+<b><a name="line189">189  </a></b>	 *
+<b><a name="line190">190  </a></b>	 * Returns: %G_LOG_WRITER_HANDLED if the log entry was handled successfully;
+<b><a name="line191">191  </a></b>	 *   %G_LOG_WRITER_UNHANDLED otherwise
+<b><a name="line192">192  </a></b>	 *
+<b><a name="line193">193  </a></b>	 * Since: 2.50
+<b><a name="line194">194  </a></b>	 */
+<b><a name="line195">195  </a></b>	typedef GLogWriterOutput (*GLogWriterFunc)     (GLogLevelFlags   log_level,
+<b><a name="line196">196  </a></b>	                                                const GLogField *fields,
+<b><a name="line197">197  </a></b>	                                                gsize            n_fields,
+<b><a name="line198">198  </a></b>	                                                gpointer         user_data);
+<b><a name="line199">199  </a></b>	
+<b><a name="line200">200  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line201">201  </a></b>	void             g_log_structured              (const gchar     *log_domain,
+<b><a name="line202">202  </a></b>	                                                GLogLevelFlags   log_level,
+<b><a name="line203">203  </a></b>	                                                ...);
+<b><a name="line204">204  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line205">205  </a></b>	void             g_log_structured_array        (GLogLevelFlags   log_level,
+<b><a name="line206">206  </a></b>	                                                const GLogField *fields,
+<b><a name="line207">207  </a></b>	                                                gsize            n_fields);
+<b><a name="line208">208  </a></b>	
+<b><a name="line209">209  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line210">210  </a></b>	void             g_log_variant                 (const gchar     *log_domain,
+<b><a name="line211">211  </a></b>	                                                GLogLevelFlags   log_level,
+<b><a name="line212">212  </a></b>	                                                GVariant        *fields);
+<b><a name="line213">213  </a></b>	
+<b><a name="line214">214  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line215">215  </a></b>	void             g_log_set_writer_func         (GLogWriterFunc   func,
+<b><a name="line216">216  </a></b>	                                                gpointer         user_data,
+<b><a name="line217">217  </a></b>	                                                GDestroyNotify   user_data_free);
+<b><a name="line218">218  </a></b>	
+<b><a name="line219">219  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line220">220  </a></b>	gboolean         g_log_writer_supports_color   (gint             output_fd);
+<b><a name="line221">221  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line222">222  </a></b>	gboolean         g_log_writer_is_journald      (gint             output_fd);
+<b><a name="line223">223  </a></b>	
+<b><a name="line224">224  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line225">225  </a></b>	gchar           *g_log_writer_format_fields    (GLogLevelFlags   log_level,
+<b><a name="line226">226  </a></b>	                                                const GLogField *fields,
+<b><a name="line227">227  </a></b>	                                                gsize            n_fields,
+<b><a name="line228">228  </a></b>	                                                gboolean         use_color);
+<b><a name="line229">229  </a></b>	
+<b><a name="line230">230  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line231">231  </a></b>	GLogWriterOutput g_log_writer_journald         (GLogLevelFlags   log_level,
+<b><a name="line232">232  </a></b>	                                                const GLogField *fields,
+<b><a name="line233">233  </a></b>	                                                gsize            n_fields,
+<b><a name="line234">234  </a></b>	                                                gpointer         user_data);
+<b><a name="line235">235  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line236">236  </a></b>	GLogWriterOutput g_log_writer_standard_streams (GLogLevelFlags   log_level,
+<b><a name="line237">237  </a></b>	                                                const GLogField *fields,
+<b><a name="line238">238  </a></b>	                                                gsize            n_fields,
+<b><a name="line239">239  </a></b>	                                                gpointer         user_data);
+<b><a name="line240">240  </a></b>	GLIB_AVAILABLE_IN_2_50
+<b><a name="line241">241  </a></b>	GLogWriterOutput g_log_writer_default          (GLogLevelFlags   log_level,
+<b><a name="line242">242  </a></b>	                                                const GLogField *fields,
+<b><a name="line243">243  </a></b>	                                                gsize            n_fields,
+<b><a name="line244">244  </a></b>	                                                gpointer         user_data);
+<b><a name="line245">245  </a></b>	
+<b><a name="line246">246  </a></b>	GLIB_AVAILABLE_IN_2_68
+<b><a name="line247">247  </a></b>	void            g_log_writer_default_set_use_stderr (gboolean use_stderr);
+<b><a name="line248">248  </a></b>	GLIB_AVAILABLE_IN_2_68
+<b><a name="line249">249  </a></b>	gboolean        g_log_writer_default_would_drop (GLogLevelFlags  log_level,
+<b><a name="line250">250  </a></b>	                                                 const char     *log_domain);
+<b><a name="line251">251  </a></b>	
+<b><a name="line252">252  </a></b>	/* G_MESSAGES_DEBUG enablement */
+<b><a name="line253">253  </a></b>	GLIB_AVAILABLE_IN_2_72
+<b><a name="line254">254  </a></b>	gboolean         g_log_get_debug_enabled       (void);
+<b><a name="line255">255  </a></b>	GLIB_AVAILABLE_IN_2_72
+<b><a name="line256">256  </a></b>	void             g_log_set_debug_enabled       (gboolean         enabled);
+<b><a name="line257">257  </a></b>	
+<b><a name="line258">258  </a></b>	/**
+<b><a name="line259">259  </a></b>	 * G_DEBUG_HERE:
+<b><a name="line260">260  </a></b>	 *
+<b><a name="line261">261  </a></b>	 * A convenience form of g_log_structured(), recommended to be added to
+<b><a name="line262">262  </a></b>	 * functions when debugging. It prints the current monotonic time and the code
+<b><a name="line263">263  </a></b>	 * location using %G_STRLOC.
+<b><a name="line264">264  </a></b>	 *
+<b><a name="line265">265  </a></b>	 * Since: 2.50
+<b><a name="line266">266  </a></b>	 */
+<b><a name="line267">267  </a></b>	#define G_DEBUG_HERE()                                          \
+<b><a name="line268">268  </a></b>	  g_log_structured (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG,            \
+<b><a name="line269">269  </a></b>	                    &quot;CODE_FILE&quot;, __FILE__,                      \
+<b><a name="line270">270  </a></b>	                    &quot;CODE_LINE&quot;, G_STRINGIFY (__LINE__),        \
+<b><a name="line271">271  </a></b>	                    &quot;CODE_FUNC&quot;, G_STRFUNC,                      \
+<b><a name="line272">272  </a></b>	                    &quot;MESSAGE&quot;, &quot;%&quot; G_GINT64_FORMAT &quot;: %s&quot;,      \
+<b><a name="line273">273  </a></b>	                    g_get_monotonic_time (), G_STRLOC)
+<b><a name="line274">274  </a></b>	
+<b><a name="line275">275  </a></b>	/* internal */
+<b><a name="line276">276  </a></b>	void	_g_log_fallback_handler	(const gchar   *log_domain,
+<b><a name="line277">277  </a></b>							 GLogLevelFlags log_level,
+<b><a name="line278">278  </a></b>							 const gchar   *message,
+<b><a name="line279">279  </a></b>							 gpointer       unused_data);
+<b><a name="line280">280  </a></b>	
+<b><a name="line281">281  </a></b>	/* Internal functions, used to implement the following macros */
+<b><a name="line282">282  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line283">283  </a></b>	void g_return_if_fail_warning (const char *log_domain,
+<b><a name="line284">284  </a></b>				       const char *pretty_function,
+<b><a name="line285">285  </a></b>				       const char *expression) G_ANALYZER_NORETURN;
+<b><a name="line286">286  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line287">287  </a></b>	void g_warn_message           (const char     *domain,
+<b><a name="line288">288  </a></b>	                               const char     *file,
+<b><a name="line289">289  </a></b>	                               int             line,
+<b><a name="line290">290  </a></b>	                               const char     *func,
+<b><a name="line291">291  </a></b>	                               const char     *warnexpr) G_ANALYZER_NORETURN;
+<b><a name="line292">292  </a></b>	GLIB_DEPRECATED
+<b><a name="line293">293  </a></b>	G_NORETURN
+<b><a name="line294">294  </a></b>	void g_assert_warning         (const char *log_domain,
+<b><a name="line295">295  </a></b>				       const char *file,
+<b><a name="line296">296  </a></b>				       const int   line,
+<b><a name="line297">297  </a></b>			               const char *pretty_function,
+<b><a name="line298">298  </a></b>			               const char *expression);
+<b><a name="line299">299  </a></b>	
+<b><a name="line300">300  </a></b>	GLIB_AVAILABLE_IN_2_56
+<b><a name="line301">301  </a></b>	void g_log_structured_standard (const gchar    *log_domain,
+<b><a name="line302">302  </a></b>	                                GLogLevelFlags  log_level,
+<b><a name="line303">303  </a></b>	                                const gchar    *file,
+<b><a name="line304">304  </a></b>	                                const gchar    *line,
+<b><a name="line305">305  </a></b>	                                const gchar    *func,
+<b><a name="line306">306  </a></b>	                                const gchar    *message_format,
+<b><a name="line307">307  </a></b>	                                ...) G_GNUC_PRINTF (6, 7);
+<b><a name="line308">308  </a></b>	
+<b><a name="line309">309  </a></b>	#ifndef G_LOG_DOMAIN
+<b><a name="line310">310  </a></b>	#define G_LOG_DOMAIN    ((gchar*) 0)
+<b><a name="line311">311  </a></b>	#endif  /* G_LOG_DOMAIN */
+<b><a name="line312">312  </a></b>	
+<b><a name="line313">313  </a></b>	#if defined(G_HAVE_ISO_VARARGS) &amp;&amp; !G_ANALYZER_ANALYZING
+<b><a name="line314">314  </a></b>	#if defined(G_LOG_USE_STRUCTURED) &amp;&amp; GLIB_VERSION_MAX_ALLOWED &gt;= GLIB_VERSION_2_56
+<b><a name="line315">315  </a></b>	#define g_error(...)  G_STMT_START {                                            \
+<b><a name="line316">316  </a></b>	                        g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_ERROR, \
+<b><a name="line317">317  </a></b>	                                                   __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line318">318  </a></b>	                                                   G_STRFUNC, __VA_ARGS__); \
+<b><a name="line319">319  </a></b>	                        for (;;) ;                                              \
+<b><a name="line320">320  </a></b>	                      } G_STMT_END
+<b><a name="line321">321  </a></b>	#define g_message(...)  g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_MESSAGE, \
+<b><a name="line322">322  </a></b>	                                                   __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line323">323  </a></b>	                                                   G_STRFUNC, __VA_ARGS__)
+<b><a name="line324">324  </a></b>	#define g_critical(...) g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, \
+<b><a name="line325">325  </a></b>	                                                   __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line326">326  </a></b>	                                                   G_STRFUNC, __VA_ARGS__)
+<b><a name="line327">327  </a></b>	#define g_warning(...)  g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, \
+<b><a name="line328">328  </a></b>	                                                   __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line329">329  </a></b>	                                                   G_STRFUNC, __VA_ARGS__)
+<b><a name="line330">330  </a></b>	#define g_info(...)     g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_INFO, \
+<b><a name="line331">331  </a></b>	                                                   __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line332">332  </a></b>	                                                   G_STRFUNC, __VA_ARGS__)
+<b><a name="line333">333  </a></b>	#define g_debug(...)    g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, \
+<b><a name="line334">334  </a></b>	                                                   __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line335">335  </a></b>	                                                   G_STRFUNC, __VA_ARGS__)
+<b><a name="line336">336  </a></b>	#else
+<b><a name="line337">337  </a></b>	/* for(;;) ; so that GCC knows that control doesn't go past g_error().
+<b><a name="line338">338  </a></b>	 * Put space before ending semicolon to avoid C++ build warnings.
+<b><a name="line339">339  </a></b>	 */
+<b><a name="line340">340  </a></b>	#define g_error(...)  G_STMT_START {                 \
+<b><a name="line341">341  </a></b>	                        g_log (G_LOG_DOMAIN,         \
+<b><a name="line342">342  </a></b>	                               G_LOG_LEVEL_ERROR,    \
+<b><a name="line343">343  </a></b>	                               __VA_ARGS__);         \
+<b><a name="line344">344  </a></b>	                        for (;;) ;                   \
+<b><a name="line345">345  </a></b>	                      } G_STMT_END
+<b><a name="line346">346  </a></b>	#define g_message(...)  g_log (G_LOG_DOMAIN,         \
+<b><a name="line347">347  </a></b>	                               G_LOG_LEVEL_MESSAGE,  \
+<b><a name="line348">348  </a></b>	                               __VA_ARGS__)
+<b><a name="line349">349  </a></b>	#define g_critical(...) g_log (G_LOG_DOMAIN,         \
+<b><a name="line350">350  </a></b>	                               G_LOG_LEVEL_CRITICAL, \
+<b><a name="line351">351  </a></b>	                               __VA_ARGS__)
+<b><a name="line352">352  </a></b>	#define g_warning(...)  g_log (G_LOG_DOMAIN,         \
+<b><a name="line353">353  </a></b>	                               G_LOG_LEVEL_WARNING,  \
+<b><a name="line354">354  </a></b>	                               __VA_ARGS__)
+<b><a name="line355">355  </a></b>	#define g_info(...)     g_log (G_LOG_DOMAIN,         \
+<b><a name="line356">356  </a></b>	                               G_LOG_LEVEL_INFO,     \
+<b><a name="line357">357  </a></b>	                               __VA_ARGS__)
+<b><a name="line358">358  </a></b>	#define g_debug(...)    g_log (G_LOG_DOMAIN,         \
+<b><a name="line359">359  </a></b>	                               G_LOG_LEVEL_DEBUG,    \
+<b><a name="line360">360  </a></b>	                               __VA_ARGS__)
+<b><a name="line361">361  </a></b>	#endif
+<b><a name="line362">362  </a></b>	#elif defined(G_HAVE_GNUC_VARARGS)  &amp;&amp; !G_ANALYZER_ANALYZING
+<b><a name="line363">363  </a></b>	#if defined(G_LOG_USE_STRUCTURED) &amp;&amp; GLIB_VERSION_MAX_ALLOWED &gt;= GLIB_VERSION_2_56
+<b><a name="line364">364  </a></b>	#define g_error(format...)   G_STMT_START {                                          \
+<b><a name="line365">365  </a></b>	                               g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_ERROR, \
+<b><a name="line366">366  </a></b>	                                                          __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line367">367  </a></b>	                                                          G_STRFUNC, format); \
+<b><a name="line368">368  </a></b>	                               for (;;) ;                                            \
+<b><a name="line369">369  </a></b>	                             } G_STMT_END
+<b><a name="line370">370  </a></b>	#define g_message(format...)  g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_MESSAGE, \
+<b><a name="line371">371  </a></b>	                                                         __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line372">372  </a></b>	                                                         G_STRFUNC, format)
+<b><a name="line373">373  </a></b>	#define g_critical(format...) g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, \
+<b><a name="line374">374  </a></b>	                                                         __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line375">375  </a></b>	                                                         G_STRFUNC, format)
+<b><a name="line376">376  </a></b>	#define g_warning(format...)  g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, \
+<b><a name="line377">377  </a></b>	                                                         __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line378">378  </a></b>	                                                         G_STRFUNC, format)
+<b><a name="line379">379  </a></b>	#define g_info(format...)     g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_INFO, \
+<b><a name="line380">380  </a></b>	                                                         __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line381">381  </a></b>	                                                         G_STRFUNC, format)
+<b><a name="line382">382  </a></b>	#define g_debug(format...)    g_log_structured_standard (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, \
+<b><a name="line383">383  </a></b>	                                                         __FILE__, G_STRINGIFY (__LINE__), \
+<b><a name="line384">384  </a></b>	                                                         G_STRFUNC, format)
+<b><a name="line385">385  </a></b>	#else
+<b><a name="line386">386  </a></b>	#define g_error(format...)    G_STMT_START {                 \
+<b><a name="line387">387  </a></b>	                                g_log (G_LOG_DOMAIN,         \
+<b><a name="line388">388  </a></b>	                                       G_LOG_LEVEL_ERROR,    \
+<b><a name="line389">389  </a></b>	                                       format);              \
+<b><a name="line390">390  </a></b>	                                for (;;) ;                   \
+<b><a name="line391">391  </a></b>	                              } G_STMT_END
+<b><a name="line392">392  </a></b>	
+<b><a name="line393">393  </a></b>	#define g_message(format...)    g_log (G_LOG_DOMAIN,         \
+<b><a name="line394">394  </a></b>	                                       G_LOG_LEVEL_MESSAGE,  \
+<b><a name="line395">395  </a></b>	                                       format)
+<b><a name="line396">396  </a></b>	#define g_critical(format...)   g_log (G_LOG_DOMAIN,         \
+<b><a name="line397">397  </a></b>	                                       G_LOG_LEVEL_CRITICAL, \
+<b><a name="line398">398  </a></b>	                                       format)
+<b><a name="line399">399  </a></b>	#define g_warning(format...)    g_log (G_LOG_DOMAIN,         \
+<b><a name="line400">400  </a></b>	                                       G_LOG_LEVEL_WARNING,  \
+<b><a name="line401">401  </a></b>	                                       format)
+<b><a name="line402">402  </a></b>	#define g_info(format...)       g_log (G_LOG_DOMAIN,         \
+<b><a name="line403">403  </a></b>	                                       G_LOG_LEVEL_INFO,     \
+<b><a name="line404">404  </a></b>	                                       format)
+<b><a name="line405">405  </a></b>	#define g_debug(format...)      g_log (G_LOG_DOMAIN,         \
+<b><a name="line406">406  </a></b>	                                       G_LOG_LEVEL_DEBUG,    \
+<b><a name="line407">407  </a></b>	                                       format)
+<b><a name="line408">408  </a></b>	#endif
+<b><a name="line409">409  </a></b>	#else   /* no varargs macros */
+<b><a name="line410">410  </a></b>	static G_NORETURN void g_error (const gchar *format, ...) G_ANALYZER_NORETURN;
+<b><a name="line411">411  </a></b>	static void g_critical (const gchar *format, ...) G_ANALYZER_NORETURN;
+<b><a name="line412">412  </a></b>	
+<b><a name="line413">413  </a></b>	static inline void
+<b><a name="line414">414  </a></b>	g_error (const gchar *format,
+<b><a name="line415">415  </a></b>	         ...)
+<b><a name="line416">416  </a></b>	{
+<b><a name="line417">417  </a></b>	  va_list args;
+<b><a name="line418">418  </a></b>	  va_start (args, format);
+<b><a name="line419">419  </a></b>	  g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_ERROR, format, args);
+<b><a name="line420">420  </a></b>	  va_end (args);
+<b><a name="line421">421  </a></b>	
+<b><a name="line422">422  </a></b>	  for(;;) ;
+<b><a name="line423">423  </a></b>	}
+<b><a name="line424">424  </a></b>	static inline void
+<b><a name="line425">425  </a></b>	g_message (const gchar *format,
+<b><a name="line426">426  </a></b>	           ...)
+<b><a name="line427">427  </a></b>	{
+<b><a name="line428">428  </a></b>	  va_list args;
+<b><a name="line429">429  </a></b>	  va_start (args, format);
+<b><a name="line430">430  </a></b>	  g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_MESSAGE, format, args);
+<b><a name="line431">431  </a></b>	  va_end (args);
+<b><a name="line432">432  </a></b>	}
+<b><a name="line433">433  </a></b>	static inline void
+<b><a name="line434">434  </a></b>	g_critical (const gchar *format,
+<b><a name="line435">435  </a></b>	            ...)
+<b><a name="line436">436  </a></b>	{
+<b><a name="line437">437  </a></b>	  va_list args;
+<b><a name="line438">438  </a></b>	  va_start (args, format);
+<b><a name="line439">439  </a></b>	  g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_CRITICAL, format, args);
+<b><a name="line440">440  </a></b>	  va_end (args);
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="red">
+<a name="error:0"></a>
+<a name="error"></a>
+<!-- merge-key 4ae95ccb53fb30e642b013f960957547 -->
+<b>(1) Event noreturn_function_does_return</b>: </font></td>
+<td><font color="red">function declared with &quot;noreturn&quot; does return</font></td>
+</tr>
+<tr><td><font color="red">
+<a name="error:1"></a>
+<!-- merge-key 4ae95ccb53fb30e642b013f960957547 -->
+<b>(2) Event caretline</b>: </font></td>
+<td><font color="red">^</font></td>
+</tr>
+</table>
+<pre><b><a name="line441">441  </a></b>	}
+<b><a name="line442">442  </a></b>	static inline void
+<b><a name="line443">443  </a></b>	g_warning (const gchar *format,
+<b><a name="line444">444  </a></b>	           ...)
+<b><a name="line445">445  </a></b>	{
+<b><a name="line446">446  </a></b>	  va_list args;
+<b><a name="line447">447  </a></b>	  va_start (args, format);
+<b><a name="line448">448  </a></b>	  g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_WARNING, format, args);
+<b><a name="line449">449  </a></b>	  va_end (args);
+<b><a name="line450">450  </a></b>	}
+<b><a name="line451">451  </a></b>	static inline void
+<b><a name="line452">452  </a></b>	g_info (const gchar *format,
+<b><a name="line453">453  </a></b>	        ...)
+<b><a name="line454">454  </a></b>	{
+<b><a name="line455">455  </a></b>	  va_list args;
+<b><a name="line456">456  </a></b>	  va_start (args, format);
+<b><a name="line457">457  </a></b>	  g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_INFO, format, args);
+<b><a name="line458">458  </a></b>	  va_end (args);
+<b><a name="line459">459  </a></b>	}
+<b><a name="line460">460  </a></b>	static inline void
+<b><a name="line461">461  </a></b>	g_debug (const gchar *format,
+<b><a name="line462">462  </a></b>	         ...)
+<b><a name="line463">463  </a></b>	{
+<b><a name="line464">464  </a></b>	  va_list args;
+<b><a name="line465">465  </a></b>	  va_start (args, format);
+<b><a name="line466">466  </a></b>	  g_logv (G_LOG_DOMAIN, G_LOG_LEVEL_DEBUG, format, args);
+<b><a name="line467">467  </a></b>	  va_end (args);
+<b><a name="line468">468  </a></b>	}
+<b><a name="line469">469  </a></b>	#endif  /* !__GNUC__ */
+<b><a name="line470">470  </a></b>	
+<b><a name="line471">471  </a></b>	/**
+<b><a name="line472">472  </a></b>	 * g_warning_once:
+<b><a name="line473">473  </a></b>	 * @...: format string, followed by parameters to insert
+<b><a name="line474">474  </a></b>	 *     into the format string (as with printf())
+<b><a name="line475">475  </a></b>	 *
+<b><a name="line476">476  </a></b>	 * Logs a warning only once.
+<b><a name="line477">477  </a></b>	 *
+<b><a name="line478">478  </a></b>	 * g_warning_once() calls g_warning() with the passed message the first time
+<b><a name="line479">479  </a></b>	 * the statement is executed; subsequent times it is a no-op.
+<b><a name="line480">480  </a></b>	 *
+<b><a name="line481">481  </a></b>	 * Note! On platforms where the compiler doesn't support variadic macros, the
+<b><a name="line482">482  </a></b>	 * warning is printed each time instead of only once.
+<b><a name="line483">483  </a></b>	 *
+<b><a name="line484">484  </a></b>	 * Since: 2.64
+<b><a name="line485">485  </a></b>	 */
+<b><a name="line486">486  </a></b>	#if defined(G_HAVE_ISO_VARARGS) &amp;&amp; !G_ANALYZER_ANALYZING
+<b><a name="line487">487  </a></b>	#define g_warning_once(...) \
+<b><a name="line488">488  </a></b>	  G_STMT_START { \
+<b><a name="line489">489  </a></b>	    static int G_PASTE (_GWarningOnceBoolean, __LINE__) = 0;  /* (atomic) */ \
+<b><a name="line490">490  </a></b>	    if (g_atomic_int_compare_and_exchange (&amp;G_PASTE (_GWarningOnceBoolean, __LINE__), \
+<b><a name="line491">491  </a></b>	                                           0, 1)) \
+<b><a name="line492">492  </a></b>	      g_warning (__VA_ARGS__); \
+<b><a name="line493">493  </a></b>	  } G_STMT_END \
+<b><a name="line494">494  </a></b>	  GLIB_AVAILABLE_MACRO_IN_2_64
+<b><a name="line495">495  </a></b>	#elif defined(G_HAVE_GNUC_VARARGS)  &amp;&amp; !G_ANALYZER_ANALYZING
+<b><a name="line496">496  </a></b>	#define g_warning_once(format...) \
+<b><a name="line497">497  </a></b>	  G_STMT_START { \
+<b><a name="line498">498  </a></b>	    static int G_PASTE (_GWarningOnceBoolean, __LINE__) = 0;  /* (atomic) */ \
+<b><a name="line499">499  </a></b>	    if (g_atomic_int_compare_and_exchange (&amp;G_PASTE (_GWarningOnceBoolean, __LINE__), \
+<b><a name="line500">500  </a></b>	                                           0, 1)) \
+<b><a name="line501">501  </a></b>	      g_warning (format); \
+<b><a name="line502">502  </a></b>	  } G_STMT_END \
+<b><a name="line503">503  </a></b>	  GLIB_AVAILABLE_MACRO_IN_2_64
+<b><a name="line504">504  </a></b>	#else
+<b><a name="line505">505  </a></b>	#define g_warning_once g_warning
+<b><a name="line506">506  </a></b>	#endif
+<b><a name="line507">507  </a></b>	
+<b><a name="line508">508  </a></b>	/**
+<b><a name="line509">509  </a></b>	 * GPrintFunc:
+<b><a name="line510">510  </a></b>	 * @string: the message to output
+<b><a name="line511">511  </a></b>	 *
+<b><a name="line512">512  </a></b>	 * Specifies the type of the print handler functions.
+<b><a name="line513">513  </a></b>	 * These are called with the complete formatted string to output.
+<b><a name="line514">514  </a></b>	 */
+<b><a name="line515">515  </a></b>	typedef void    (*GPrintFunc)           (const gchar    *string);
+<b><a name="line516">516  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line517">517  </a></b>	void            g_print                 (const gchar    *format,
+<b><a name="line518">518  </a></b>	                                         ...) G_GNUC_PRINTF (1, 2);
+<b><a name="line519">519  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line520">520  </a></b>	GPrintFunc      g_set_print_handler     (GPrintFunc      func);
+<b><a name="line521">521  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line522">522  </a></b>	void            g_printerr              (const gchar    *format,
+<b><a name="line523">523  </a></b>	                                         ...) G_GNUC_PRINTF (1, 2);
+<b><a name="line524">524  </a></b>	GLIB_AVAILABLE_IN_ALL
+<b><a name="line525">525  </a></b>	GPrintFunc      g_set_printerr_handler  (GPrintFunc      func);
+<b><a name="line526">526  </a></b>	
+<b><a name="line527">527  </a></b>	/**
+<b><a name="line528">528  </a></b>	 * g_warn_if_reached:
+<b><a name="line529">529  </a></b>	 *
+<b><a name="line530">530  </a></b>	 * Logs a warning.
+<b><a name="line531">531  </a></b>	 *
+<b><a name="line532">532  </a></b>	 * Since: 2.16
+<b><a name="line533">533  </a></b>	 */
+<b><a name="line534">534  </a></b>	#define g_warn_if_reached() \
+<b><a name="line535">535  </a></b>	  do { \
+<b><a name="line536">536  </a></b>	    g_warn_message (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, NULL); \
+<b><a name="line537">537  </a></b>	  } while (0)
+<b><a name="line538">538  </a></b>	
+<b><a name="line539">539  </a></b>	/**
+<b><a name="line540">540  </a></b>	 * g_warn_if_fail:
+<b><a name="line541">541  </a></b>	 * @expr: the expression to check
+<b><a name="line542">542  </a></b>	 *
+<b><a name="line543">543  </a></b>	 * Logs a warning if the expression is not true.
+<b><a name="line544">544  </a></b>	 *
+<b><a name="line545">545  </a></b>	 * Since: 2.16
+<b><a name="line546">546  </a></b>	 */
+<b><a name="line547">547  </a></b>	#define g_warn_if_fail(expr) \
+<b><a name="line548">548  </a></b>	  do { \
+<b><a name="line549">549  </a></b>	    if G_LIKELY (expr) ; \
+<b><a name="line550">550  </a></b>	    else g_warn_message (G_LOG_DOMAIN, __FILE__, __LINE__, G_STRFUNC, #expr); \
+<b><a name="line551">551  </a></b>	  } while (0)
+<b><a name="line552">552  </a></b>	
+<b><a name="line553">553  </a></b>	#ifdef G_DISABLE_CHECKS
+<b><a name="line554">554  </a></b>	
+<b><a name="line555">555  </a></b>	/**
+<b><a name="line556">556  </a></b>	 * g_return_if_fail:
+<b><a name="line557">557  </a></b>	 * @expr: the expression to check
+<b><a name="line558">558  </a></b>	 *
+<b><a name="line559">559  </a></b>	 * Verifies that the expression @expr, usually representing a precondition,
+<b><a name="line560">560  </a></b>	 * evaluates to %TRUE. If the function returns a value, use
+<b><a name="line561">561  </a></b>	 * g_return_val_if_fail() instead.
+<b><a name="line562">562  </a></b>	 *
+<b><a name="line563">563  </a></b>	 * If @expr evaluates to %FALSE, the current function should be considered to
+<b><a name="line564">564  </a></b>	 * have undefined behaviour (a programmer error). The only correct solution
+<b><a name="line565">565  </a></b>	 * to such an error is to change the module that is calling the current
+<b><a name="line566">566  </a></b>	 * function, so that it avoids this incorrect call.
+<b><a name="line567">567  </a></b>	 *
+<b><a name="line568">568  </a></b>	 * To make this undefined behaviour visible, if @expr evaluates to %FALSE,
+<b><a name="line569">569  </a></b>	 * the result is usually that a critical message is logged and the current
+<b><a name="line570">570  </a></b>	 * function returns.
+<b><a name="line571">571  </a></b>	 *
+<b><a name="line572">572  </a></b>	 * If `G_DISABLE_CHECKS` is defined then the check is not performed.  You
+<b><a name="line573">573  </a></b>	 * should therefore not depend on any side effects of @expr.
+<b><a name="line574">574  </a></b>	 *
+<b><a name="line575">575  </a></b>	 * To debug failure of a g_return_if_fail() check, run the code under a debugger
+<b><a name="line576">576  </a></b>	 * with `G_DEBUG=fatal-criticals` or `G_DEBUG=fatal-warnings` defined in the
+<b><a name="line577">577  </a></b>	 * environment (see [Running GLib Applications](glib-running.html)):
+<b><a name="line578">578  </a></b>	 *
+<b><a name="line579">579  </a></b>	 * |[
+<b><a name="line580">580  </a></b>	 *   G_DEBUG=fatal-warnings gdb ./my-program
+<b><a name="line581">581  </a></b>	 * ]|
+<b><a name="line582">582  </a></b>	 *
+<b><a name="line583">583  </a></b>	 * Any unrelated failures can be skipped over in
+<b><a name="line584">584  </a></b>	 * [gdb](https://www.gnu.org/software/gdb/) using the `continue` command.
+<b><a name="line585">585  </a></b>	 */
+<b><a name="line586">586  </a></b>	#define g_return_if_fail(expr) G_STMT_START{ (void)0; }G_STMT_END
+<b><a name="line587">587  </a></b>	
+<b><a name="line588">588  </a></b>	/**
+<b><a name="line589">589  </a></b>	 * g_return_val_if_fail:
+<b><a name="line590">590  </a></b>	 * @expr: the expression to check
+<b><a name="line591">591  </a></b>	 * @val: the value to return from the current function
+<b><a name="line592">592  </a></b>	 *       if the expression is not true
+<b><a name="line593">593  </a></b>	 *
+<b><a name="line594">594  </a></b>	 * Verifies that the expression @expr, usually representing a precondition,
+<b><a name="line595">595  </a></b>	 * evaluates to %TRUE. If the function does not return a value, use
+<b><a name="line596">596  </a></b>	 * g_return_if_fail() instead.
+<b><a name="line597">597  </a></b>	 *
+<b><a name="line598">598  </a></b>	 * If @expr evaluates to %FALSE, the current function should be considered to
+<b><a name="line599">599  </a></b>	 * have undefined behaviour (a programmer error). The only correct solution
+<b><a name="line600">600  </a></b>	 * to such an error is to change the module that is calling the current
+<b><a name="line601">601  </a></b>	 * function, so that it avoids this incorrect call.
+<b><a name="line602">602  </a></b>	 *
+<b><a name="line603">603  </a></b>	 * To make this undefined behaviour visible, if @expr evaluates to %FALSE,
+<b><a name="line604">604  </a></b>	 * the result is usually that a critical message is logged and @val is
+<b><a name="line605">605  </a></b>	 * returned from the current function.
+<b><a name="line606">606  </a></b>	 *
+<b><a name="line607">607  </a></b>	 * If `G_DISABLE_CHECKS` is defined then the check is not performed.  You
+<b><a name="line608">608  </a></b>	 * should therefore not depend on any side effects of @expr.
+<b><a name="line609">609  </a></b>	 *
+<b><a name="line610">610  </a></b>	 * See g_return_if_fail() for guidance on how to debug failure of this check.
+<b><a name="line611">611  </a></b>	 */
+<b><a name="line612">612  </a></b>	#define g_return_val_if_fail(expr,val) G_STMT_START{ (void)0; }G_STMT_END
+<b><a name="line613">613  </a></b>	
+<b><a name="line614">614  </a></b>	/**
+<b><a name="line615">615  </a></b>	 * g_return_if_reached:
+<b><a name="line616">616  </a></b>	 *
+<b><a name="line617">617  </a></b>	 * Logs a critical message and returns from the current function.
+<b><a name="line618">618  </a></b>	 * This can only be used in functions which do not return a value.
+<b><a name="line619">619  </a></b>	 *
+<b><a name="line620">620  </a></b>	 * See g_return_if_fail() for guidance on how to debug failure of this check.
+<b><a name="line621">621  </a></b>	 */
+<b><a name="line622">622  </a></b>	#define g_return_if_reached() G_STMT_START{ return; }G_STMT_END
+<b><a name="line623">623  </a></b>	
+<b><a name="line624">624  </a></b>	/**
+<b><a name="line625">625  </a></b>	 * g_return_val_if_reached:
+<b><a name="line626">626  </a></b>	 * @val: the value to return from the current function
+<b><a name="line627">627  </a></b>	 *
+<b><a name="line628">628  </a></b>	 * Logs a critical message and returns @val.
+<b><a name="line629">629  </a></b>	 *
+<b><a name="line630">630  </a></b>	 * See g_return_if_fail() for guidance on how to debug failure of this check.
+<b><a name="line631">631  </a></b>	 */
+<b><a name="line632">632  </a></b>	#define g_return_val_if_reached(val) G_STMT_START{ return (val); }G_STMT_END
+<b><a name="line633">633  </a></b>	
+<b><a name="line634">634  </a></b>	#else /* !G_DISABLE_CHECKS */
+<b><a name="line635">635  </a></b>	
+<b><a name="line636">636  </a></b>	#define g_return_if_fail(expr) \
+<b><a name="line637">637  </a></b>	  G_STMT_START { \
+<b><a name="line638">638  </a></b>	    if (G_LIKELY (expr)) \
+<b><a name="line639">639  </a></b>	      { } \
+<b><a name="line640">640  </a></b>	    else \
+<b><a name="line641">641  </a></b>	      { \
+<b><a name="line642">642  </a></b>	        g_return_if_fail_warning (G_LOG_DOMAIN, \
+<b><a name="line643">643  </a></b>	                                  G_STRFUNC, \
+<b><a name="line644">644  </a></b>	                                  #expr); \
+<b><a name="line645">645  </a></b>	        return; \
+<b><a name="line646">646  </a></b>	      } \
+<b><a name="line647">647  </a></b>	  } G_STMT_END
+<b><a name="line648">648  </a></b>	
+<b><a name="line649">649  </a></b>	#define g_return_val_if_fail(expr, val) \
+<b><a name="line650">650  </a></b>	  G_STMT_START { \
+<b><a name="line651">651  </a></b>	    if (G_LIKELY (expr)) \
+<b><a name="line652">652  </a></b>	      { } \
+<b><a name="line653">653  </a></b>	    else \
+<b><a name="line654">654  </a></b>	      { \
+<b><a name="line655">655  </a></b>	        g_return_if_fail_warning (G_LOG_DOMAIN, \
+<b><a name="line656">656  </a></b>	                                  G_STRFUNC, \
+<b><a name="line657">657  </a></b>	                                  #expr); \
+<b><a name="line658">658  </a></b>	        return (val); \
+<b><a name="line659">659  </a></b>	      } \
+<b><a name="line660">660  </a></b>	  } G_STMT_END
+<b><a name="line661">661  </a></b>	
+<b><a name="line662">662  </a></b>	#define g_return_if_reached() \
+<b><a name="line663">663  </a></b>	  G_STMT_START { \
+<b><a name="line664">664  </a></b>	    g_log (G_LOG_DOMAIN, \
+<b><a name="line665">665  </a></b>	           G_LOG_LEVEL_CRITICAL, \
+<b><a name="line666">666  </a></b>	           &quot;file %s: line %d (%s): should not be reached&quot;, \
+<b><a name="line667">667  </a></b>	           __FILE__, \
+<b><a name="line668">668  </a></b>	           __LINE__, \
+<b><a name="line669">669  </a></b>	           G_STRFUNC); \
+<b><a name="line670">670  </a></b>	    return; \
+<b><a name="line671">671  </a></b>	  } G_STMT_END
+<b><a name="line672">672  </a></b>	
+<b><a name="line673">673  </a></b>	#define g_return_val_if_reached(val) \
+<b><a name="line674">674  </a></b>	  G_STMT_START { \
+<b><a name="line675">675  </a></b>	    g_log (G_LOG_DOMAIN, \
+<b><a name="line676">676  </a></b>	           G_LOG_LEVEL_CRITICAL, \
+<b><a name="line677">677  </a></b>	           &quot;file %s: line %d (%s): should not be reached&quot;, \
+<b><a name="line678">678  </a></b>	           __FILE__, \
+<b><a name="line679">679  </a></b>	           __LINE__, \
+<b><a name="line680">680  </a></b>	           G_STRFUNC); \
+<b><a name="line681">681  </a></b>	    return (val); \
+<b><a name="line682">682  </a></b>	  } G_STMT_END
+<b><a name="line683">683  </a></b>	
+<b><a name="line684">684  </a></b>	#endif /* !G_DISABLE_CHECKS */
+<b><a name="line685">685  </a></b>	
+<b><a name="line686">686  </a></b>	G_END_DECLS
+<b><a name="line687">687  </a></b>	
+<b><a name="line688">688  </a></b>	#endif /* __G_MESSAGES_H__ */
+<b><a name="line689">689  </a></b>	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre></body>
+</html>

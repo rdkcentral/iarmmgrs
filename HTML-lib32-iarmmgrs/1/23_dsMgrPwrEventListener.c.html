@@ -1,0 +1,834 @@
+<!DOCTYPE HTML PUBLIC "-//W3C//DTD HTML 4.01 Transitional//EN"
+"http://www.w3.org/TR/html4/loose.dtd">
+<html><head><title>Coverity error reader: /home/amadha013/community/mw-dev/build-raspberrypi4-64-rdke/tmp/work/raspberrypi4-64-rdke-middleware-rdkmllib32-linux-gnueabi/lib32-iarmmgrs/1.0.13-r0/git/dsmgr/dsMgrPwrEventListener.c</title><meta http-equiv="Content-Type" content="text/html; charset=UTF-8"></head>
+<body link="#000000" vlink="#000000"><pre>
+<b><a name="line1">1    </a></b>	/*
+<b><a name="line2">2    </a></b>	 * If not stated otherwise in this file or this component's LICENSE file the
+<b><a name="line3">3    </a></b>	 * following copyright and licenses apply:
+<b><a name="line4">4    </a></b>	 *
+<b><a name="line5">5    </a></b>	 * Copyright 2021 RDK Management
+<b><a name="line6">6    </a></b>	 *
+<b><a name="line7">7    </a></b>	 * Licensed under the Apache License, Version 2.0 (the &quot;License&quot;);
+<b><a name="line8">8    </a></b>	 * you may not use this file except in compliance with the License.
+<b><a name="line9">9    </a></b>	 * You may obtain a copy of the License at
+<b><a name="line10">10   </a></b>	 *
+<b><a name="line11">11   </a></b>	 * http://www.apache.org/licenses/LICENSE-2.0
+<b><a name="line12">12   </a></b>	 *
+<b><a name="line13">13   </a></b>	 * Unless required by applicable law or agreed to in writing, software
+<b><a name="line14">14   </a></b>	 * distributed under the License is distributed on an &quot;AS IS&quot; BASIS,
+<b><a name="line15">15   </a></b>	 * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+<b><a name="line16">16   </a></b>	 * See the License for the specific language governing permissions and
+<b><a name="line17">17   </a></b>	 * limitations under the License.
+<b><a name="line18">18   </a></b>	*/
+<b><a name="line19">19   </a></b>	
+<b><a name="line20">20   </a></b>	
+<b><a name="line21">21   </a></b>	
+<b><a name="line22">22   </a></b>	/**
+<b><a name="line23">23   </a></b>	* @defgroup iarmmgrs
+<b><a name="line24">24   </a></b>	* @{
+<b><a name="line25">25   </a></b>	* @defgroup dsmgr
+<b><a name="line26">26   </a></b>	* @{
+<b><a name="line27">27   </a></b>	**/
+<b><a name="line28">28   </a></b>	
+<b><a name="line29">29   </a></b>	
+<b><a name="line30">30   </a></b>	#include &lt;stdio.h&gt;
+<b><a name="line31">31   </a></b>	#include &lt;string.h&gt;
+<b><a name="line32">32   </a></b>	#include &lt;unistd.h&gt;
+<b><a name="line33">33   </a></b>	#include &lt;fcntl.h&gt;
+<b><a name="line34">34   </a></b>	#include &lt;string.h&gt;
+<b><a name="line35">35   </a></b>	#include &lt;stdlib.h&gt;
+<b><a name="line36">36   </a></b>	#include &lt;time.h&gt;
+<b><a name="line37">37   </a></b>	#include &lt;pthread.h&gt;
+<b><a name="line38">38   </a></b>	#include &lt;sys/types.h&gt;
+<b><a name="line39">39   </a></b>	#include &lt;sys/stat.h&gt;
+<b><a name="line40">40   </a></b>	
+<b><a name="line41">41   </a></b>	#include &quot;dsRpc.h&quot;
+<b><a name="line42">42   </a></b>	#include &quot;dsMgrPwrEventListener.h&quot;
+<b><a name="line43">43   </a></b>	#include &quot;frontPanelIndicator.hpp&quot;
+<b><a name="line44">44   </a></b>	#include &quot;videoOutputPort.hpp&quot;
+<b><a name="line45">45   </a></b>	#include &quot;host.hpp&quot;
+<b><a name="line46">46   </a></b>	#include &quot;exception.hpp&quot;
+<b><a name="line47">47   </a></b>	#include &quot;manager.hpp&quot;
+<b><a name="line48">48   </a></b>	#include &quot;dsMgrProductTraitsHandler.h&quot;
+<b><a name="line49">49   </a></b>	#include &quot;dsAudioSettings.h&quot;
+<b><a name="line50">50   </a></b>	#include &quot;plat_power.h&quot;
+<b><a name="line51">51   </a></b>	#include &quot;rdkProfile.h&quot;
+<b><a name="line52">52   </a></b>	
+<b><a name="line53">53   </a></b>	#define PWRMGR_REBOOT_REASON_MAINTENANCE &quot;MAINTENANCE_REBOOT&quot;
+<b><a name="line54">54   </a></b>	#define MAX_NUM_VIDEO_PORTS 5
+<b><a name="line55">55   </a></b>	
+<b><a name="line56">56   </a></b>	typedef struct{
+<b><a name="line57">57   </a></b>	    char port[DSMGR_MAX_VIDEO_PORT_NAME_LENGTH];
+<b><a name="line58">58   </a></b>	    bool isEnabled;
+<b><a name="line59">59   </a></b>	}DSMgr_Standby_Video_State_t;
+<b><a name="line60">60   </a></b>	
+<b><a name="line61">61   </a></b>	
+<b><a name="line62">62   </a></b>	std::queue&lt;DSMgr_Power_Event_State_t&gt; pwrEventQueue;
+<b><a name="line63">63   </a></b>	
+<b><a name="line64">64   </a></b>	/* Power Controller Event Handling Thread */
+<b><a name="line65">65   </a></b>	static pthread_t edsPwrEventHandlerThreadID; 
+<b><a name="line66">66   </a></b>	static pthread_mutex_t tdsPwrEventMutexLock=PTHREAD_MUTEX_INITIALIZER;
+<b><a name="line67">67   </a></b>	static pthread_cond_t  tdsPwrEventMutexCond=PTHREAD_COND_INITIALIZER;
+<b><a name="line68">68   </a></b>	static pthread_mutex_t tdsPwrEventQueueMutexLock=PTHREAD_MUTEX_INITIALIZER;
+<b><a name="line69">69   </a></b>	static std::atomic&lt;bool&gt; m_dsMgrPwrStopThread(false);
+<b><a name="line70">70   </a></b>	
+<b><a name="line71">71   </a></b>	
+<b><a name="line72">72   </a></b>	extern IARM_Result_t _dsGetAudioPort(void *arg);
+<b><a name="line73">73   </a></b>	extern IARM_Result_t _dsEnableAudioPort(void *arg);
+<b><a name="line74">74   </a></b>	extern IARM_Result_t _dsSetFPState(void *arg);
+<b><a name="line75">75   </a></b>	extern IARM_Result_t _dsGetEnablePersist(void *arg);
+<b><a name="line76">76   </a></b>	extern void _setEASAudioMode();
+<b><a name="line77">77   </a></b>	
+<b><a name="line78">78   </a></b>	static DSMgr_Standby_Video_State_t g_standby_video_port_setting[MAX_NUM_VIDEO_PORTS];
+<b><a name="line79">79   </a></b>	static dsMgrProductTraits::ux_controller * ux = nullptr;
+<b><a name="line80">80   </a></b>	static pthread_mutex_t dsLock = PTHREAD_MUTEX_INITIALIZER;
+<b><a name="line81">81   </a></b>	
+<b><a name="line82">82   </a></b>	static bool get_video_port_standby_setting(const char * port);
+<b><a name="line83">83   </a></b>	static void _PwrEventHandler(const PowerController_PowerState_t currentState,
+<b><a name="line84">84   </a></b>	                             const PowerController_PowerState_t newState,
+<b><a name="line85">85   </a></b>	                             void *userdata);
+<b><a name="line86">86   </a></b>	static int _SetLEDStatus(PowerController_PowerState_t powerState);
+<b><a name="line87">87   </a></b>	int _SetAVPortsPowerState(PowerController_PowerState_t powerState);
+<b><a name="line88">88   </a></b>	static IARM_Result_t _SetStandbyVideoState(void *arg);
+<b><a name="line89">89   </a></b>	static IARM_Result_t _GetStandbyVideoState(void *arg);
+<b><a name="line90">90   </a></b>	static IARM_Result_t _SetAvPortState(void *arg);
+<b><a name="line91">91   </a></b>	static IARM_Result_t _SetLEDState(void *arg);
+<b><a name="line92">92   </a></b>	static IARM_Result_t _SetRebootConfig(void *arg);
+<b><a name="line93">93   </a></b>	
+<b><a name="line94">94   </a></b>	static PowerController_PowerState_t curState = POWER_STATE_OFF;
+<b><a name="line95">95   </a></b>	
+<b><a name="line96">96   </a></b>	#define IARM_BUS_Lock(lock) pthread_mutex_lock(&amp;dsLock)
+<b><a name="line97">97   </a></b>	#define IARM_BUS_Unlock(lock) pthread_mutex_unlock(&amp;dsLock)
+<b><a name="line98">98   </a></b>	
+<b><a name="line99">99   </a></b>	#define RDK_PROFILE &quot;RDK_PROFILE&quot;
+<b><a name="line100">100  </a></b>	#define PROFILE_STR_TV &quot;TV&quot;
+<b><a name="line101">101  </a></b>	#define PROFILE_STR_STB &quot;STB&quot;
+<b><a name="line102">102  </a></b>	
+<b><a name="line103">103  </a></b>	static profile_t profileType = PROFILE_INVALID;
+<b><a name="line104">104  </a></b>	
+<b><a name="line105">105  </a></b>	void initPwrEventListner()
+<b><a name="line106">106  </a></b>	{
+<b><a name="line107">107  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line108">108  </a></b>	    
+<b><a name="line109">109  </a></b>	    profileType = searchRdkProfile();
+<b><a name="line110">110  </a></b>	
+<b><a name="line111">111  </a></b>	    if (PROFILE_TV == profileType )
+<b><a name="line112">112  </a></b>	    {
+<b><a name="line113">113  </a></b>	        if(true == dsMgrProductTraits::ux_controller::initialize_ux_controller(dsMgrProductTraits::DEFAULT_TV_PROFILE))
+<b><a name="line114">114  </a></b>	        {
+<b><a name="line115">115  </a></b>	            ux = dsMgrProductTraits::ux_controller::get_instance();
+<b><a name="line116">116  </a></b>	        }
+<b><a name="line117">117  </a></b>	    }
+<b><a name="line118">118  </a></b>	    else
+<b><a name="line119">119  </a></b>	    {
+<b><a name="line120">120  </a></b>	        if(true == dsMgrProductTraits::ux_controller::initialize_ux_controller(dsMgrProductTraits::DEFAULT_STB_PROFILE_EUROPE))
+<b><a name="line121">121  </a></b>	        {
+<b><a name="line122">122  </a></b>	            ux = dsMgrProductTraits::ux_controller::get_instance();
+<b><a name="line123">123  </a></b>	        }
+<b><a name="line124">124  </a></b>	    }
+<b><a name="line125">125  </a></b>	    if(nullptr == ux)
+<b><a name="line126">126  </a></b>	    {
+<b><a name="line127">127  </a></b>	        INT_DEBUG(&quot;dsmgr product traits not supported.\n&quot;);
+<b><a name="line128">128  </a></b>	    }
+<b><a name="line129">129  </a></b>	
+<b><a name="line130">130  </a></b>	    try {
+<b><a name="line131">131  </a></b>	        device::Manager::load();
+<b><a name="line132">132  </a></b>	        INT_DEBUG(&quot;device::Manager::load success.\n&quot;);
+<b><a name="line133">133  </a></b>	    }
+<b><a name="line134">134  </a></b>	    catch (...){
+<b><a name="line135">135  </a></b>	        INT_DEBUG(&quot;Exception Caught during [device::Manager::load]\r\n&quot;);
+<b><a name="line136">136  </a></b>	    }   
+<b><a name="line137">137  </a></b>	
+<b><a name="line138">138  </a></b>	    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetStandbyVideoState, _SetStandbyVideoState);
+<b><a name="line139">139  </a></b>	    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_GetStandbyVideoState, _GetStandbyVideoState);
+<b><a name="line140">140  </a></b>	    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetAvPortState, _SetAvPortState);
+<b><a name="line141">141  </a></b>	    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetLEDStatus, _SetLEDState);
+<b><a name="line142">142  </a></b>	    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetRebootConfig, _SetRebootConfig);
+<b><a name="line143">143  </a></b>	
+<b><a name="line144">144  </a></b>	    /* Check for Power Controller Connection and if failure, start a new thread and wait until connection established 
+<b><a name="line145">145  </a></b>	     * if connection is eastablished, proceed with fetching and Getting values from Power control and initialize*/
+<b><a name="line146">146  </a></b>	    if(POWER_CONTROLLER_ERROR_NONE == PowerController_Connect())
+<b><a name="line147">147  </a></b>	    {
+<b><a name="line148">148  </a></b>	        INT_DEBUG(&quot;PowerController_Connect is Success \r\n&quot;);
+<b><a name="line149">149  </a></b>	        dsMgrPwrControllerFetchNinitStateValues();
+<b><a name="line150">150  </a></b>	    }
+<b><a name="line151">151  </a></b>	    else
+<b><a name="line152">152  </a></b>	    {
+<b><a name="line153">153  </a></b>	        INT_ERROR(&quot;DSMgr PowerController_Connect Failed Retrying in Thread\r\n&quot;);
+<b><a name="line154">154  </a></b>	        dsMgrPwrCtrlEstablishConnection();
+<b><a name="line155">155  </a></b>	    }
+<b><a name="line156">156  </a></b>	}
+<b><a name="line157">157  </a></b>	
+<b><a name="line158">158  </a></b>	static void dsMgrPwrCtrlEstablishConnection(void)
+<b><a name="line159">159  </a></b>	{
+<b><a name="line160">160  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line161">161  </a></b>	    
+<b><a name="line162">162  </a></b>	    pthread_t edsPwrConnectThreadID; 
+<b><a name="line163">163  </a></b>	
+<b><a name="line164">164  </a></b>	    if(pthread_create (&amp;edsPwrConnectThreadID, NULL, dsMgrPwrRetryEstablishConnThread, NULL)  == 0)
+<b><a name="line165">165  </a></b>	    {
+<b><a name="line166">166  </a></b>	        if(pthread_detach(edsPwrConnectThreadID) != 0) 
+<b><a name="line167">167  </a></b>	        {
+<b><a name="line168">168  </a></b>	            INT_ERROR(&quot;DSMgr dsMgrPwrCtrlEstablishConnection Thread detach Failed\r\n&quot;);
+<b><a name="line169">169  </a></b>	        }
+<b><a name="line170">170  </a></b>	    }
+<b><a name="line171">171  </a></b>	    else
+<b><a name="line172">172  </a></b>	    {
+<b><a name="line173">173  </a></b>	        INT_ERROR(&quot;DSMgr dsMgrPwrCtrlEstablishConnection Thread Creation Failed\r\n&quot;);
+<b><a name="line174">174  </a></b>	    }
+<b><a name="line175">175  </a></b>	}
+<b><a name="line176">176  </a></b>	
+<b><a name="line177">177  </a></b>	static void* dsMgrPwrRetryEstablishConnThread(void *arg)
+<b><a name="line178">178  </a></b>	{
+<b><a name="line179">179  </a></b>	    INT_INFO(&quot;%s: Entry  \r\n&quot;,__FUNCTION__);
+<b><a name="line180">180  </a></b>	
+<b><a name="line181">181  </a></b>	    while(1)
+<b><a name="line182">182  </a></b>	    {
+<b><a name="line183">183  </a></b>	        if(POWER_CONTROLLER_ERROR_NONE == PowerController_Connect())
+<b><a name="line184">184  </a></b>	        {
+<b><a name="line185">185  </a></b>	            INT_DEBUG(&quot;dsMgrPwrRetryEstablishConnThread PowerController_Connect is Success \r\n&quot;);
+<b><a name="line186">186  </a></b>	            dsMgrPwrControllerFetchNinitStateValues();
+<b><a name="line187">187  </a></b>	            break;
+<b><a name="line188">188  </a></b>	        }
+<b><a name="line189">189  </a></b>	        else
+<b><a name="line190">190  </a></b>	        {
+<b><a name="line191">191  </a></b>	            /* 300 msec wait and recheck connect */
+<b><a name="line192">192  </a></b>	            usleep(DSMGR_PWR_CNTRL_CONNECT_WAIT_TIME_MS);
+<b><a name="line193">193  </a></b>	        }
+<b><a name="line194">194  </a></b>	    }
+<b><a name="line195">195  </a></b>	    INT_DEBUG(&quot;dsMgrPwrRetryEstablishConnThread Completed Exit \r\n&quot;);
+<b><a name="line196">196  </a></b>	    return arg;
+<b><a name="line197">197  </a></b>	}
+<b><a name="line198">198  </a></b>	
+<b><a name="line199">199  </a></b>	static void dsMgrPwrControllerFetchNinitStateValues(void)
+<b><a name="line200">200  </a></b>	{
+<b><a name="line201">201  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line202">202  </a></b>	    
+<b><a name="line203">203  </a></b>	    PowerController_PowerState_t _curState = POWER_STATE_UNKNOWN;
+<b><a name="line204">204  </a></b>	    PowerController_PowerState_t _prevState = POWER_STATE_UNKNOWN;
+<b><a name="line205">205  </a></b>	    PowerController_PowerState_t powerStateBeforeReboot = POWER_STATE_STANDBY;
+<b><a name="line206">206  </a></b>	
+<b><a name="line207">207  </a></b>	    PowerController_RegisterPowerModeChangedCallback(_PwrEventHandler, nullptr);
+<b><a name="line208">208  </a></b>	    /*  Read the Device Power State on startup... */
+<b><a name="line209">209  </a></b>	    if (POWER_CONTROLLER_ERROR_NONE == PowerController_GetPowerState(&amp;_curState, &amp;_prevState))
+<b><a name="line210">210  </a></b>	    {
+<b><a name="line211">211  </a></b>	        INT_DEBUG(&quot;Deep Sleep Manager Init with Power State %d\r\n&quot;, _curState);
+<b><a name="line212">212  </a></b>	        curState = _curState;
+<b><a name="line213">213  </a></b>	    }
+<b><a name="line214">214  </a></b>	
+<b><a name="line215">215  </a></b>	    if (POWER_CONTROLLER_ERROR_NONE != PowerController_GetPowerStateBeforeReboot(&amp;powerStateBeforeReboot))
+<b><a name="line216">216  </a></b>	    {
+<b><a name="line217">217  </a></b>	        INT_ERROR(&quot;DSMgr GetPowerStateBeforeReboot Failed\r\n&quot;);
+<b><a name="line218">218  </a></b>	    }
+<b><a name="line219">219  </a></b>	
+<b><a name="line220">220  </a></b>	    if (nullptr != ux) 
+<b><a name="line221">221  </a></b>	    {
+<b><a name="line222">222  </a></b>	        // This will set up ports, lights and bootloader pattern internally
+<b><a name="line223">223  </a></b>	        ux-&gt;applyPostRebootConfig(curState, powerStateBeforeReboot);
+<b><a name="line224">224  </a></b>	    } else {
+<b><a name="line225">225  </a></b>	        // Sync Port with Power state TODO:
+<b><a name="line226">226  </a></b>	    }
+<b><a name="line227">227  </a></b>	
+<b><a name="line228">228  </a></b>	    if (nullptr == ux) // Since ux_controller is not supported, ports need to be
+<b><a name="line229">229  </a></b>	                       // set up explicitly.
+<b><a name="line230">230  </a></b>	    {
+<b><a name="line231">231  </a></b>	#ifndef DISABLE_LED_SYNC_IN_BOOTUP
+<b><a name="line232">232  </a></b>	        _SetLEDStatus(curState);
+<b><a name="line233">233  </a></b>	#endif
+<b><a name="line234">234  </a></b>	        _SetAVPortsPowerState(curState);
+<b><a name="line235">235  </a></b>	    }
+<b><a name="line236">236  </a></b>	}
+<b><a name="line237">237  </a></b>	
+<b><a name="line238">238  </a></b>	static void _PwrEventHandler(const PowerController_PowerState_t currentState,
+<b><a name="line239">239  </a></b>	    const PowerController_PowerState_t newState,
+<b><a name="line240">240  </a></b>	    void* userdata)
+<b><a name="line241">241  </a></b>	{
+<b><a name="line242">242  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line243">243  </a></b>	
+<b><a name="line244">244  </a></b>	    /* In this call back function, received event is pushed to queue guarded by queue mutex and signaled for the thread to 
+<b><a name="line245">245  </a></b>	        pop out from queue and process the pushed event. This will allow the CB to be handled separately 
+<b><a name="line246">246  </a></b>	        in a different thread context, userdata parameter is empty and not handled*/
+<b><a name="line247">247  </a></b>	
+<b><a name="line248">248  </a></b>	    pthread_mutex_lock(&amp;tdsPwrEventQueueMutexLock);
+<b><a name="line249">249  </a></b>	    pwrEventQueue.emplace(currentState, newState);
+<b><a name="line250">250  </a></b>	    pthread_mutex_unlock(&amp;tdsPwrEventQueueMutexLock);
+<b><a name="line251">251  </a></b>	    
+<b><a name="line252">252  </a></b>	    INT_DEBUG(&quot;Sending Signal to Thread for Processing Callback Event \r\n&quot;);
+<b><a name="line253">253  </a></b>	
+<b><a name="line254">254  </a></b>	    pthread_mutex_lock(&amp;tdsPwrEventMutexLock);
+<b><a name="line255">255  </a></b>	    pthread_cond_signal(&amp;tdsPwrEventMutexCond);
+<b><a name="line256">256  </a></b>	    pthread_mutex_unlock(&amp;tdsPwrEventMutexLock);
+<b><a name="line257">257  </a></b>	}
+<b><a name="line258">258  </a></b>	
+<b><a name="line259">259  </a></b>	static int _SetLEDStatus(PowerController_PowerState_t powerState)
+<b><a name="line260">260  </a></b>	{
+<b><a name="line261">261  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line262">262  </a></b>	    try {
+<b><a name="line263">263  </a></b>	        
+<b><a name="line264">264  </a></b>	        dsFPDStateParam_t param;
+<b><a name="line265">265  </a></b>	
+<b><a name="line266">266  </a></b>	        param.eIndicator = dsFPD_INDICATOR_POWER;
+<b><a name="line267">267  </a></b>	
+<b><a name="line268">268  </a></b>	        if( POWER_STATE_ON  != powerState )
+<b><a name="line269">269  </a></b>	        {
+<b><a name="line270">270  </a></b>	            if(PROFILE_TV == profileType)
+<b><a name="line271">271  </a></b>	            {
+<b><a name="line272">272  </a></b>	                param.state = dsFPD_STATE_ON;
+<b><a name="line273">273  </a></b>	                INT_DEBUG(&quot;[PWRMgr-_SetLEDStatus] Settings the Power LED State to ON\r\n&quot;);
+<b><a name="line274">274  </a></b>	            }
+<b><a name="line275">275  </a></b>	            else
+<b><a name="line276">276  </a></b>	            {
+<b><a name="line277">277  </a></b>	                param.state = dsFPD_STATE_OFF;
+<b><a name="line278">278  </a></b>	                INT_DEBUG(&quot;[PWRMgr-_SetLEDStatus] Settings the Power LED State to OFF \r\n&quot;);
+<b><a name="line279">279  </a></b>	            }
+<b><a name="line280">280  </a></b>	        }
+<b><a name="line281">281  </a></b>	        else
+<b><a name="line282">282  </a></b>	        {
+<b><a name="line283">283  </a></b>	            param.state = dsFPD_STATE_ON;
+<b><a name="line284">284  </a></b>	            INT_DEBUG(&quot;[PWRMgr-_SetLEDStatus] Settings the Power LED State to ON \r\n&quot;);
+<b><a name="line285">285  </a></b>	        }
+<b><a name="line286">286  </a></b>	
+<b><a name="line287">287  </a></b>	        _dsSetFPState(&amp;param);
+<b><a name="line288">288  </a></b>	    }
+<b><a name="line289">289  </a></b>	    catch (...) {
+<b><a name="line290">290  </a></b>	        INT_DEBUG(&quot;Exception Caught during [PWRMgr - _SetLEDStatus]\r\n&quot;);
+<b><a name="line291">291  </a></b>	        return 0;
+<b><a name="line292">292  </a></b>	    }
+<b><a name="line293">293  </a></b>	    return 0;
+<b><a name="line294">294  </a></b>	}
+<b><a name="line295">295  </a></b>	
+<b><a name="line296">296  </a></b>	int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
+<b><a name="line297">297  </a></b>	{
+<b><a name="line298">298  </a></b>	    INT_INFO(&quot;Entering [%s] powerState:%d \r\n&quot;, __FUNCTION__,powerState);
+<b><a name="line299">299  </a></b>	
+<b><a name="line300">300  </a></b>	    try
+<b><a name="line301">301  </a></b>	    {
+<b><a name="line302">302  </a></b>	        if (POWER_STATE_ON != powerState)
+<b><a name="line303">303  </a></b>	        {
+<b><a name="line304">304  </a></b>	            if (POWER_STATE_OFF != powerState)
+<b><a name="line305">305  </a></b>	            {
+<b><a name="line306">306  </a></b>	                INT_INFO(&quot;[%s] POWERSTATE %d \r\n&quot;, __FUNCTION__, powerState);
+<b><a name="line307">307  </a></b>	                // We're in one of the standby modes. Certain ports may have to be left on.
+<b><a name="line308">308  </a></b>	                try
+<b><a name="line309">309  </a></b>	                {
+<b><a name="line310">310  </a></b>	                    device::List&lt;device::VideoOutputPort&gt; videoPorts = device::Host::getInstance().getVideoOutputPorts();
+<b><a name="line311">311  </a></b>	                    for (size_t i = 0; i &lt; videoPorts.size(); i++)
+<b><a name="line312">312  </a></b>	                    {
+<b><a name="line313">313  </a></b>	                        bool doEnable = get_video_port_standby_setting(videoPorts.at(i).getName().c_str());
+<b><a name="line314">314  </a></b>	                        INT_DEBUG(&quot;[%s]Video port %s will be %s in standby mode.\n&quot;, __FUNCTION__, videoPorts.at(i).getName().c_str(), (doEnable ? &quot;enabled&quot; : &quot;disabled&quot;));
+<b><a name="line315">315  </a></b>	                        if (false == doEnable)
+<b><a name="line316">316  </a></b>	                            videoPorts.at(i).disable();
+<b><a name="line317">317  </a></b>	                    }
+<b><a name="line318">318  </a></b>	                }
+<b><a name="line319">319  </a></b>	                catch (...)
+<b><a name="line320">320  </a></b>	                {
+<b><a name="line321">321  </a></b>	                    INT_DEBUG(&quot;[%s] Video port exception %d \r\n&quot;, __FUNCTION__, powerState);
+<b><a name="line322">322  </a></b>	                }
+<b><a name="line323">323  </a></b>	                INT_INFO(&quot;[%s] Video port standby done \r\n&quot;,__FUNCTION__);
+<b><a name="line324">324  </a></b>	            }
+<b><a name="line325">325  </a></b>	            else
+<b><a name="line326">326  </a></b>	            {
+<b><a name="line327">327  </a></b>	                try
+<b><a name="line328">328  </a></b>	                {
+<b><a name="line329">329  </a></b>	                    // Disable all ports when going into POWERSTATE_OFF
+<b><a name="line330">330  </a></b>	                    device::List&lt;device::VideoOutputPort&gt; videoPorts = device::Host::getInstance().getVideoOutputPorts();
+<b><a name="line331">331  </a></b>	                    for (size_t i = 0; i &lt; videoPorts.size(); i++)
+<b><a name="line332">332  </a></b>	                    {
+<b><a name="line333">333  </a></b>	                        videoPorts.at(i).disable();
+<b><a name="line334">334  </a></b>	                    }
+<b><a name="line335">335  </a></b>	                }
+<b><a name="line336">336  </a></b>	                catch (...)
+<b><a name="line337">337  </a></b>	                {
+<b><a name="line338">338  </a></b>	                    INT_DEBUG(&quot;[%s] Video port exception %d \r\n&quot;, __FUNCTION__, powerState);
+<b><a name="line339">339  </a></b>	                }
+<b><a name="line340">340  </a></b>	                INT_INFO(&quot;[%s] Video port disable done \r\n&quot;, __FUNCTION__ );
+<b><a name="line341">341  </a></b>	            }
+<b><a name="line342">342  </a></b>	            try
+<b><a name="line343">343  </a></b>	            {
+<b><a name="line344">344  </a></b>	                dsAudioGetHandleParam_t getHandle;
+<b><a name="line345">345  </a></b>	                dsAudioPortEnabledParam_t setMode;
+<b><a name="line346">346  </a></b>	                int numPorts, i = 0;
+<b><a name="line347">347  </a></b>	
+<b><a name="line348">348  </a></b>	                numPorts = dsUTL_DIM(kSupportedPortTypes);
+<b><a name="line349">349  </a></b>	                for (i = 0; i &lt; numPorts; i++)
+<b><a name="line350">350  </a></b>	                {
+<b><a name="line351">351  </a></b>	                    const dsAudioPortType_t *audioPort = &amp;kSupportedPortTypes[i];
+<b><a name="line352">352  </a></b>			    device::AudioOutputPort aPort = device::Host::getInstance().getAudioOutputPort(*audioPort);
+<b><a name="line353">353  </a></b>	                    memset(&amp;getHandle, 0, sizeof(getHandle));
+<b><a name="line354">354  </a></b>	                    getHandle.type = *audioPort;
+<b><a name="line355">355  </a></b>	                    getHandle.index = 0;
+<b><a name="line356">356  </a></b>	                    _dsGetAudioPort(&amp;getHandle);
+<b><a name="line357">357  </a></b>	
+<b><a name="line358">358  </a></b>	                    memset(&amp;setMode, 0, sizeof(setMode));
+<b><a name="line359">359  </a></b>	                    setMode.handle = getHandle.handle;
+<b><a name="line360">360  </a></b>			    strncpy(setMode.portName, aPort.getName().c_str(), 31);
+<b><a name="line361">361  </a></b>	                    setMode.enabled = false;
+<b><a name="line362">362  </a></b>	                    _dsEnableAudioPort(&amp;setMode);
+<b><a name="line363">363  </a></b>	                }
+<b><a name="line364">364  </a></b>	            }
+<b><a name="line365">365  </a></b>	            catch (...)
+<b><a name="line366">366  </a></b>	            {
+<b><a name="line367">367  </a></b>	                INT_DEBUG(&quot;[%s] audio port exception \r\n&quot;, __FUNCTION__);
+<b><a name="line368">368  </a></b>	            }
+<b><a name="line369">369  </a></b>	        }
+<b><a name="line370">370  </a></b>	        else
+<b><a name="line371">371  </a></b>	        {
+<b><a name="line372">372  </a></b>	
+<b><a name="line373">373  </a></b>	            try
+<b><a name="line374">374  </a></b>	            {
+<b><a name="line375">375  </a></b>	                device::List&lt;device::VideoOutputPort&gt; videoPorts = device::Host::getInstance().getVideoOutputPorts();
+<b><a name="line376">376  </a></b>	                for (size_t i = 0; i &lt; videoPorts.size(); i++)
+<b><a name="line377">377  </a></b>	                {
+<b><a name="line378">378  </a></b>	                    videoPorts.at(i).enable();
+<b><a name="line379">379  </a></b>	                }
+<b><a name="line380">380  </a></b>	        
+<b><a name="line381">381  </a></b>	                dsAudioGetHandleParam_t getHandle;
+<b><a name="line382">382  </a></b>	                dsAudioPortEnabledParam_t setMode;
+<b><a name="line383">383  </a></b>	
+<b><a name="line384">384  </a></b>	                int numPorts, i = 0;
+<b><a name="line385">385  </a></b>	
+<b><a name="line386">386  </a></b>	                numPorts = dsUTL_DIM(kSupportedPortTypes);
+<b><a name="line387">387  </a></b>	                for (i = 0; i &lt; numPorts; i++)
+<b><a name="line388">388  </a></b>	                {
+<b><a name="line389">389  </a></b>	                    const dsAudioPortType_t *audioPort = &amp;kSupportedPortTypes[i];
+<b><a name="line390">390  </a></b>			    device::AudioOutputPort aPort = device::Host::getInstance().getAudioOutputPort(*audioPort);
+<b><a name="line391">391  </a></b>	                    memset(&amp;getHandle, 0, sizeof(getHandle));
+<b><a name="line392">392  </a></b>	                    getHandle.type = *audioPort;
+<b><a name="line393">393  </a></b>	                    getHandle.index = 0;
+<b><a name="line394">394  </a></b>	                    _dsGetAudioPort(&amp;getHandle);
+<b><a name="line395">395  </a></b>	
+<b><a name="line396">396  </a></b>	                    memset(&amp;setMode, 0, sizeof(setMode));
+<b><a name="line397">397  </a></b>	                    setMode.handle = getHandle.handle;
+<b><a name="line398">398  </a></b>			    strncpy(setMode.portName, aPort.getName().c_str(), 31);
+<b><a name="line399">399  </a></b>	                    setMode.enabled = false;
+<b><a name="line400">400  </a></b>	                    _dsGetEnablePersist(&amp;setMode);
+<b><a name="line401">401  </a></b>	
+<b><a name="line402">402  </a></b>	                    if (setMode.enabled == true)
+<b><a name="line403">403  </a></b>	                    {
+<b><a name="line404">404  </a></b>	                        /*Instead of enabling all the audio ports on power transition */
+<b><a name="line405">405  </a></b>	                        /*Get the values from persistent storage &amp; update */
+<b><a name="line406">406  </a></b>	                        INT_INFO(&quot;[%s] Enabling audio ports %d \r\n&quot;, __FUNCTION__, powerState);
+<b><a name="line407">407  </a></b>	                        _dsEnableAudioPort(&amp;setMode);
+<b><a name="line408">408  </a></b>	                    }
+<b><a name="line409">409  </a></b>	                }
+<b><a name="line410">410  </a></b>	                if (isEAS == IARM_BUS_SYS_MODE_EAS)
+<b><a name="line411">411  </a></b>	                {
+<b><a name="line412">412  </a></b>	                    /* Force Stereo in EAS mode. */
+<b><a name="line413">413  </a></b>	                    INT_INFO(&quot;[%s] Force Stereo in EAS mode \r\n&quot;, __FUNCTION__);
+<b><a name="line414">414  </a></b>	                    _setEASAudioMode();
+<b><a name="line415">415  </a></b>	                }
+<b><a name="line416">416  </a></b>	            }
+<b><a name="line417">417  </a></b>	            catch (...)
+<b><a name="line418">418  </a></b>	            {
+<b><a name="line419">419  </a></b>	                INT_DEBUG(&quot;[%s] Audio port exception \r\n&quot;,__FUNCTION__);
+<b><a name="line420">420  </a></b>	            }
+<b><a name="line421">421  </a></b>	
+<b><a name="line422">422  </a></b>	        }
+<b><a name="line423">423  </a></b>	    }
+<b><a name="line424">424  </a></b>	    catch (...)
+<b><a name="line425">425  </a></b>	    {
+<b><a name="line426">426  </a></b>	        INT_DEBUG(&quot;Exception Caught during [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line427">427  </a></b>	        return 0;
+<b><a name="line428">428  </a></b>	    }
+<b><a name="line429">429  </a></b>	    return 0;
+<b><a name="line430">430  </a></b>	}
+<b><a name="line431">431  </a></b>	
+<b><a name="line432">432  </a></b>	static bool get_video_port_standby_setting(const char * port)
+<b><a name="line433">433  </a></b>	{
+<b><a name="line434">434  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line435">435  </a></b>	    if(NULL == port)
+<b><a name="line436">436  </a></b>	    {
+<b><a name="line437">437  </a></b>	        INT_DEBUG(&quot;[%s]Error! Port name is NULL!\n&quot;, __FUNCTION__);
+<b><a name="line438">438  </a></b>	        return false;
+<b><a name="line439">439  </a></b>	    }
+<b><a name="line440">440  </a></b>	    for(int i = 0; i &lt; MAX_NUM_VIDEO_PORTS; i++)
+<b><a name="line441">441  </a></b>	    {
+<b><a name="line442">442  </a></b>	        if(0 == strncasecmp(port, g_standby_video_port_setting[i].port, DSMGR_MAX_VIDEO_PORT_NAME_LENGTH))
+<b><a name="line443">443  </a></b>	        {
+<b><a name="line444">444  </a></b>	            return g_standby_video_port_setting[i].isEnabled;
+<b><a name="line445">445  </a></b>	        }
+<b><a name="line446">446  </a></b>	    }
+<b><a name="line447">447  </a></b>	    return false; //Default setting: video port is disabled in standby mode
+<b><a name="line448">448  </a></b>	}
+<b><a name="line449">449  </a></b>	
+<b><a name="line450">450  </a></b>	static IARM_Result_t _SetStandbyVideoState(void *arg)
+<b><a name="line451">451  </a></b>	{
+<b><a name="line452">452  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line453">453  </a></b>	    dsMgrStandbyVideoStateParam_t *param = (dsMgrStandbyVideoStateParam_t *)arg;
+</pre>
+<table summary="events" bgcolor=#e0e0e0>
+<tr><td><font color="red">
+<a name="error:0"></a>
+<a name="error"></a>
+<!-- merge-key ea7dac404bddc9a0eb667a0a148c9f74 -->
+<b>(1) Event array_null</b>: </font></td>
+<td><font color="red">Comparing an array to null is not useful: &quot;NULL == param-&gt;port&quot;, since the test will always evaluate as true.</font></td>
+</tr>
+<tr><td><font color="red">
+<a name="error:1"></a>
+<!-- merge-key ea7dac404bddc9a0eb667a0a148c9f74 -->
+<b>(2) Event remediation</b>: </font></td>
+<td><font color="red">Was &quot;param-&gt;port&quot; formerly declared as a pointer?</font></td>
+</tr>
+</table>
+<pre><b><a name="line454">454  </a></b>	    if(NULL == param-&gt;port)
+<b><a name="line455">455  </a></b>	    {
+<b><a name="line456">456  </a></b>	        param-&gt;result = -1;
+<b><a name="line457">457  </a></b>	        INT_DEBUG(&quot;[%s] empty port name. Cannot proceed.\n&quot;, __FUNCTION__);
+<b><a name="line458">458  </a></b>	        return IARM_RESULT_SUCCESS;
+<b><a name="line459">459  </a></b>	    }
+<b><a name="line460">460  </a></b>	    else
+<b><a name="line461">461  </a></b>	        param-&gt;result = 0;
+<b><a name="line462">462  </a></b>	
+<b><a name="line463">463  </a></b>	    int i = 0;
+<b><a name="line464">464  </a></b>	    for(i = 0; i &lt; MAX_NUM_VIDEO_PORTS; i++)
+<b><a name="line465">465  </a></b>	    {
+<b><a name="line466">466  </a></b>	        if(0 == strncasecmp(param-&gt;port, g_standby_video_port_setting[i].port, DSMGR_MAX_VIDEO_PORT_NAME_LENGTH))
+<b><a name="line467">467  </a></b>	        {
+<b><a name="line468">468  </a></b>	            /*Found a match. Update it*/
+<b><a name="line469">469  </a></b>	            g_standby_video_port_setting[i].isEnabled = ((0 == param-&gt;isEnabled) ? false : true);
+<b><a name="line470">470  </a></b>	            break;
+<b><a name="line471">471  </a></b>	        }
+<b><a name="line472">472  </a></b>	    }
+<b><a name="line473">473  </a></b>	    if(MAX_NUM_VIDEO_PORTS == i)
+<b><a name="line474">474  </a></b>	    {
+<b><a name="line475">475  </a></b>	        /*No matching entries are present. Add one.*/
+<b><a name="line476">476  </a></b>	        for(i = 0; i &lt; MAX_NUM_VIDEO_PORTS; i++)
+<b><a name="line477">477  </a></b>	        {
+<b><a name="line478">478  </a></b>	            if('\0' == g_standby_video_port_setting[i].port[0])
+<b><a name="line479">479  </a></b>	            {
+<b><a name="line480">480  </a></b>	                strncpy(g_standby_video_port_setting[i].port, param-&gt;port, (DSMGR_MAX_VIDEO_PORT_NAME_LENGTH - 1));
+<b><a name="line481">481  </a></b>	                g_standby_video_port_setting[i].isEnabled = ((0 == param-&gt;isEnabled) ? false : true);
+<b><a name="line482">482  </a></b>	                break;
+<b><a name="line483">483  </a></b>	            }
+<b><a name="line484">484  </a></b>	        }
+<b><a name="line485">485  </a></b>	    }
+<b><a name="line486">486  </a></b>	    if(MAX_NUM_VIDEO_PORTS == i)
+<b><a name="line487">487  </a></b>	    {
+<b><a name="line488">488  </a></b>	        INT_DEBUG(&quot;[%s] Error! Out of room to write new video port setting for standby mode.\n&quot;, __FUNCTION__);
+<b><a name="line489">489  </a></b>	    }
+<b><a name="line490">490  </a></b>	
+<b><a name="line491">491  </a></b>	    try
+<b><a name="line492">492  </a></b>	    {
+<b><a name="line493">493  </a></b>	        device::VideoOutputPort &amp;vPort = device::Host::getInstance().getVideoOutputPort(param-&gt;port);
+<b><a name="line494">494  </a></b>	        if((POWER_STATE_ON != curState) &amp;&amp; (POWER_STATE_OFF != curState))
+<b><a name="line495">495  </a></b>	        {
+<b><a name="line496">496  </a></b>	            /*We're currently in one of the standby states. This new setting needs to be applied right away.*/
+<b><a name="line497">497  </a></b>	            INT_DEBUG(&quot;[%s] Setting standby %s port status to %s.\n&quot;, __FUNCTION__, param-&gt;port, ((1 == param-&gt;isEnabled)? &quot;enabled&quot; : &quot;disabled&quot;));
+<b><a name="line498">498  </a></b>	            if(1 == param-&gt;isEnabled)
+<b><a name="line499">499  </a></b>	                vPort.enable();
+<b><a name="line500">500  </a></b>	            else
+<b><a name="line501">501  </a></b>	                vPort.disable();
+<b><a name="line502">502  </a></b>	        }
+<b><a name="line503">503  </a></b>	        else
+<b><a name="line504">504  </a></b>	        {
+<b><a name="line505">505  </a></b>	            INT_DEBUG(&quot;[%s] video port %s will be %s when going into standby mode.\n&quot;, __FUNCTION__, param-&gt;port, ((1 == param-&gt;isEnabled)? &quot;enabled&quot; : &quot;disabled&quot;));
+<b><a name="line506">506  </a></b>	        }
+<b><a name="line507">507  </a></b>	    }
+<b><a name="line508">508  </a></b>	    catch (...)
+<b><a name="line509">509  </a></b>	    {
+<b><a name="line510">510  </a></b>	        INT_DEBUG(&quot;Exception Caught during [%s]. Possible bad video port.\n&quot;, __FUNCTION__);
+<b><a name="line511">511  </a></b>	        param-&gt;result = -1;
+<b><a name="line512">512  </a></b>	    }
+<b><a name="line513">513  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line514">514  </a></b>	}
+<b><a name="line515">515  </a></b>	
+<b><a name="line516">516  </a></b>	static IARM_Result_t _GetStandbyVideoState(void *arg)
+<b><a name="line517">517  </a></b>	{
+<b><a name="line518">518  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line519">519  </a></b>	    dsMgrStandbyVideoStateParam_t *param = (dsMgrStandbyVideoStateParam_t *)arg;
+<b><a name="line520">520  </a></b>	    if(NULL == param-&gt;port)
+<b><a name="line521">521  </a></b>	    {
+<b><a name="line522">522  </a></b>	        INT_DEBUG(&quot;[%s]Bad port name. Cannot get state.\n&quot;, __FUNCTION__);
+<b><a name="line523">523  </a></b>	        return IARM_RESULT_SUCCESS;
+<b><a name="line524">524  </a></b>	    }
+<b><a name="line525">525  </a></b>	
+<b><a name="line526">526  </a></b>	    try
+<b><a name="line527">527  </a></b>	    {
+<b><a name="line528">528  </a></b>	        device::VideoOutputPort &amp;vPort = device::Host::getInstance().getVideoOutputPort(param-&gt;port);
+<b><a name="line529">529  </a></b>	
+<b><a name="line530">530  </a></b>	    }
+<b><a name="line531">531  </a></b>	    catch (...)
+<b><a name="line532">532  </a></b>	    {
+<b><a name="line533">533  </a></b>	        INT_DEBUG(&quot;Exception Caught during [%s]. Possible bad video port.\n&quot;, __FUNCTION__);
+<b><a name="line534">534  </a></b>	        param-&gt;result = -1;
+<b><a name="line535">535  </a></b>	        return IARM_RESULT_SUCCESS;
+<b><a name="line536">536  </a></b>	    }
+<b><a name="line537">537  </a></b>	    param-&gt;isEnabled = (get_video_port_standby_setting(param-&gt;port) ? 1 : 0);
+<b><a name="line538">538  </a></b>	    param-&gt;result = 0;
+<b><a name="line539">539  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line540">540  </a></b>	}
+<b><a name="line541">541  </a></b>	
+<b><a name="line542">542  </a></b>	static PowerController_PowerState_t dsMgrPwrMgrToPowerControllerPowerState(PWRMgr_PowerState_t _state)
+<b><a name="line543">543  </a></b>	{
+<b><a name="line544">544  </a></b>	    PowerController_PowerState_t powerState = POWER_STATE_UNKNOWN;
+<b><a name="line545">545  </a></b>	    switch (_state) {
+<b><a name="line546">546  </a></b>	    case PWRMGR_POWERSTATE_OFF:
+<b><a name="line547">547  </a></b>	        powerState = POWER_STATE_OFF;
+<b><a name="line548">548  </a></b>	        break;
+<b><a name="line549">549  </a></b>	    case PWRMGR_POWERSTATE_STANDBY:
+<b><a name="line550">550  </a></b>	        powerState = POWER_STATE_STANDBY;
+<b><a name="line551">551  </a></b>	        break;
+<b><a name="line552">552  </a></b>	    case PWRMGR_POWERSTATE_ON:
+<b><a name="line553">553  </a></b>	        powerState = POWER_STATE_ON;
+<b><a name="line554">554  </a></b>	        break;
+<b><a name="line555">555  </a></b>	    case PWRMGR_POWERSTATE_STANDBY_LIGHT_SLEEP:
+<b><a name="line556">556  </a></b>	        powerState = POWER_STATE_STANDBY_LIGHT_SLEEP;
+<b><a name="line557">557  </a></b>	        break;
+<b><a name="line558">558  </a></b>	    case PWRMGR_POWERSTATE_STANDBY_DEEP_SLEEP:
+<b><a name="line559">559  </a></b>	        powerState = POWER_STATE_STANDBY_DEEP_SLEEP;
+<b><a name="line560">560  </a></b>	        break;
+<b><a name="line561">561  </a></b>	    default:
+<b><a name="line562">562  </a></b>	        /* powerState is already UNKNOWN in the init of the fn*/
+<b><a name="line563">563  </a></b>	        INT_ERROR(&quot;DSMgr dsMgrPwrMgrToPowerControllerPowerState Invalid Power State\r\n&quot;);
+<b><a name="line564">564  </a></b>	        break;
+<b><a name="line565">565  </a></b>	    }
+<b><a name="line566">566  </a></b>	    INT_DEBUG(&quot;[%s] _state=[%d]  powerState[%d]\r\n&quot;, __FUNCTION__,_state,powerState);
+<b><a name="line567">567  </a></b>	    return powerState;
+<b><a name="line568">568  </a></b>	}
+<b><a name="line569">569  </a></b>	
+<b><a name="line570">570  </a></b>	static IARM_Result_t _SetAvPortState(void *arg)
+<b><a name="line571">571  </a></b>	{
+<b><a name="line572">572  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line573">573  </a></b>	    dsMgrAVPortStateParam_t *param = (dsMgrAVPortStateParam_t *)arg;
+<b><a name="line574">574  </a></b>	    if(NULL == param)
+<b><a name="line575">575  </a></b>	    {
+<b><a name="line576">576  </a></b>	        INT_DEBUG(&quot;Bad Parameter.\n&quot;);
+<b><a name="line577">577  </a></b>	        return IARM_RESULT_SUCCESS;
+<b><a name="line578">578  </a></b>	    }
+<b><a name="line579">579  </a></b>	
+<b><a name="line580">580  </a></b>	    PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param-&gt;avPortPowerState;
+<b><a name="line581">581  </a></b>	    PowerController_PowerState_t powerState = dsMgrPwrMgrToPowerControllerPowerState(pwrState);
+<b><a name="line582">582  </a></b>	    if(POWER_STATE_UNKNOWN != powerState)
+<b><a name="line583">583  </a></b>	    {
+<b><a name="line584">584  </a></b>	        _SetAVPortsPowerState(powerState);
+<b><a name="line585">585  </a></b>	    }
+<b><a name="line586">586  </a></b>	    param-&gt;result = 0;
+<b><a name="line587">587  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line588">588  </a></b>	}
+<b><a name="line589">589  </a></b>	
+<b><a name="line590">590  </a></b>	static IARM_Result_t _SetLEDState(void *arg)
+<b><a name="line591">591  </a></b>	{
+<b><a name="line592">592  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line593">593  </a></b>	    dsMgrLEDStatusParam_t *param = (dsMgrLEDStatusParam_t *)arg;
+<b><a name="line594">594  </a></b>	    if(NULL == param)
+<b><a name="line595">595  </a></b>	    {
+<b><a name="line596">596  </a></b>	        INT_DEBUG(&quot;[%s] Bad Parameter.\n&quot;, __FUNCTION__);
+<b><a name="line597">597  </a></b>	        return IARM_RESULT_SUCCESS;
+<b><a name="line598">598  </a></b>	    }
+<b><a name="line599">599  </a></b>	
+<b><a name="line600">600  </a></b>	    PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param-&gt;ledState;
+<b><a name="line601">601  </a></b>	    PowerController_PowerState_t powerState = dsMgrPwrMgrToPowerControllerPowerState(pwrState);
+<b><a name="line602">602  </a></b>	    if(POWER_STATE_UNKNOWN != powerState)
+<b><a name="line603">603  </a></b>	    {
+<b><a name="line604">604  </a></b>	        _SetLEDStatus(powerState);
+<b><a name="line605">605  </a></b>	    }
+<b><a name="line606">606  </a></b>	    param-&gt;result = 0;
+<b><a name="line607">607  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line608">608  </a></b>	}
+<b><a name="line609">609  </a></b>	
+<b><a name="line610">610  </a></b>	static IARM_Result_t _SetRebootConfig(void *arg)
+<b><a name="line611">611  </a></b>	{
+<b><a name="line612">612  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line613">613  </a></b>	    dsMgrRebootConfigParam_t *param = (dsMgrRebootConfigParam_t *)arg;
+<b><a name="line614">614  </a></b>	    if(NULL == param)
+<b><a name="line615">615  </a></b>	    {
+<b><a name="line616">616  </a></b>	        INT_DEBUG(&quot;[%s]Bad Parameter.\n&quot;, __FUNCTION__);
+<b><a name="line617">617  </a></b>	        return IARM_RESULT_SUCCESS;
+<b><a name="line618">618  </a></b>	    }
+<b><a name="line619">619  </a></b>	    param-&gt;reboot_reason_custom[sizeof(param-&gt;reboot_reason_custom) - 1] = '\0'; //Just to be on the safe side.
+<b><a name="line620">620  </a></b>	    if(nullptr != ux)
+<b><a name="line621">621  </a></b>	    {
+<b><a name="line622">622  </a></b>	        PWRMgr_PowerState_t pwrState = (PWRMgr_PowerState_t)param-&gt;powerState;
+<b><a name="line623">623  </a></b>	        PowerController_PowerState_t powerState = dsMgrPwrMgrToPowerControllerPowerState(pwrState);
+<b><a name="line624">624  </a></b>	
+<b><a name="line625">625  </a></b>	        if(POWER_STATE_UNKNOWN != powerState)
+<b><a name="line626">626  </a></b>	        {
+<b><a name="line627">627  </a></b>	            if(0 == strncmp(PWRMGR_REBOOT_REASON_MAINTENANCE, param-&gt;reboot_reason_custom, sizeof(param-&gt;reboot_reason_custom)))
+<b><a name="line628">628  </a></b>	                ux-&gt;applyPreMaintenanceRebootConfig(powerState);
+<b><a name="line629">629  </a></b>	            else
+<b><a name="line630">630  </a></b>	                ux-&gt;applyPreRebootConfig(powerState);
+<b><a name="line631">631  </a></b>	       }
+<b><a name="line632">632  </a></b>	    }
+<b><a name="line633">633  </a></b>	    param-&gt;result = 0;
+<b><a name="line634">634  </a></b>	    return IARM_RESULT_SUCCESS;
+<b><a name="line635">635  </a></b>	}
+<b><a name="line636">636  </a></b>	
+<b><a name="line637">637  </a></b>	static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
+<b><a name="line638">638  </a></b>	{
+<b><a name="line639">639  </a></b>	    INT_INFO(&quot;%s: Entry  \r\n&quot;,__FUNCTION__);
+<b><a name="line640">640  </a></b>	
+<b><a name="line641">641  </a></b>	    /* In Loop and waiting for an event conditionally */
+<b><a name="line642">642  </a></b>	    while (true)
+<b><a name="line643">643  </a></b>	    {
+<b><a name="line644">644  </a></b>	        pthread_mutex_lock(&amp;tdsPwrEventMutexLock);
+<b><a name="line645">645  </a></b>	        INT_DEBUG(&quot;dsMgrPwrEventHandlingThreadFunc.... Wait for Events from Power manager Controller Callback\r\n&quot;);
+<b><a name="line646">646  </a></b>	        int waitStatus = pthread_cond_wait(&amp;tdsPwrEventMutexCond, &amp;tdsPwrEventMutexLock);
+<b><a name="line647">647  </a></b>	        if (0 != waitStatus) {
+<b><a name="line648">648  </a></b>	            pthread_mutex_unlock(&amp;tdsPwrEventMutexLock);
+<b><a name="line649">649  </a></b>	            INT_ERROR(&quot;[%s:%d]dsMgrPwrEventHandlingThreadFunc: pthread_cond_wait failed = %u\n&quot;, __FUNCTION__, __LINE__, waitStatus);
+<b><a name="line650">650  </a></b>		    /*
+<b><a name="line651">651  </a></b>		     * Coverity note: No shared data is accessed after pthread_cond_wait failure.
+<b><a name="line652">652  </a></b>		     * The mutex is unlocked and the thread exits immediately, so this is safe.
+<b><a name="line653">653  </a></b>		     */
+<b><a name="line654">654  </a></b>	            break;
+<b><a name="line655">655  </a></b>	        }
+<b><a name="line656">656  </a></b>	
+<b><a name="line657">657  </a></b>	        if(m_dsMgrPwrStopThread)
+<b><a name="line658">658  </a></b>	        {
+<b><a name="line659">659  </a></b>	             /* This case can enter if the de init is trigerred which wants to exit the thread function 
+<b><a name="line660">660  </a></b>	                  and unlock happens after the end of while loop, it will not process any events for this case*/
+<b><a name="line661">661  </a></b>	            INT_DEBUG(&quot;[%s:%d]:dsMgrPwrEventHandlingThreadFunc Exiting due to m_dsMgrPwrStopThread true \n&quot;,__FUNCTION__,__LINE__);
+<b><a name="line662">662  </a></b>	            pthread_mutex_unlock(&amp;tdsPwrEventMutexLock);
+<b><a name="line663">663  </a></b>	            break;
+<b><a name="line664">664  </a></b>	        }
+<b><a name="line665">665  </a></b>	        pthread_mutex_unlock(&amp;tdsPwrEventMutexLock);
+<b><a name="line666">666  </a></b>	
+<b><a name="line667">667  </a></b>	        
+<b><a name="line668">668  </a></b>		/*  Directly read the contents of the PwrEvtQueue, release the lock when processing the data and relock it after 
+<b><a name="line669">669  </a></b>	            wards until the complete data in the queue is processed. This will ensure the lock retention period is less 
+<b><a name="line670">670  </a></b>		    and all the updated data from the queue is processed */
+<b><a name="line671">671  </a></b>		pthread_mutex_lock(&amp;tdsPwrEventQueueMutexLock);
+<b><a name="line672">672  </a></b>		while (!pwrEventQueue.empty())
+<b><a name="line673">673  </a></b>		{
+<b><a name="line674">674  </a></b>	            DSMgr_Power_Event_State_t pwrEvent = pwrEventQueue.front();
+<b><a name="line675">675  </a></b>	            pwrEventQueue.pop();
+<b><a name="line676">676  </a></b>	            pthread_mutex_unlock(&amp;tdsPwrEventQueueMutexLock);
+<b><a name="line677">677  </a></b>	            /* Release the Lock when processing the data */
+<b><a name="line678">678  </a></b>		    dsMgrHandlePwrEventData(pwrEvent.currentState,pwrEvent.newState);
+<b><a name="line679">679  </a></b>	            /* Reacquire the Lock before checking the Queue contents in loop */
+<b><a name="line680">680  </a></b>	            pthread_mutex_lock(&amp;tdsPwrEventQueueMutexLock);
+<b><a name="line681">681  </a></b>	        }
+<b><a name="line682">682  </a></b>	        /* Release the Lock either exit is due to empty directly or processing completed  */
+<b><a name="line683">683  </a></b>	        pthread_mutex_unlock(&amp;tdsPwrEventQueueMutexLock);
+<b><a name="line684">684  </a></b>	    }
+<b><a name="line685">685  </a></b>	    return arg;
+<b><a name="line686">686  </a></b>	}
+<b><a name="line687">687  </a></b>	
+<b><a name="line688">688  </a></b>	static void dsMgrHandlePwrEventData(const PowerController_PowerState_t currentState,
+<b><a name="line689">689  </a></b>	    const PowerController_PowerState_t newState)
+<b><a name="line690">690  </a></b>	{
+<b><a name="line691">691  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line692">692  </a></b>	
+<b><a name="line693">693  </a></b>	    /* This is the Handler for Power State after Separation of the Context to a new thread context.
+<b><a name="line694">694  </a></b>	        This function is getting executed in a new thread context.with currentState and newState values*/
+<b><a name="line695">695  </a></b>	    INT_DEBUG(&quot;In [%s] currentState [%d]   newState[%d]\r\n&quot;, __FUNCTION__,currentState,newState);
+<b><a name="line696">696  </a></b>	    
+<b><a name="line697">697  </a></b>	    if (nullptr != ux) {
+<b><a name="line698">698  </a></b>	        // If ux_controller is supported, it will set up AV ports and LEDs in the below call.
+<b><a name="line699">699  </a></b>	        ux-&gt;applyPowerStateChangeConfig(newState, currentState);
+<b><a name="line700">700  </a></b>	    } else {
+<b><a name="line701">701  </a></b>	#ifndef DISABLE_LED_SYNC_IN_BOOTUP
+<b><a name="line702">702  </a></b>	        _SetLEDStatus(newState);
+<b><a name="line703">703  </a></b>	#endif
+<b><a name="line704">704  </a></b>	        _SetAVPortsPowerState(newState);
+<b><a name="line705">705  </a></b>	    }
+<b><a name="line706">706  </a></b>	    INT_DEBUG(&quot;Completed [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line707">707  </a></b>	}
+<b><a name="line708">708  </a></b>	
+<b><a name="line709">709  </a></b>	
+<b><a name="line710">710  </a></b>	void dsMgrInitPwrControllerEvt(void)
+<b><a name="line711">711  </a></b>	{
+<b><a name="line712">712  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line713">713  </a></b>	
+<b><a name="line714">714  </a></b>	    /* Initialize two Mutexes and Wait Signal Variable. 
+<b><a name="line715">715  </a></b>	     *  1. One Lock mutex variable to Guard the Event Queue 
+<b><a name="line716">716  </a></b>	     *  2. Another mutex variable to Guard the Wait -Signal Condition, thread creation variable,stop thread
+<b><a name="line717">717  </a></b>	     *  Create the thread used to separate the context of the Event Callback 
+<b><a name="line718">718  </a></b>	     */
+<b><a name="line719">719  </a></b>	     
+<b><a name="line720">720  </a></b>	    pthread_mutex_init (&amp;tdsPwrEventQueueMutexLock, NULL);
+<b><a name="line721">721  </a></b>	    pthread_mutex_init (&amp;tdsPwrEventMutexLock, NULL);
+<b><a name="line722">722  </a></b>	    pthread_cond_init (&amp;tdsPwrEventMutexCond, NULL);
+<b><a name="line723">723  </a></b>	
+<b><a name="line724">724  </a></b>	    m_dsMgrPwrStopThread = false;
+<b><a name="line725">725  </a></b>	    if(pthread_create (&amp;edsPwrEventHandlerThreadID, NULL, dsMgrPwrEventHandlingThreadFunc, NULL) != 0)
+<b><a name="line726">726  </a></b>	    {
+<b><a name="line727">727  </a></b>	        INT_ERROR(&quot;DSMgr dsMgrInitPwrControllerEvt Thread not created\r\n&quot;);
+<b><a name="line728">728  </a></b>	    }
+<b><a name="line729">729  </a></b>	}    
+<b><a name="line730">730  </a></b>	
+<b><a name="line731">731  </a></b>	void dsMgrDeinitPwrControllerEvt(void) 
+<b><a name="line732">732  </a></b>	{    
+<b><a name="line733">733  </a></b>	    INT_INFO(&quot;Entering [%s]\r\n&quot;, __FUNCTION__);
+<b><a name="line734">734  </a></b>	
+<b><a name="line735">735  </a></b>	    /* Lock the Queue, Clear the elements by looping through the Queue, Unlock  and Destroy the Mutex Lock  */
+<b><a name="line736">736  </a></b>	    pthread_mutex_lock(&amp;tdsPwrEventMutexLock);
+<b><a name="line737">737  </a></b>	    /* Notify the Event thread function to Exit, send signal with stop thread true so that the thread exits   */
+<b><a name="line738">738  </a></b>	    m_dsMgrPwrStopThread=true;
+<b><a name="line739">739  </a></b>	    pthread_cond_signal(&amp;tdsPwrEventMutexCond);
+<b><a name="line740">740  </a></b>	    pthread_mutex_unlock(&amp;tdsPwrEventMutexLock);
+<b><a name="line741">741  </a></b>	
+<b><a name="line742">742  </a></b>	    /* wait for the event thread handler to complete its operation */
+<b><a name="line743">743  </a></b>	    INT_DEBUG(&quot;[%s:%d]:Before Joining thread id\n&quot;,__FUNCTION__,__LINE__);
+<b><a name="line744">744  </a></b>	    pthread_join(edsPwrEventHandlerThreadID, NULL);
+<b><a name="line745">745  </a></b>	    INT_DEBUG(&quot;[%s:%d]:Completed  Joined thread id\n&quot;,__FUNCTION__,__LINE__);
+<b><a name="line746">746  </a></b>	
+<b><a name="line747">747  </a></b>	    /* clean the queue with guarding mutex*/
+<b><a name="line748">748  </a></b>	    pthread_mutex_lock(&amp;tdsPwrEventQueueMutexLock); 
+<b><a name="line749">749  </a></b>	    pwrEventQueue = std::queue&lt;DSMgr_Power_Event_State_t&gt;();
+<b><a name="line750">750  </a></b>	    pthread_mutex_unlock(&amp;tdsPwrEventQueueMutexLock);
+<b><a name="line751">751  </a></b>	
+<b><a name="line752">752  </a></b>	
+<b><a name="line753">753  </a></b>	    /* Lock the Mutex, Destroy the Wait/Signal Condition Variable, Unlock the Mutex*/
+<b><a name="line754">754  </a></b>	    pthread_cond_destroy(&amp;tdsPwrEventMutexCond);
+<b><a name="line755">755  </a></b>	
+<b><a name="line756">756  </a></b>	    /* Destroy mutexes */
+<b><a name="line757">757  </a></b>	    pthread_mutex_destroy(&amp;tdsPwrEventQueueMutexLock);
+<b><a name="line758">758  </a></b>	    pthread_mutex_destroy(&amp;tdsPwrEventMutexLock);
+<b><a name="line759">759  </a></b>	}
+<b><a name="line760">760  </a></b>	
+<b><a name="line761">761  </a></b>	
+<b><a name="line762">762  </a></b>	
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+</pre></body>
+</html>

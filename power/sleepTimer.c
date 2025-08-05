@@ -21,6 +21,11 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <time.h>
+#include <assert.h>
+#include <stdint.h>
+
+_Static_assert(sizeof(double) == 8, "Expected double to be 8 bytes");
+_Static_assert(sizeof(time_t) >= 8, "Y2K38 safety: time_t must be at least 64 bits");
 
 #include "libIBus.h"
 #include "pwrlogger.h"
@@ -109,6 +114,7 @@ static IARM_Result_t _GetSleepTimer(void *arg)
     param->start = 0;
     LOCK();
     if (timerSource) {
+        /* coverity[cert_y2k38_safety] - Y2K38 safe: built with -D_TIME_BITS=64 */
         time_t now = time(NULL);
         param->time = (double)((now < timerEnd) ? (timerEnd - now) :0);
         param->start = (param->time ? 1 : 0);
@@ -125,4 +131,3 @@ void IARM_Bus_PWRMGR_RegisterSleepTimerAPIs(void *context)
     IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetSleepTimer, _SetSleepTimer);
     IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetSleepTimer, _GetSleepTimer);
 }
-
