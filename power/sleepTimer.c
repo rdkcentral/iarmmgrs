@@ -50,6 +50,7 @@ STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
 
 static GMainLoop *mainloop = NULL;
 static guint timerSource = 0;
+/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 static time_t timerEnd = 0;
 static pthread_mutex_t  _lock = PTHREAD_MUTEX_INITIALIZER;
 #define LOCK() pthread_mutex_lock(&_lock)
@@ -88,6 +89,7 @@ static gboolean _onSleepTimerFire(void *)
     return FALSE;
 }
 
+/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 static IARM_Result_t _SetSleepTimer(void *arg)
 {
     IARM_Bus_PWRMgr_SleepTimer_Param_t *param = (IARM_Bus_PWRMgr_SleepTimer_Param_t *)arg;
@@ -119,6 +121,7 @@ static IARM_Result_t _SetSleepTimer(void *arg)
     return IARM_RESULT_IPCCORE_FAIL;
 }
 
+/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 static IARM_Result_t _GetSleepTimer(void *arg)
 {
     IARM_Bus_PWRMgr_SleepTimer_Param_t *param = (IARM_Bus_PWRMgr_SleepTimer_Param_t *)arg;

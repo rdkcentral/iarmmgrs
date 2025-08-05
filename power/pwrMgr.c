@@ -80,6 +80,24 @@ extern "C"
 /* For glib APIs*/
 #include <glib.h>
 
+#include <assert.h>
+#include <stdint.h>
+
+/* Check for Y2K38_SAFETY - Portable static assertion */
+#if defined(__cplusplus)
+#define STATIC_ASSERT(COND, MSG) static_assert(COND, #MSG)
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define STATIC_ASSERT(COND, MSG) _Static_assert(COND, #MSG)
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
+#else
+#define STATIC_ASSERT(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
+#endif
+
 #define PADDING_SIZE 32
 #define _UIMGR_SETTINGS_MAGIC 0xFEBEEFAC
 /*LED settings*/
@@ -152,6 +170,7 @@ static void _DumpSettings(const PWRMgr_Settings_t *pSettings);
 static PWRMgr_PowerState_t _ConvertUIDevToIARMBusPowerState(UIDev_PowerState_t powerState);
 static int ecm_connectivity_lost = 0;
 dsSleepMode_t  m_sleepMode = dsHOST_SLEEP_MODE_LIGHT;
+/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 time_t xre_timer; // Hack to fix DELIA-11393
 static bool deepSleepWakeup = false;
 static uint32_t pwrMode=0;
@@ -192,6 +211,7 @@ static uint32_t deep_sleep_wakeup_timeout_sec = 28800; //8*60*60 - 8 hours
 static uint8_t IsWakeupTimerSet = 0;
 static guint wakeup_event_src = 0;
 static guint dsleep_bootup_event_src = 0;
+/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 static time_t timeAtDeepSleep = 0;
 #endif  // END OF #ifdef ENABLE_DEEP_SLEEP
 
@@ -505,7 +525,7 @@ bool isInStandby()
 
 #endif
 
-
+/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 static gboolean heartbeatMsg(gpointer data)
 {
     time_t curr = 0;
@@ -1748,7 +1768,7 @@ static void InitializeTimeZone()
 /*  Get Wakeup timeout.
     Wakeup the box to do Maintenance related activities.
 */
-
+/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 static uint32_t getWakeupTime()
 {
     time_t now,wakeup;
