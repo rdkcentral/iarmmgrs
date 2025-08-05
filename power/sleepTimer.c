@@ -22,6 +22,11 @@
 #include <pthread.h>
 #include <time.h>
 
+#include <assert.h>
+#include <stdint.h>
+_Static_assert(sizeof(double) == 8, "Expected double to be 8 bytes");
+_Static_assert(sizeof(time_t) >= 8, "Y2K38 safety: time_t must be at least 64 bits");
+
 #include "libIBus.h"
 #include "pwrlogger.h"
 #include "pwrMgr.h"
@@ -125,4 +130,3 @@ void IARM_Bus_PWRMGR_RegisterSleepTimerAPIs(void *context)
     IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_SetSleepTimer, _SetSleepTimer);
     IARM_Bus_RegisterCall(IARM_BUS_PWRMGR_API_GetSleepTimer, _GetSleepTimer);
 }
-
