@@ -36,7 +36,7 @@ INCLUDES = -I=$(IARM) -I=$(IARM_MGR) \
 
 CC = $(CXX)
 
-AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+AM_CFLAGS = -std=c11 $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 
 bin_PROGRAMS = pwrMgrMain2
 
@@ -54,4 +54,3 @@ pwrMgrMain2_SOURCES = coldFactoryReset.c \
                       pwrMgrInternal.h \
                       pwrMgrHelper.cpp
 pwrMgrMain2_LDADD = -lds -ldshalcli -liarmmgrs-power-hal -lrfcapi
-

@@ -34,10 +34,9 @@ INCLUDES = -I=$(IARM) -I=$(IARM_MGR) \
 
 CC = $(CXX)
 
-AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+AM_CFLAGS = -std=c11 $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 
 bin_PROGRAMS = pwrstate_notifier
 
 pwrstate_notifier_SOURCES = pwrstate_notifier.c
 pwrstate_notifier_LDADD = -liarmmgrs-power-hal
-

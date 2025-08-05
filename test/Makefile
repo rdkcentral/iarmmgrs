@@ -17,7 +17,7 @@
 # limitations under the License.
 ##########################################################################
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+CFLAGS      := -std=c11 -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 
 INCLUDE     :=	-I.\
 		-I./include	\

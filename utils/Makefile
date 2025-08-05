@@ -17,7 +17,7 @@
 # limitations under the License.
 ##########################################################################
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+CFLAGS      := -std=c11 -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,rdkProfile.c)
 CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 LDFLAGS     += -shared
@@ -34,7 +34,7 @@ CFLAGS      += -DRDK_LOGGER_ENABLED
 CPPLAGS     += -DRDK_LOGGER_ENABLED
 endif
 
-CFLAGS      += $(INCLUDE) 
+CFLAGS      += $(INCLUDE)
 
 CFLAGS += $(_ENABLE_WAKEUP_KEY)
 CFLAGS += $(RF4CE_API)
@@ -50,7 +50,7 @@ all:clean objs library
 
 objs: $(OBJS)
 
-%.o: %.c 
+%.o: %.c
 	@echo "Building $@ ...."
 	$(CXX) -c $<  $(CFLAGS) -o $@
 

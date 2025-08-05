@@ -35,10 +35,9 @@ INCLUDES = -I . \
 
 CC = $(CXX)
 
-AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+AM_CFLAGS = -std=c11 $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 bin_PROGRAMS = dsMgrMain
 
 dsMgrMain_SOURCES = dsMgr.c  dsMgrInternal.h dsMgrMain.c
 dsMgrMain_SOURCES += dsMgrPwrEventListener.c dsMgrPwrEventListener.h dsMgrProductTraitsHandler.cpp dsMgrProductTraitsHandler.h dsMgrHelper.cpp
 dsMgrMain_LDADD = -L=/usr/lib -lds -ldshalsrv -lds-hal -ldshalcli  -lrfcapi
-

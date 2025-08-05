@@ -19,7 +19,7 @@
 #
 
 RM          := rm -rf
-CFLAGS      := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+CFLAGS      := -std=c11 -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 OBJS        := $(patsubst %.c,%.o,$(wildcard *.c))
 CPPLAGS     := -g -fPIC -D_REENTRANT -Wall -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 EXECUTABLE  := pwrstate_notifier

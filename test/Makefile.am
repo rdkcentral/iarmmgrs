@@ -30,7 +30,7 @@ INCLUDES = -I=$(IARM) -I=$(IARM_MGR) \
 
 CC = $(CXX)
 
-AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 $(CFLAGS_CLIENT) -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
+AM_CFLAGS = -std=c11 $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 $(CFLAGS_CLIENT) -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 
 bin_PROGRAMS = test_mode_change_client test_pwrMgr test_vrex_client test_sys_client
 

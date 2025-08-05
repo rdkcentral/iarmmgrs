@@ -37,6 +37,7 @@ AM_CPPFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=
 if IS_YOCTO_ENABLED
 AM_LDFLAGS = -lsecure_wrapper
 endif
+AM_CFLAGS = -std=c11 $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 -D_TIME_BITS=64 -D_FILE_OFFSET_BITS=64
 bin_PROGRAMS = deviceUpdateMgrMain
 
 deviceUpdateMgrMain_SOURCES = deviceUpdateMgrMain.cpp jsonParser.cpp utils.cpp jsonParser.h utils.h
