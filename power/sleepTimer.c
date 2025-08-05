@@ -21,16 +21,19 @@
 #include <stdio.h>
 #include <pthread.h>
 #include <time.h>
-
-
 #include <assert.h>
 #include <stdint.h>
-/* Generic portable static assertion macro for C */
-#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-_Static_assert(sizeof(double) == 8, "Expected double to be 8 bytes");
-_Static_assert(sizeof(time_t) >= 8, "Y2K38 safety: time_t must be at least 64 bits");
+/* Portable static assertion for C, C++ and C11+ */
+#if defined(__cplusplus)
+#define STATIC_ASSERT(COND, MSG) static_assert(COND, #MSG)
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define STATIC_ASSERT(COND, MSG) _Static_assert(COND, #MSG)
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
 #else
-#define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
+#define STATIC_ASSERT(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
 STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
 STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
 #endif
