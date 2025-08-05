@@ -348,7 +348,6 @@ static void setBGColor(dsVideoBackgroundColor_t color)
     vidPortParam.type = dsVIDEOPORT_TYPE_HDMI;
     vidPortParam.index = 0;
     _dsGetVideoPort(&vidPortParam);
-    vidPortParam.handle;
 
     if(vidPortParam.handle != NULL)
     {
