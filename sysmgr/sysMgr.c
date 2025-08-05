@@ -362,6 +362,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 			case   IARM_BUS_SYSMGR_SYSSTATE_MOTO_HRV_RX :
 				systemStates.card_moto_hrv_rx.state = state;
 				systemStates.card_moto_hrv_rx.error = error;
+				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_DAC_INIT_TIMESTAMP :
 				systemStates.dac_init_timestamp.state = state;
 				systemStates.dac_init_timestamp.error = error;
