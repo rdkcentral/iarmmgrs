@@ -82,7 +82,7 @@ int main()
 			case 'w':
 				sysModeParam.oldMode = currentMode;
 				sysModeParam.newMode = IARM_BUS_SYS_MODE_WAREHOUSE;
-				IARM_Bus_Call(IARM_BUS_DAEMON_NAME,
+				if (IARM_Bus_Call(IARM_BUS_DAEMON_NAME,
                 			IARM_BUS_DAEMON_API_SysModeChange,
                 			&sysModeParam,
                 			sizeof(sysModeParam)) != IARM_RESULT_SUCCESS) {
