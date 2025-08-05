@@ -25,9 +25,15 @@
 
 #include <assert.h>
 #include <stdint.h>
-/* Portable static assertions for C89/C99/C11 */
-typedef char static_assert_double_size[(sizeof(double) == 8) ? 1 : -1];
-typedef char static_assert_time_t_size[(sizeof(time_t) >= 8) ? 1 : -1];
+/* Generic portable static assertion macro for C */
+#if defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+_Static_assert(sizeof(double) == 8, "Expected double to be 8 bytes");
+_Static_assert(sizeof(time_t) >= 8, "Y2K38 safety: time_t must be at least 64 bits");
+#else
+#define STATIC_ASSERT(COND,MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
+#endif
 
 #include "libIBus.h"
 #include "pwrlogger.h"
