@@ -107,17 +107,17 @@ int main()
 
     if (IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME,  IARM_BUS_PWRMGR_EVENT_DEEPSLEEP_TIMEOUT, _eventHandler) != IARM_RESULT_SUCCESS) {
 	    printf("Error IARM_Bus_RegisterEventHandler failed for IARM_BUS_PWRMGR_EVENT_DEEPSLEEP_TIMEOUT\n");
-	    retrun -1;
+	    return -1;
     }
 #ifdef ENABLE_THERMAL_PROTECTION
     if (IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME, IARM_BUS_PWRMGR_EVENT_THERMAL_MODECHANGED, _eventHandler) != IARM_RESULT_SUCCESS) {
 	    printf("Error IARM_Bus_RegisterEventHandler failed for IARM_BUS_PWRMGR_EVENT_THERMAL_MODECHANGED\n");
-	    retrun -1;
+	    return -1;
     }
 #endif
     if (IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME,  IARM_BUS_PWRMGR_EVENT_MODECHANGED, _eventHandler) != IARM_RESULT_SUCCESS) {
 	    printf("Error IARM_Bus_RegisterEventHandler failed for IARM_BUS_PWRMGR_EVENT_MODECHANGED\n");
-	    retrun -1;
+	    return -1;
     }
 
     do{
