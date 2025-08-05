@@ -133,19 +133,33 @@ IARM_Result_t DSMgr_Start()
 {
 	FILE *fDSCtrptr = NULL;
 	IARM_Bus_SYSMgr_GetSystemStates_Param_t tuneReadyParam;
-
+	IARM_Result_t iarmStatus;
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
     INT_INFO("Entering [%s] - [%s] - disabling io redirect buf \r\n", __FUNCTION__, IARM_BUS_DSMGR_NAME);
 	
 	/* Register with IARM Libs and Connect */
-	IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
-    IARM_Bus_Connect();
-	IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
-
+	iarmStatus = IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to initialize IARM Bus for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
+	iarmStatus = IARM_Bus_Connect();
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to connect IARM Bus for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
+	iarmStatus = IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
 	/*Initialize the DS Manager - DS Srv and DS HAL */
-	dsMgr_init();
-	  
+	iarmStatus = dsMgr_init();
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to initialize DS Manager for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
 	iInitResnFlag = 1;
         dsEdidIgnoreParam_t ignoreEdidParam;
         memset(&ignoreEdidParam,0,sizeof(ignoreEdidParam));
@@ -154,12 +168,27 @@ IARM_Result_t DSMgr_Start()
 	IsIgnoreEdid_gs = ignoreEdidParam.ignoreEDID;
 	INT_INFO("ResOverride DSMgr_Start IsIgnoreEdid_gs: %d\n", IsIgnoreEdid_gs);
 	/*Register the Events */
-	IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME,IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,_EventHandler);
-	IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG,_EventHandler);
-	IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS,_EventHandler);
-
+	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME,IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,_EventHandler);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
+		return iarmStatus;
+	}
+	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG,_EventHandler);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
+	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS,_EventHandler);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
 	/*Register EAS handler so that we can ensure audio settings for EAS */
-	IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
+	iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_COMMON_API_SysModeChange);
+		return iarmStatus;
+	}
 
         /*Refactored dsMGR code*/
        PowerController_Init();
@@ -168,9 +197,14 @@ IARM_Result_t DSMgr_Start()
         initPwrEventListner();   
 	/* Create  Thread for listening Hot Plug events */
 	pthread_mutex_init (&tdsMutexLock, NULL);
-	pthread_cond_init (&tdsMutexCond, NULL);
-	pthread_create (&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL);
-			
+	if (pthread_cond_init(&tdsMutexCond, NULL) != 0) {
+		INT_ERROR("Failed to create pthread_cond_init tdsMutexCond.");
+		return IARM_RESULT_IPCCORE_FAIL;
+	}
+	if (pthread_create(&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL) != 0) {
+		INT_ERROR("Failed pthread_create _DSMgrResnThreadFunc.");
+		return IARM_RESULT_IPCCORE_FAIL;
+	}
 	/* Read the HDMI DDC Line delay to be introduced 
 	 * for setting  the resolution
 	 * The DDC line is used for EDID and HDCP Negotiation
@@ -186,8 +220,11 @@ IARM_Result_t DSMgr_Start()
 	}
 	INT_DEBUG("Retry DS manager Resolution count is iResnCount = %d \r\n",iResnCount);
 
-
-	IARM_Bus_Call(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_API_GetSystemStates, &tuneReadyParam, sizeof(tuneReadyParam));
+	iarmStatus = IARM_Bus_Call(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_API_GetSystemStates, &tuneReadyParam, sizeof(tuneReadyParam));
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to get Tune Ready status for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
+		return iarmStatus;
+	}
 	INT_INFO("Tune Ready Status on start up is %d \r\n",tuneReadyParam.TuneReadyStatus.state);
     
 	/* Read the Tune Ready status on startup  and update the tune ready flag */
@@ -232,18 +269,26 @@ static gboolean heartbeatMsg(gpointer data)
 
 IARM_Result_t DSMgr_Stop()
 {
-    
-	if(dsMgr_Gloop)
-    { 
+    IARM_Result_t iarmStatus = IARM_RESULT_SUCCESS;
+    if(dsMgr_Gloop)
+    {
         g_main_loop_quit(dsMgr_Gloop);
     }
     dsMgrDeinitPwrControllerEvt();
     PowerController_Term();
-    IARM_Bus_Disconnect();
-    IARM_Bus_Term();
-	pthread_mutex_destroy (&tdsMutexLock);
-	pthread_cond_destroy  (&tdsMutexCond);
-	
+    iarmStatus = IARM_Bus_Disconnect();
+    if (IARM_RESULT_SUCCESS != iarmStatus) {
+        INT_ERROR("DSMgr_Stop: Failed to disconnect IARM Bus\r\n");
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_Term();
+    if (IARM_RESULT_SUCCESS != iarmStatus) {
+        INT_ERROR("DSMgr_Stop: Failed to terminate IARM Bus\r\n");
+        return iarmStatus;
+    }
+    pthread_mutex_destroy (&tdsMutexLock);
+    pthread_cond_destroy  (&tdsMutexCond);
+
     return IARM_RESULT_SUCCESS;
 }
 
@@ -301,7 +346,6 @@ static void setBGColor(dsVideoBackgroundColor_t color)
     vidPortParam.type = dsVIDEOPORT_TYPE_HDMI;
     vidPortParam.index = 0;
     _dsGetVideoPort(&vidPortParam);
-    vidPortParam.handle;
 
     if(vidPortParam.handle != NULL)
     {
@@ -411,8 +455,10 @@ static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                                                 g_timeout_add_seconds((guint)1,dumpEdidOnChecksumDiff,NULL);
 					}
 
-					IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t) IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, (void *)&HDCPeventData, sizeof(HDCPeventData));
-					
+					if (IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+								(void *)&HDCPeventData, sizeof(HDCPeventData)) != IARM_RESULT_SUCCESS) {
+						INT_ERROR("Failed to broadcast HDCP status for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
+					}
 				}
                 break;	
 			default:
@@ -969,19 +1015,17 @@ static void dumpHdmiEdidInfo(dsDisplayEDID_t* pedidData)
 {
 	INT_DEBUG("Connected HDMI Display Device Info !!!!!\r\n");
 
-	if (NULL == pedidData) {
-		INT_INFO("Received EDID is NULL \r\n");
-		return;
-	}    
-
-	if(pedidData->monitorName)
+	if ((NULL != pedidData) && (pedidData->monitorName)) {
 	INT_DEBUG("HDMI  Monitor Name is %s \r\n",pedidData->monitorName);
 	INT_DEBUG("HDMI  Manufacturing ID is %d \r\n",pedidData->serialNumber);
 	INT_DEBUG("HDMI  Product Code is %d \r\n",pedidData->productCode);
-	INT_DEBUG("HDMI  Device Type is  %s \r\n",pedidData->hdmiDeviceType?"HDMI":"DVI");
+	INT_DEBUG("HDMI  Device Type is  %s \r\n", (pedidData->hdmiDeviceType == true)?"HDMI":"DVI");
 	INT_DEBUG("HDMI  Sink Device %s a Repeater \r\n",pedidData->isRepeater?"is":"is not");
 	INT_DEBUG("HDMI  Physical Address is %d:%d:%d:%d \r\n",pedidData->physicalAddressA,
 			pedidData->physicalAddressB,pedidData->physicalAddressC,pedidData->physicalAddressD);
+	} else {
+		INT_INFO("Received EDID is NULL or pedidData->monitorName is NULL\r\n");
+	}
 }
 
 

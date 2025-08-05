@@ -275,6 +275,7 @@ bool loadConfig()
      			if (0 >= fread(buf, 1, sizeof(buf) - 1, fp))   //cID:86017 - checked return
                         {
 			    INT_LOG("dumMgr fread failed  \n");
+			    break; // stop since fread is error.
                         }
                         else
                         {

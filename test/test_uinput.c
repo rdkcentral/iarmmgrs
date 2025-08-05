@@ -17,6 +17,15 @@
  * limitations under the License.
 */
 #include <linux/input.h>
+
+// Handle struct input_event time fields for both legacy and -D_TIME_BITS=64 glibc
+#if defined(__GLIBC__) && defined(_TIME_BITS) && _TIME_BITS == 64
+#define EV_TIME_SEC(ev)   ((ev).__sec)
+#define EV_TIME_USEC(ev)  ((ev).__usec)
+#else
+#define EV_TIME_SEC(ev)   ((ev).time.tv_sec)
+#define EV_TIME_USEC(ev)  ((ev).time.tv_usec)
+#endif
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -38,25 +47,25 @@ int main(int argc, char *argv[])
         struct input_event ev;
         const int count = sizeof(ev);
         while(1) {
-            bzero(&ev, count);
+	    memset(&ev, 0, count);
             int ret = read(fd, &ev, count);
             if (ret == count) {
                 printf("Getting input [%ld.%ld] - %d %d %d\r\n",
-                                ev.time.tv_sec, ev.time.tv_usec,
+                                (long)EV_TIME_SEC(ev), (long)EV_TIME_USEC(ev),
                                 ev.type,
                                 ev.code,
                                 ev.value);
                 if (ev.type == EV_KEY) {
                     if (ev.value >= 0 && ev.value <=2) {
                         printf("[%ld].[%ld] : Key [%d] [%s]\r\n",
-                                ev.time.tv_sec, ev.time.tv_usec,
+                                (long)EV_TIME_SEC(ev), (long)EV_TIME_USEC(ev),
                                 ev.code,
                                 (ev.value == 1) ? "+++++PRESSED" : ((ev.value == 0) ? "=====Release" : "......."));
                     }
                 }
                 else if (ev.type == EV_SYN) {
                     printf("[%ld].[%ld] : SYN [%s]\r\n",
-                                ev.time.tv_sec, ev.time.tv_usec,
+                                (long)EV_TIME_SEC(ev), (long)EV_TIME_USEC(ev),
                                 (ev.value == SYN_REPORT) ? "SYN_REPORT" : "SYN_OTHER");
                 }
             }

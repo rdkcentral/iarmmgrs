@@ -105,12 +105,21 @@ int main()
         }
     }while(0);
 
-    IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME,  IARM_BUS_PWRMGR_EVENT_DEEPSLEEP_TIMEOUT, _eventHandler);
+    if (IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME,  IARM_BUS_PWRMGR_EVENT_DEEPSLEEP_TIMEOUT, _eventHandler) != IARM_RESULT_SUCCESS) {
+	    printf("Error IARM_Bus_RegisterEventHandler failed for IARM_BUS_PWRMGR_EVENT_DEEPSLEEP_TIMEOUT\n");
+	    return -1;
+    }
 #ifdef ENABLE_THERMAL_PROTECTION
-    IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME, IARM_BUS_PWRMGR_EVENT_THERMAL_MODECHANGED , _eventHandler);
-#endif    
-    IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME,  IARM_BUS_PWRMGR_EVENT_MODECHANGED, _eventHandler);
-    
+    if (IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME, IARM_BUS_PWRMGR_EVENT_THERMAL_MODECHANGED, _eventHandler) != IARM_RESULT_SUCCESS) {
+	    printf("Error IARM_Bus_RegisterEventHandler failed for IARM_BUS_PWRMGR_EVENT_THERMAL_MODECHANGED\n");
+	    return -1;
+    }
+#endif
+    if (IARM_Bus_RegisterEventHandler(IARM_BUS_PWRMGR_NAME,  IARM_BUS_PWRMGR_EVENT_MODECHANGED, _eventHandler) != IARM_RESULT_SUCCESS) {
+	    printf("Error IARM_Bus_RegisterEventHandler failed for IARM_BUS_PWRMGR_EVENT_MODECHANGED\n");
+	    return -1;
+    }
+
     do{
         printf("Enter command..\n");
         printf("c - check power status\n");
@@ -134,7 +143,10 @@ int main()
             {
                 IARM_Bus_PWRMgr_SetDeepSleepTimeOut_Param_t param;
                 printf("Enter time out \n :");
-                scanf("%d",&timeOut);
+		if (scanf("%d",&timeOut) != 1) {
+		    printf("Error in scanf input, retry.\n");
+		    break;
+		}
                 param.timeout = timeOut;
                 err = IARM_Bus_Call(IARM_BUS_PWRMGR_NAME,
                             IARM_BUS_PWRMGR_API_SetDeepSleepTimeOut,
@@ -164,10 +176,16 @@ int main()
                 IARM_Bus_PWRMgr_SetTempThresholds_Param_t param;
                int temperature;
                 printf("Enter high temperature level \n :");
-                scanf("%d",&temperature);
+		if (scanf("%d",&temperature) != 1) {
+		    printf("Error in scanf input, retry.\n");
+		    break;
+		}
                 param.tempHigh = temperature;
                 printf("Enter critical temperature level \n :");
-                scanf("%d",&temperature);
+		if (scanf("%d",&temperature) != 1) {
+		    printf("Error in scanf input, retry.\n");
+		    break;
+		}
                 param.tempCritical = temperature;
 
                 err = IARM_Bus_Call(IARM_BUS_PWRMGR_NAME,

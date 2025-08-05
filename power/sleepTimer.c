@@ -20,6 +20,25 @@
 #include <glib.h>
 #include <stdio.h>
 #include <pthread.h>
+#include <time.h>
+#include <assert.h>
+#include <stdint.h>
+
+/* Check for Y2K38_SAFETY - Portable static assertion */
+#if defined(__cplusplus)
+#define STATIC_ASSERT(COND, MSG) static_assert(COND, #MSG)
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
+#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
+#define STATIC_ASSERT(COND, MSG) _Static_assert(COND, #MSG)
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
+#else
+#define STATIC_ASSERT(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
+STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
+STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
+#endif
+
 #include "libIBus.h"
 #include "pwrlogger.h"
 #include "pwrMgr.h"

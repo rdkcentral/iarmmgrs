@@ -39,7 +39,7 @@
 int main()
 {
 	IARM_Bus_MFRLib_GetSerializedData_Param_t *param;
-	IARM_Result_t ret;
+	IARM_Result_t ret = IARM_RESULT_IPCCORE_FAIL;
 	char *pTmpStr;
 	int len; 
 #ifdef MFR_TEMP_CLOCK_READ
@@ -65,7 +65,7 @@ int main()
 		{
 			iarm_result = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME, IARM_BUS_MFRLIB_API_GetTemperature, (void *)thermalSoCTemp, sizeof(IARM_Bus_MFRLib_ThermalSoCTemp_Param_t));
 
-			if(ret == IARM_RESULT_SUCCESS)
+			if(iarm_result == IARM_RESULT_SUCCESS)
 			{
 				state = thermalSoCTemp->curState;
 				temperatureValue = thermalSoCTemp->curSoCTemperature;
