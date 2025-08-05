@@ -583,8 +583,10 @@ void GetSerialNumber(void)
     IARM_Bus_MFRLib_GetSerializedData_Param_t param;
     IARM_Result_t iarm_ret = IARM_RESULT_IPCCORE_FAIL;
 
+    pthread_mutex_lock(&tMutexLock);
     if(strlen(systemStates.stb_serial_no.payload) > 0)
     {
+        pthread_mutex_unlock(&tMutexLock);
         return;
     }
 
@@ -593,7 +595,6 @@ void GetSerialNumber(void)
     iarm_ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME, IARM_BUS_MFRLIB_API_GetSerializedData, &param, sizeof(param));
     param.buffer[param.bufLen] = '\0';
 
-    pthread_mutex_lock(&tMutexLock);
     if(iarm_ret == IARM_RESULT_SUCCESS)
     {
         memset(systemStates.stb_serial_no.payload, 0, sizeof(systemStates.stb_serial_no.payload));
