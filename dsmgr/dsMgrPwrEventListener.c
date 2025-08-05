@@ -534,7 +534,7 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
         param->result = -1;
         return IARM_RESULT_SUCCESS;
     }
-    param->isEnabled = ((true == get_video_port_standby_setting(param->port))? 1 : 0);
+    param->isEnabled = (get_video_port_standby_setting(param->port) ? 1 : 0);
     param->result = 0;
     return IARM_RESULT_SUCCESS;
 }
