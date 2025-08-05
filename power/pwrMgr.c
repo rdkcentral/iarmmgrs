@@ -30,6 +30,7 @@
 #include <stdio.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <limits.h>
 #include <stdint.h>
 #include <unistd.h>
 #include <string.h>
@@ -1418,7 +1419,7 @@ static int _InitSettings(const char *settingsFile)
                     LOG("PowerState is already sync'd with hardware to %d\r\n", state);
                 }
                 else {
-                    LOG(" \n PowerState before sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);                      
+                    LOG(" \n PowerState before sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);
                     ret = PLAT_API_SetPowerState((PWRMgr_PowerState_t)pSettings->powerState);
                     PLAT_API_GetPowerState((PWRMgr_PowerState_t*)&state);
                     LOG(" \n PowerState after sync hardware state %d with UIMGR to %d\r\n", state, pSettings->powerState);
@@ -1820,13 +1821,23 @@ static uint32_t getWakeupTime()
     } else {
         randTimeInSec = 0; // fallback
     }
-    wakeupTimeInSec  = wakeupTimeInSec + randTimeInSec;
-//printf ("randTimeInSec is  : %d sec \r\n", randTimeInSec);
+    // Prevent integer overflow when adding random offset
+    if ((int64_t)wakeupTimeInSec > INT64_MAX - (int64_t)randTimeInSec) {
+        wakeupTimeInSec = INT64_MAX;
+    } else {
+        wakeupTimeInSec += randTimeInSec;
+    }
+    //printf ("randTimeInSec is  : %d sec \r\n", randTimeInSec);
 
     __TIMESTAMP();
     LOG("Calculated Deep Sleep Wakeup Time Before TZ setting is %d Sec \r\n", wakeupTimeInSec);
     getTZDiffTime = getTZDiffInSec();
-    wakeupTimeInSec = wakeupTimeInSec + getTZDiffTime;
+    // Prevent integer overflow when adding TZ diff
+    if ((int64_t)wakeupTimeInSec > INT64_MAX - (int64_t)getTZDiffTime) {
+        wakeupTimeInSec = INT64_MAX;
+    } else {
+        wakeupTimeInSec += getTZDiffTime;
+    }
     __TIMESTAMP();
     LOG("Calculated Deep Sleep Wakeup Time After TZ setting is %d Sec \r\n", wakeupTimeInSec);
 
