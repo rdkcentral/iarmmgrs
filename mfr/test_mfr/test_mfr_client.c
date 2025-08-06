@@ -38,24 +38,30 @@
 
 int main()
 {
-	IARM_Bus_MFRLib_GetSerializedData_Param_t *param;
+	IARM_Bus_MFRLib_GetSerializedData_Param_t *param = NULL;
 	IARM_Result_t ret = IARM_RESULT_IPCCORE_FAIL;
-	char *pTmpStr;
-	int len; 
+	char *pTmpStr = NULL;
+	int len = 0;
 #ifdef MFR_TEMP_CLOCK_READ
-        IARM_Bus_MFRLib_CurThermalState_t state;
+        IARM_Bus_MFRLib_CurThermalState_t state = 0;
         IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *thermalSoCTemp = NULL;
         IARM_Bus_MFRLib_ThermalSoCFreq_Param_t *thermalSoCFreq = NULL;
         IARM_Result_t iarm_result = IARM_RESULT_IPCCORE_FAIL;
-        int temperatureValue, wifiTempValue;
-        float tempHigh, tempCritical;
-        uint32_t cpu_clock_Normal ,cpu_clock_Scaled ,cpu_clock_Minimal ,clock_speed;
+        int temperatureValue = 0, wifiTempValue = 0;
+        float tempHigh = 0.0, tempCritical = 0.0;
+        uint32_t cpu_clock_Normal = 0, cpu_clock_Scaled = 0, cpu_clock_Minimal = 0, clock_speed = 0;
 #endif
 	printf("mfrClient Entering %d\r\n", getpid());
-	IARM_Bus_Init("mfrClient");
+	if (IARM_Bus_Init("mfrClient") != IARM_RESULT_SUCCESS) {
+		printf("mfrClient: IARM_Bus_Init failed.");
+		return 0;
+	}
 	int i = 0;
 	errno_t safec_rc = -1;
-	IARM_Bus_Connect();
+	if (IARM_Bus_Connect() != IARM_RESULT_SUCCESS) {
+		printf("mfrClient: IARM_Bus_Connect failed.");
+		return 0;
+	}
 
 	do{
 
@@ -83,6 +89,7 @@ int main()
 			printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_GetTemperature");
 		}
 
+		thermalSoCTemp = NULL;
 		iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCTemp_Param_t), (void**)&thermalSoCTemp);
 		if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCTemp)
 		{
@@ -105,6 +112,7 @@ int main()
 			printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_GetTemperatureThresholds");
 		}
 
+		thermalSoCTemp = NULL;
 		iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCTemp_Param_t), (void**)&thermalSoCTemp);
 		if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCTemp)
 		{
@@ -128,6 +136,7 @@ int main()
 			printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_SetTemperatureThresholds");
 		}
 
+		thermalSoCTemp = NULL;
 		iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCTemp_Param_t), (void**)&thermalSoCTemp);
 		if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCTemp)
 		{
@@ -150,6 +159,7 @@ int main()
 			printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_GetTemperatureThresholds");
 		}
 
+		thermalSoCTemp = NULL;
 		iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCTemp_Param_t), (void**)&thermalSoCTemp);
 		if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCTemp)
 		{
@@ -173,6 +183,7 @@ int main()
 			printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_SetTemperatureThresholds");
 		}
 
+		thermalSoCFreq = NULL;
 		iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCFreq_Param_t), (void**)&thermalSoCFreq);
 		if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCFreq)
 		{
@@ -197,6 +208,7 @@ int main()
 			printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_SearchCPUClockSpeeds");
 		}
 
+		thermalSoCFreq = NULL;
                 iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCFreq_Param_t), (void**)&thermalSoCFreq);
                 if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCFreq)
                 {
@@ -218,6 +230,7 @@ int main()
                     printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_GetCPUClockSpeed");
                 }
 
+		thermalSoCFreq = NULL;
 		iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCFreq_Param_t), (void**)&thermalSoCFreq);
 		if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCFreq)
 		{
@@ -240,6 +253,7 @@ int main()
 			printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_SetCPUClockSpeed");
 		}
 
+		thermalSoCFreq = NULL;
 		iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCFreq_Param_t), (void**)&thermalSoCFreq);
 		if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCFreq)
 		{
@@ -261,6 +275,7 @@ int main()
                         printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_GetCPUClockSpeed");
                 }
 
+		thermalSoCFreq = NULL;
                  iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCFreq_Param_t), (void**)&thermalSoCFreq);
                  if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCFreq)
                  {
@@ -433,7 +448,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s \n","mfrSERIALIZED_TYPE_MANUFACTURER",ret, pTmpStr);
@@ -462,7 +477,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s \n","mfrSERIALIZED_TYPE_MANUFACTUREROUI",ret,pTmpStr);
@@ -490,7 +505,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s\n","mfrSERIALIZED_TYPE_MODELNAME",ret,pTmpStr);
@@ -519,7 +534,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s \n","mfrSERIALIZED_TYPE_DESCRIPTION",ret,pTmpStr);
@@ -547,7 +562,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s\n","mfrSERIALIZED_TYPE_PRODUCTCLASS",ret,pTmpStr);
@@ -575,7 +590,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s\n","mfrSERIALIZED_TYPE_SERIALNUMBER",ret,pTmpStr);
@@ -604,7 +619,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s\n","mfrSERIALIZED_TYPE_HARDWAREVERSION",ret,pTmpStr);
@@ -632,7 +647,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s \n","mfrSERIALIZED_TYPE_SOFTWAREVERSION",ret,pTmpStr);
@@ -660,7 +675,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s \n","mfrSERIALIZED_TYPE_PROVISIONINGCODE",ret,pTmpStr);
@@ -688,7 +703,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::%s \n","mfrSERIALIZED_TYPE_FIRSTUSEDATE",ret, pTmpStr);
@@ -716,7 +731,7 @@ int main()
 			{
 				ERR_CHK(safec_rc);
 				free(pTmpStr);
-				continue;
+				break;
 			}
 
 			printf("%s returned (%d)::[%s]\r\n","mfrSERIALIZED_TYPE_PDRIVERSION",ret, pTmpStr);
@@ -726,8 +741,12 @@ int main()
 
 	}while(0);
 
-	IARM_Bus_Disconnect();
-	IARM_Bus_Term();
+	if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+		printf("Client: IARM_Bus_Disconnect failed.\n");
+	}
+	if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+		printf("Client: IARM_Bus_Term failed.\n");
+	}
 	printf("Client Exiting\r\n");
 }
 
