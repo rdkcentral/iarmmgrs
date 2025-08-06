@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -46,22 +45,6 @@
 #include <assert.h>
 #ifdef ENABLE_SD_NOTIFY
 #include <systemd/sd-daemon.h>
-#endif
-
-#include <stdint.h>
-/* Portable static assertion for C, C++ and C11+ */
-#if defined(__cplusplus)
-#define STATIC_ASSERT(COND, MSG) static_assert(COND, #MSG)
-STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
-STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#define STATIC_ASSERT(COND, MSG) _Static_assert(COND, #MSG)
-STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
-STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
-#else
-#define STATIC_ASSERT(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
-STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
-STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
 #endif
 
 #define CHECK_AND_RETURN_ERROR(call) \
@@ -189,13 +172,7 @@ IARM_Result_t SYSMgr_Loop()
 {
     while(1)
     {
-        struct timeval tv;
-        struct tm tm_info;
-        char buf[64] = {'\0'};
-        gettimeofday(&tv, NULL);
-        localtime_r(&tv.tv_sec, &tm_info);
-        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_info);
-        LOG("I-ARM Sys Mgr: HeartBeat at %s.%06ld\r\n", buf, (long)tv.tv_usec);
+        LOG("I-ARM Sys Mgr: HeartBeat ping.\r\n");
         sleep(2000);
     }
     return IARM_RESULT_SUCCESS;

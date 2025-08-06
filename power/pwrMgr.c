@@ -170,7 +170,6 @@ static void _DumpSettings(const PWRMgr_Settings_t *pSettings);
 static PWRMgr_PowerState_t _ConvertUIDevToIARMBusPowerState(UIDev_PowerState_t powerState);
 static int ecm_connectivity_lost = 0;
 dsSleepMode_t  m_sleepMode = dsHOST_SLEEP_MODE_LIGHT;
-/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 time_t xre_timer; // Hack to fix DELIA-11393
 static bool deepSleepWakeup = false;
 static uint32_t pwrMode=0;
@@ -211,7 +210,6 @@ static uint32_t deep_sleep_wakeup_timeout_sec = 28800; //8*60*60 - 8 hours
 static uint8_t IsWakeupTimerSet = 0;
 static guint wakeup_event_src = 0;
 static guint dsleep_bootup_event_src = 0;
-/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 static time_t timeAtDeepSleep = 0;
 #endif  // END OF #ifdef ENABLE_DEEP_SLEEP
 
@@ -528,13 +526,7 @@ bool isInStandby()
 /* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 static gboolean heartbeatMsg(gpointer data)
 {
-    struct timeval tv;
-    struct tm tm_info;
-    char buf[64] = {'\0'};
-    gettimeofday(&tv, NULL);
-    localtime_r(&tv.tv_sec, &tm_info);
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_info);
-    LOG("I-ARM POWER Mgr: HeartBeat at %s.%06ld\r\n", buf, (long)tv.tv_usec);
+    LOG("I-ARM POWER Mgr: HeartBeat ping.\r\n");
 
 #ifdef OFFLINE_MAINT_REBOOT
     if (!rfcUpdated)

@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -261,13 +260,7 @@ IARM_Result_t DSMgr_Loop()
 
 static gboolean heartbeatMsg(gpointer data)
 {
-    struct timeval tv;
-    struct tm tm_info;
-    char buf[64] = {'\0'};
-    gettimeofday(&tv, NULL);
-    localtime_r(&tv.tv_sec, &tm_info);
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_info);
-    INT_INFO("I-ARM BUS DS Mgr: HeartBeat at %s.%06ld\r\n", buf, (long)tv.tv_usec);
+    INT_INFO("I-ARM BUS DS Mgr: HeartBeat ping.\r\n");
     return TRUE;
 }
 
