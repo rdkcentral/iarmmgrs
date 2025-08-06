@@ -83,6 +83,7 @@ IARM_Result_t SYSMgr_Start()
 	LOG("Entering [%s] - [%s] - disabling io redirect buf\r\n", __FUNCTION__, IARM_BUS_SYSMGR_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 
+    pthread_mutex_lock(&tMutexLock);
     if (!initialized) {
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
         CHECK_AND_RETURN_ERROR(IARM_Bus_Init(IARM_BUS_SYSMGR_NAME));
