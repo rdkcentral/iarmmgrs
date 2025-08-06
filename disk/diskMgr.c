@@ -55,13 +55,7 @@ IARM_Result_t DISKMgr_Loop()
 {
     while(1)
     {
-        struct timeval tv;
-        struct tm tm_info;
-        char buf[64] = {'\0'};
-        gettimeofday(&tv, NULL);
-        localtime_r(&tv.tv_sec, &tm_info);
-        strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_info);
-        LOG("I-ARM Disk Mgr: HeartBeat at %s.%06ld\r\n", buf, (long)tv.tv_usec);
+        LOG("I-ARM Disk Mgr: HeartBeat ping.\r\n");
         sleep(2000);
     }
     return IARM_RESULT_SUCCESS;
