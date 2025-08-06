@@ -50,22 +50,22 @@ int main(int argc, char *argv[])
 	    memset(&ev, 0, count);
             int ret = read(fd, &ev, count);
             if (ret == count) {
-                printf("Getting input [%ld.%ld] - %d %d %d\r\n",
-                                (long)EV_TIME_SEC(ev), (long)EV_TIME_USEC(ev),
+                printf("Getting input [%lu.%lu] - %d %d %d\r\n",
+                                (unsigned long)EV_TIME_SEC(ev), (unsigned long)EV_TIME_USEC(ev),
                                 ev.type,
                                 ev.code,
                                 ev.value);
                 if (ev.type == EV_KEY) {
                     if (ev.value >= 0 && ev.value <=2) {
-                        printf("[%ld].[%ld] : Key [%d] [%s]\r\n",
-                                (long)EV_TIME_SEC(ev), (long)EV_TIME_USEC(ev),
+                        printf("[%lu].[%lu] : Key [%d] [%s]\r\n",
+                                (unsigned long)EV_TIME_SEC(ev), (unsigned long)EV_TIME_USEC(ev),
                                 ev.code,
                                 (ev.value == 1) ? "+++++PRESSED" : ((ev.value == 0) ? "=====Release" : "......."));
                     }
                 }
                 else if (ev.type == EV_SYN) {
-                    printf("[%ld].[%ld] : SYN [%s]\r\n",
-                                (long)EV_TIME_SEC(ev), (long)EV_TIME_USEC(ev),
+                    printf("[%lu].[%lu] : SYN [%s]\r\n",
+                                (unsigned long)EV_TIME_SEC(ev), (unsigned long)EV_TIME_USEC(ev),
                                 (ev.value == SYN_REPORT) ? "SYN_REPORT" : "SYN_OTHER");
                 }
             }
