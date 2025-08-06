@@ -43,7 +43,7 @@ int main()
 	char *pTmpStr = NULL;
 	int len = 0;
 #ifdef MFR_TEMP_CLOCK_READ
-        IARM_Bus_MFRLib_CurThermalState_t state = 0;
+        IARM_Bus_MFRLib_CurThermalState_t state = IARM_BUS_TEMPERATURE_NORMAL;
         IARM_Bus_MFRLib_ThermalSoCTemp_Param_t *thermalSoCTemp = NULL;
         IARM_Bus_MFRLib_ThermalSoCFreq_Param_t *thermalSoCFreq = NULL;
         IARM_Result_t iarm_result = IARM_RESULT_IPCCORE_FAIL;
@@ -56,7 +56,6 @@ int main()
 		printf("mfrClient: IARM_Bus_Init failed.");
 		return 0;
 	}
-	int i = 0;
 	errno_t safec_rc = -1;
 	if (IARM_Bus_Connect() != IARM_RESULT_SUCCESS) {
 		printf("mfrClient: IARM_Bus_Connect failed.");
