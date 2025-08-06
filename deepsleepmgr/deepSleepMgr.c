@@ -188,13 +188,7 @@ IARM_Result_t DeepSleepMgr_Stop(void)
 
 static gboolean heartbeatMsg(gpointer data)
 {
-    struct timeval tv;
-    struct tm tm_info;
-    char buf[64] = {'\0'};
-    gettimeofday(&tv, NULL);
-    localtime_r(&tv.tv_sec, &tm_info);
-    strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_info);
-    LOG("I-ARM Deep Sleep Mgr: HeartBeat at %s.%06ld\r\n", buf, (long)tv.tv_usec);
+    LOG("I-ARM Deep Sleep Mgr: HeartBeat ping.\r\n");
     return TRUE;
 }
 

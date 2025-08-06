@@ -65,16 +65,9 @@ IARM_Result_t MFRLib_Stop(void)
 
 IARM_Result_t MFRLib_Loop()
 {
-    struct timeval tv;
-    struct tm tm_info;
-    char buf[64] = {'\0'};
-
     while(1)
     {
-        gettimeofday(&tv, NULL);
-	localtime_r(&tv.tv_sec, &tm_info);
-	strftime(buf, sizeof(buf), "%Y-%m-%d %H:%M:%S", &tm_info);
-	printf("I-ARM MFR Lib: HeartBeat at %s.%06ld\r\n", buf, (long)tv.tv_usec);
+	printf("I-ARM MFR Lib: HeartBeat ping.\r\n");
         sleep(60);
     }
     return IARM_RESULT_SUCCESS;
