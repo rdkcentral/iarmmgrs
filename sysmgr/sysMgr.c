@@ -168,7 +168,6 @@ IARM_Result_t SYSMgr_Start()
     return retStatus;
 }
 
-/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 IARM_Result_t SYSMgr_Loop()
 {
     while(1)
