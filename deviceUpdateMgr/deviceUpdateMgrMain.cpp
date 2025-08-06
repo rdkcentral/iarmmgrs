@@ -83,7 +83,7 @@ extern "C"
 {
 #ifdef YOCTO_BUILD
 #include "secure_wrapper.h"
-#endif  
+#endif
 bool loadConfig();
 pthread_mutex_t tMutexLock;
 IARM_Result_t AcceptUpdate(void *arg);
@@ -116,12 +116,9 @@ int loadBeforeHour=4;
 int delayTillAnnounceTimeMin=10; // default is announce after 10 min;
 int announceCounter=10; // counter for wait seconds
 bool oneAnnouncePerRun=false;
-
-
-
-
 static pthread_mutex_t mapMutex;
 }
+
 typedef struct updateInProgress_t
 {
 	_IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t *acceptParams;
@@ -206,6 +203,7 @@ IARM_Result_t deviceUpdateStart()
 		INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
 		return IARM_RESULT_INVALID_STATE;
 	}
+	pthread_mutex_lock(&mapMutex);
 	if (!initialized)
 	{
 		IARM_Result_t rc;
@@ -213,6 +211,7 @@ IARM_Result_t deviceUpdateStart()
 		int retval = pthread_mutex_init(&tMutexLock, NULL);
                 if(retval != 0) {
                 	INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			return IARM_RESULT_INVALID_STATE;
                 }
@@ -221,6 +220,7 @@ IARM_Result_t deviceUpdateStart()
 		INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
 		if (IARM_RESULT_SUCCESS != rc) {
 			INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			pthread_mutex_unlock(&tMutexLock);
 			return rc;
@@ -230,6 +230,7 @@ IARM_Result_t deviceUpdateStart()
 		INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
 		if (IARM_RESULT_SUCCESS != rc) {
 			INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			pthread_mutex_unlock(&tMutexLock);
 			return rc;
@@ -239,6 +240,7 @@ IARM_Result_t deviceUpdateStart()
 		INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n", rc);
 		if (IARM_RESULT_SUCCESS != rc) {
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent IARM_BUS_DEVICE_UPDATE_EVENT_MAX failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			pthread_mutex_unlock(&tMutexLock);
 			return rc;
@@ -248,6 +250,7 @@ IARM_Result_t deviceUpdateStart()
 		INT_LOG("dumMgr:I-ARM IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate Mgr: %d\n", rc);
 		if (IARM_RESULT_SUCCESS != rc) {
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterCall IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			pthread_mutex_unlock(&tMutexLock);
 			return rc;
@@ -257,6 +260,7 @@ IARM_Result_t deviceUpdateStart()
 				_deviceUpdateEventHandler);
 		if (IARM_RESULT_SUCCESS != rc) {
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			pthread_mutex_unlock(&tMutexLock);
 			return rc;
@@ -265,6 +269,7 @@ IARM_Result_t deviceUpdateStart()
 				_deviceUpdateEventHandler);
 		if (IARM_RESULT_SUCCESS != rc) {
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS returned: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			pthread_mutex_unlock(&tMutexLock);
 			return rc;
@@ -273,6 +278,7 @@ IARM_Result_t deviceUpdateStart()
 				_deviceUpdateEventHandler);
 		if (IARM_RESULT_SUCCESS != rc) {
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS returned: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			pthread_mutex_unlock(&tMutexLock);
 			return rc;
@@ -281,6 +287,7 @@ IARM_Result_t deviceUpdateStart()
 				_deviceUpdateEventHandler);
 		if (IARM_RESULT_SUCCESS != rc) {
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_ERROR returned: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
 			pthread_mutex_destroy(&mapMutex);
 			pthread_mutex_unlock(&tMutexLock);
 			return rc;
@@ -297,6 +304,7 @@ IARM_Result_t deviceUpdateStart()
 		INT_LOG("dumMgr: I-ARM Device Update Mgr Error case: %d\n", __LINE__);
 		status = IARM_RESULT_INVALID_STATE;
 	}
+	pthread_mutex_unlock(&mapMutex);
 	return status;
 }
 
