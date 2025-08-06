@@ -197,45 +197,94 @@ int main(int argc, char *argv[])
 
 IARM_Result_t deviceUpdateStart()
 {
-
 	IARM_Result_t status = IARM_RESULT_INVALID_STATE;
 
 	INT_LOG("Entering [%s] - [%s] - disabling io redirect buf\n", __FUNCTION__, IARM_BUS_DEVICE_UPDATE_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	int ret = pthread_mutex_init(&mapMutex, NULL);
-        if(ret != 0) {
-        INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
-        status = IARM_RESULT_INVALID_STATE;  
-        }
+	if(ret != 0) {
+		INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
+		return IARM_RESULT_INVALID_STATE;
+	}
 	if (!initialized)
 	{
 		IARM_Result_t rc;
 
 		int retval = pthread_mutex_init(&tMutexLock, NULL);
                 if(retval != 0) {
-                INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
+                	INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
+			pthread_mutex_destroy(&mapMutex);
+			return IARM_RESULT_INVALID_STATE;
                 }
 		pthread_mutex_lock(&tMutexLock);
 		rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
 		INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
 		rc = IARM_Bus_Connect();
 		INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
 		rc = IARM_Bus_RegisterEvent(IARM_BUS_DEVICE_UPDATE_EVENT_MAX);
 		INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n", rc);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent IARM_BUS_DEVICE_UPDATE_EVENT_MAX failed: %d\n", rc);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
 		rc = IARM_Bus_RegisterCall( IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate, AcceptUpdate); /* RPC Method Implementation*/
 		INT_LOG("dumMgr:I-ARM IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate Mgr: %d\n", rc);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterCall IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate failed: %d\n", rc);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
-		IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
+		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
 				_deviceUpdateEventHandler);
-		IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD failed: %d\n", rc);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
+		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
 				_deviceUpdateEventHandler);
-		IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS,
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS returned: %d\n", rc);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
+		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS,
 				_deviceUpdateEventHandler);
-		IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_ERROR,
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS returned: %d\n", rc);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
+		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_ERROR,
 				_deviceUpdateEventHandler);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_ERROR returned: %d\n", rc);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
 		initialized = 1;
 
@@ -852,9 +901,15 @@ IARM_Result_t deviceUpdateStop(void)
 	if (initialized)
 	{
 		pthread_mutex_lock(&tMutexLock);
-		IARM_Bus_UnRegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD);
-		IARM_Bus_Disconnect();
-		IARM_Bus_Term();
+		if (IARM_Bus_UnRegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD) != IARM_RESULT_SUCCESS) {
+			INT_LOG("%s:%d: IARM_Bus_UnRegisterEventHandler failed\n", __FUNCTION__, __LINE__);
+		}
+		if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+			INT_LOG("%s:%d: IARM_Bus_Disconnect failed\n", __FUNCTION__, __LINE__);
+		}
+		if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+			INT_LOG("%s:%d: IARM_Bus_Term failed\n", __FUNCTION__, __LINE__);
+		}
 		pthread_mutex_unlock(&tMutexLock);
 		pthread_mutex_destroy(&tMutexLock);
 		initialized = false;
