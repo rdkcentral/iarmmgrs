@@ -1534,7 +1534,7 @@ static IARM_Result_t getFSRflag_(void *arg)
          if (func)
          {
              err = func(&param);
-             if(mfrERR_NONE == err && param != -1)
+             if(mfrERR_NONE == err && param != (uint16_t)-1)
              {
                  LOG("[mfrMgr][%s] IARM_Bus_MFRLib_FsrFlag_Param_t success with param is %d \n",__FUNCTION__, param);
                  *tmp = (IARM_Bus_MFRLib_FsrFlag_Param_t)param?true:false;
@@ -1569,11 +1569,9 @@ IARM_Result_t MFRLib_Stop(void)
 
 IARM_Result_t MFRLib_Loop()
 {
-    time_t curr = 0;
     while(1)
     {
-        time(&curr);
-        LOG("I-ARM MFR Lib: HeartBeat at %s\r\n", ctime(&curr));
+	LOG("I-ARM MFR Lib: HeartBeat ping.\r\n");
         sleep(300);
     }
     return IARM_RESULT_SUCCESS;
