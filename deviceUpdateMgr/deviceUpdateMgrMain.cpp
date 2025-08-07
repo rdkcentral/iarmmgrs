@@ -941,7 +941,11 @@ typedef struct
 updateInProgress_t *getUpdateInProgress(int id)
 {
 	pthread_mutex_lock(&mapMutex);
-	updateInProgress_t *uip = updatesInProgress->find(id)->second;
+	updateInProgress_t *uip = nullptr;
+	auto it = updatesInProgress->find(id);
+	if (it != updatesInProgress->end()) {
+		uip = it->second;
+	}
 	pthread_mutex_unlock(&mapMutex);
 	return uip;
 
