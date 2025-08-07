@@ -813,9 +813,8 @@ static void* _DSMgrResnThreadFunc(void *arg)
 		/*Wait for the Event*/
 		pthread_mutex_lock(&tdsMutexLock);
 		pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
+		INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",__FUNCTION__, (edisplayEventStatus == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"),iTuneReady);
 		pthread_mutex_unlock(&tdsMutexLock);
-	  
-	    INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",__FUNCTION__, (edisplayEventStatus == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"),iTuneReady);
 
 
 		//On hot plug event , Remove event source 
