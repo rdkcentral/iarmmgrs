@@ -343,18 +343,20 @@ bool loadConfig()
 	{
 		string confData;
 		char buf[2048] = "";  //CID:136517 - string null
+		size_t nread = 0;
 
 		while (!feof(fp) && confData.length() < 65535)
 		{
                         memset(buf,'\0', sizeof(buf));                 //CID:136517 - checked null argument
-     			if (0 >= fread(buf, 1, sizeof(buf) - 1, fp))   //cID:86017 - checked return
+                        nread = fread(buf, 1, sizeof(buf) - 1, fp);
+                        if (0 >= nread)
                         {
 			    INT_LOG("dumMgr fread failed  \n");
 			    break; // stop since fread is error.
                         }
                         else
                         {
-                            confData.append(buf);
+                            confData.append(buf, nread);
                         }
 		}
 
