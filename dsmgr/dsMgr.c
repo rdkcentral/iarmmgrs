@@ -804,52 +804,53 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
  */
 static void* _DSMgrResnThreadFunc(void *arg)
 {
-   
+	dsDisplayEvent_t edisplayEventStatusLocal = dsDISPLAY_EVENT_MAX;
 	/* Loop */
-    while (1)
-    {
-		 INT_INFO ("_DSMgrResnThreadFunc... wait for for HDMI or Tune Ready Events \r\n");
-		
+	while (1)
+	{
+		INT_INFO ("_DSMgrResnThreadFunc... wait for for HDMI or Tune Ready Events \r\n");
+
 		/*Wait for the Event*/
 		pthread_mutex_lock(&tdsMutexLock);
 		pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
-		INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",__FUNCTION__, (edisplayEventStatus == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"),iTuneReady);
+		edisplayEventStatusLocal = edisplayEventStatus;
 		pthread_mutex_unlock(&tdsMutexLock);
-
+		INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",
+			__FUNCTION__, (edisplayEventStatusLocal == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"),iTuneReady);
 
 		//On hot plug event , Remove event source 
 		if(hotplug_event_src)
 		{
 			g_source_remove(hotplug_event_src);
 			INT_INFO("Removed Hot Plug Event Time source %d  \r\n",hotplug_event_src);
-      hotplug_event_src = 0;
+			hotplug_event_src = 0;
 		}
 
 		/*Set the Resolution only on HDMI Hot plug Connect and Tune Ready events */
-		if((1 == iTuneReady) && (dsDISPLAY_EVENT_CONNECTED == edisplayEventStatus)) {
+		if((1 == iTuneReady) && (dsDISPLAY_EVENT_CONNECTED == edisplayEventStatusLocal)) {
 			/*Set Video Output Port  Resolution */
-                        if(bHDCPAuthenticated)
-                        {
-                            _SetVideoPortResolution();
+			if(bHDCPAuthenticated)
+			{
+				_SetVideoPortResolution();
 			}
-                        /* Set audio mode on HDMI hot plug */
+			/* Set audio mode on HDMI hot plug */
 			_setAudioMode();	
 		}/*Set the Resolution only on HDMI Hot plug - Disconnect and Tune Ready event */
-		else if((1 == iTuneReady) && (dsDISPLAY_EVENT_DISCONNECTED == edisplayEventStatus)) {
-			 /* * To avoid reoslution settings of HDMI hot plug when TV goes from power OFF to ON condition 
-			 	* Delay the setting of resolution by 5 sec. This will help to filter out un-necessary 
-			 	* resolution settings on HDMI hot plug.  
+		else if((1 == iTuneReady) && (dsDISPLAY_EVENT_DISCONNECTED == edisplayEventStatusLocal)) {
+			/* * To avoid reoslution settings of HDMI hot plug when TV goes from power OFF to ON condition 
+			 * Delay the setting of resolution by 5 sec. This will help to filter out un-necessary 
+			 * resolution settings on HDMI hot plug.  
 			 */
-	             bHDCPAuthenticated = false;
-                     if(isComponentPortPresent())
-                     {
-			 hotplug_event_src = g_timeout_add_seconds((guint)5,_SetResolutionHandler,dsMgr_Gloop); 
-			 INT_INFO("Schedule a handler to set the resolution after 5 sec for %d time src.. \r\n",hotplug_event_src);
-                     }
+			bHDCPAuthenticated = false;
+			if(isComponentPortPresent())
+			{
+				hotplug_event_src = g_timeout_add_seconds((guint)5,_SetResolutionHandler,dsMgr_Gloop); 
+				INT_INFO("Schedule a handler to set the resolution after 5 sec for %d time src.. \r\n",hotplug_event_src);
+			}
 		}
- 
-     }
-    return arg;
+
+	}
+	return arg;
 }
 
 
