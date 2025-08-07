@@ -63,7 +63,7 @@ static volatile int initialized = 0;
 
 #define NTP_FILE_NAME	"/tmp/stt_received"
 /*Support for HDCP Profile */
-static char *profile_1_filename ="/opt/.hdcp_profile_1";
+static const char *profile_1_filename ="/opt/.hdcp_profile_1";
 static int CheckHdcpProfile(void);
 static void GetSerialNumber(void);
 
