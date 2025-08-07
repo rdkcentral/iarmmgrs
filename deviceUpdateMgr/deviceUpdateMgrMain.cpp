@@ -851,26 +851,28 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 
 
 		if(i>60){
-		if (updatesInProgress->size() > 0)
-		{
-			__TIMESTAMP();
-			INT_LOG("deviceUpdateMgr - updates in progress:\n");
-			map<int, updateInProgress_t *>::iterator pos = updatesInProgress->begin();
-			while (pos != updatesInProgress->end())
+			pthread_mutex_lock(&mapMutex);
+			if (updatesInProgress->size() > 0)
 			{
-				INT_LOG("     UpdateID:%d deviceID:%d percentDownload:%d Loaded:%d file:%s\n", pos->first,
-						pos->second->acceptParams->deviceID, pos->second->downloadPercent, pos->second->loadComplete,
-						pos->second->acceptParams->deviceImageFilePath);
-				if (pos->second->errorCode > 0)
+				__TIMESTAMP();
+				INT_LOG("deviceUpdateMgr - updates in progress:\n");
+				map<int, updateInProgress_t *>::iterator pos = updatesInProgress->begin();
+				while (pos != updatesInProgress->end())
 				{
-					INT_LOG("              ERROR on UpdateID:%d Type:%d Message:%s\n", pos->first, pos->second->errorCode,
-							pos->second->errorMsg.c_str());
+					INT_LOG("     UpdateID:%d deviceID:%d percentDownload:%d Loaded:%d file:%s\n", pos->first,
+							pos->second->acceptParams->deviceID, pos->second->downloadPercent, pos->second->loadComplete,
+							pos->second->acceptParams->deviceImageFilePath);
+					if (pos->second->errorCode > 0)
+					{
+						INT_LOG("              ERROR on UpdateID:%d Type:%d Message:%s\n", pos->first, pos->second->errorCode,
+								pos->second->errorMsg.c_str());
+					}
+					pos++;
 				}
-				pos++;
-			}
 
-		}
-i=0;
+			}
+			pthread_mutex_unlock(&mapMutex);
+			i=0;
 		}
 			fflush(stdout);
 	}
