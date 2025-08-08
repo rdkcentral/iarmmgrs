@@ -97,6 +97,84 @@ static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
 IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal Mode
 
+#define RES_MAX_LEN 10
+#define RES_MAX_COUNT 6
+#define DEFAULT_PROGRESSIVE_FPS "60"
+#define RESOLUTION_BASE_UHD     "2160p"
+#define RESOLUTION_BASE_FHD     "1080p"
+#define RESOLUTION_BASE_FHD_INT "1080i"
+#define RESOLUTION_BASE_HD      "720p"
+#define RESOLUTION_BASE_PAL     "576p"
+#define RESOLUTION_BASE_NTSC    "480p"
+
+#define EU_PROGRESSIVE_FPS  "50"
+#define EU_INTERLACED_FPS   "25"
+
+static bool IsEUPlatform = false;
+char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
+
+static bool isEUPlatform()
+{
+        char line[256];
+	bool isEUflag = false;
+        const char* devPropPath = "/etc/device.properties";
+	char deviceProp[15]= "FRIENDLY_ID", UKRegion[5]= " UK", USRegion[5]= " US";
+
+
+	FILE *file = fopen(devPropPath,"r");
+	if(file == NULL){
+	    INT_ERROR("%s: Unable to open file %s \r\n",__FUNCTION__,devPropPath);
+	    return false;
+	}
+	while(fgets(line, sizeof(line), file)) {
+	    if(strstr(line,deviceProp)!=NULL){
+                if(strstr(line,USRegion)!=NULL)
+		{
+                    INT_INFO("%s: %s ,isEUflag:%d \r\n",__FUNCTION__,line,isEUflag);
+		}
+		else{ // EU - UK/IT/DE
+		    isEUflag = true;
+		    INT_INFO("%s: %s ,isEUflag:%d \r\n",__FUNCTION__,line,isEUflag);
+		}
+		break;
+	    }
+	}
+	fclose(file);
+	return isEUflag;
+}
+
+static void setupPlatformConfig()
+{
+    char resList[RES_MAX_COUNT][RES_MAX_LEN] = {"2160p","1080p","1080i","720p","576p","480p"};
+    int count = 0, n = sizeof(resList) / sizeof(resList[0]);
+    IsEUPlatform = isEUPlatform();
+    for(int i=0; i<n; i++)
+    {
+        if((strstr(resList[i],"576p") !=NULL) && !IsEUPlatform) //include 576p for EU only
+	    continue;
+
+	snprintf(fallBackResolutionList[count],RES_MAX_LEN,"%s",resList[i]);
+        count++;
+    }
+}
+
+static bool getSecondaryResolution(char* res, char *secRes)
+{
+    bool ret = true;
+    if(strstr(res,RESOLUTION_BASE_HD) != NULL)
+        snprintf(secRes,RES_MAX_LEN,"%s",RESOLUTION_BASE_HD); //720p
+    else if(strstr(res,RESOLUTION_BASE_FHD) != NULL)
+         snprintf(secRes,RES_MAX_LEN,"%s%s",RESOLUTION_BASE_FHD,DEFAULT_PROGRESSIVE_FPS); //1080p60
+    else if(strstr(res,RESOLUTION_BASE_FHD_INT) != NULL)
+         snprintf(secRes,RES_MAX_LEN,"%s",RESOLUTION_BASE_FHD_INT); //1080i
+    else if(strstr(res,RESOLUTION_BASE_UHD) != NULL)
+         snprintf(secRes,RES_MAX_LEN,"%s%s",RESOLUTION_BASE_UHD,DEFAULT_PROGRESSIVE_FPS); //2160p60
+    else
+	 ret = false; //For other resolutions 480p 576p
+
+    return ret;
+}
+
 
 /*DSMgr Glib variables */
 /* For glib APIs*/
@@ -207,6 +285,7 @@ IARM_Result_t DSMgr_Start()
 
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
+    setupPlatformConfig();
     return IARM_RESULT_SUCCESS;
 }
 
@@ -512,6 +591,80 @@ static int _SetVideoPortResolution()
 	return 0;
 }
 
+static void parseResolution(char* pResn, char* bResn)
+{
+	char tmpResn[RES_MAX_LEN];
+	int len = 0;
+	snprintf(tmpResn,sizeof(tmpResn),"%s",pResn);
+	char *token = strtok(tmpResn, "ip");
+	strncpy(bResn,token,RES_MAX_LEN);
+	len = strlen(bResn);
+	if (strchr(pResn, 'i') != NULL) {
+		snprintf(bResn+len, sizeof(bResn)-len, "%s", "i");  // Append 'i'
+	} else if (strchr(pResn, 'p') != NULL) {
+		snprintf(bResn+len, sizeof(bResn)-len, "%s", "p");  // Append 'p'
+	}
+	return;
+}
+
+static void getFallBackResolution(char* Resn,char *fbResn, int flag)
+{
+	char tmpResn[RES_MAX_LEN];
+	snprintf(tmpResn,RES_MAX_LEN,"%s",Resn);
+	int len = strlen(tmpResn);
+        if(flag) // EU
+	{
+		if((strcmp(Resn,RESOLUTION_BASE_UHD) ==0) || (strcmp(Resn,RESOLUTION_BASE_FHD) ==0) || (strcmp(Resn,RESOLUTION_BASE_HD) ==0))
+		{
+		        snprintf(tmpResn+len, sizeof(tmpResn)-len, "%s", EU_PROGRESSIVE_FPS);  //2160p50, 1080p50 , 720p50
+		}
+		else if((strcmp(Resn,RESOLUTION_BASE_FHD_INT) ==0))
+		{
+		        snprintf(tmpResn+len, sizeof(tmpResn)-len, "%s", EU_INTERLACED_FPS);  // 1080i25
+                }
+		else
+		{ // do nothing //576p, 480p
+		}
+	}else{
+		if((strcmp(Resn,RESOLUTION_BASE_UHD) ==0) || (strcmp(Resn,RESOLUTION_BASE_FHD) ==0))
+		{
+		        snprintf(tmpResn+len, sizeof(tmpResn)-len, "%s", DEFAULT_PROGRESSIVE_FPS);  // 2160p60, 1080p60
+		}
+	}
+	snprintf(fbResn,RES_MAX_LEN,"%s",tmpResn);
+        return;
+}
+
+static bool isResolutionSupported(dsDisplayEDID_t *edidData, int numResolutions, int pNumResolutions, char *Resn,int* index)
+{
+	bool supported = false;
+	dsVideoPortResolution_t *setResn = NULL;
+	for (int i = numResolutions-1; i >= 0; i--)
+	{
+		setResn = &(edidData->suppResolutionList[i]);
+		if(strcmp(setResn->name,Resn) == 0)
+		{
+			for (int j = pNumResolutions-1; j >=0; j--)
+			{
+				dsVideoPortResolution_t *pfResolution = &kResolutions[j];
+				if (0 == (strcmp(pfResolution->name,setResn->name)))
+				{
+				        INT_INFO("[DsMgr] Resolution supported %s \r\n",pfResolution->name);
+					supported = true;
+					break;
+				}
+			}
+		}
+		if(supported)
+		{
+			*index = i;
+			break;
+		}
+	}
+	return supported;
+}
+
+
 /**
  * @brief This Function does following :
  *   Read Persisted resolution 
@@ -528,6 +681,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	errno_t rc = -1;
 	intptr_t _displayHandle = 0;
 	int numResolutions = 0,i=0;
+        int resIndex=0;
 	intptr_t _handle = *handle;
 	bool IsValidResolution = false;
 	dsVideoPortSetResolutionParam_t Setparam;
@@ -535,6 +689,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	dsVideoPortResolution_t *setResn = NULL;
 	dsDisplayEDID_t edidData;
 	dsDisplayGetEDIDParam_t Edidparam;
+	int pNumResolutions = dsUTL_DIM(kResolutions);
 	/*
 		* Default Resolution Compatible check is false - Do not Force compatible resolution on startup
 	*/
@@ -606,33 +761,68 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					break;
 				}
 			}
-                        /*
-                        * The Persisted Resolution Does not matches with TV resolution list 
-			*  Set  the Best Resolution Supported by TV and Platform
-			*/
-                        if (false == IsValidResolution)
+
+			//SECONDARY VIC Settings only for EU platforms
+			/* Check if alternate freq or secondary resolution supported by the TV*/
+			/* if resolution with 50Hz not supported check for same resolution with 60Hz*/
+			/* Other FPS like 30, 25, 24 not used to avoid any judders */
+                        if (false == IsValidResolution && IsEUPlatform)
+                        {
+				char secResn[RES_MAX_LEN];
+				// get secondary resolution based on presolution
+				if(getSecondaryResolution(presolution->name,secResn))
+				{
+					if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,secResn,&resIndex))
+					{
+						setResn = &(edidData.suppResolutionList[resIndex]);
+						INT_INFO("Breaking..Got Secondary Resolution - %s..\r\n",setResn->name);
+                                                IsValidResolution = true;
+                                                Setparam.forceCompatible = true;
+					}
+				}
+			}
+			/* Fallback to next best resolution*/
+			if(false == IsValidResolution)
 			{
-                        	/* Set  the Best Resolution Supported by TV and Platform*/
-                		for (i = numResolutions-1; i >= 0; i--)
-                		{
-                        		setResn = &(edidData.suppResolutionList[i]);
-                        		int pNumResolutions = dsUTL_DIM(kResolutions);
-                        		for (int j = pNumResolutions-1; j >=0; j--)
-		        		{
-		                		dsVideoPortResolution_t *pfResolution = &kResolutions[j];
-		                		if (0 == (strcmp(pfResolution->name,setResn->name)))
-		                		{
-							INT_INFO("[DsMgr] Set Best TV Supported Resolution %s \r\n",pfResolution->name);
-		                			IsValidResolution = true;
-		                    			break;
-		                		}
-                                        }
-                                	if (IsValidResolution)
-                                	{
-                                		break;
-                                        }
-                                }
-                        }
+				int index =0;
+				char baseResn[RES_MAX_LEN], fbResn[RES_MAX_LEN];
+				parseResolution(presolution->name,baseResn);
+				int fNumResolutions = sizeof(fallBackResolutionList)/sizeof(fallBackResolutionList[0]);
+				for(i=0; i<fNumResolutions; i++)
+				{
+					if(strcmp(fallBackResolutionList[i],baseResn)==0){
+						index =i;
+						break;
+					}
+				}
+				for(i=index+1;i<fNumResolutions;i++)
+				{
+					if(IsEUPlatform){
+					    getFallBackResolution(fallBackResolutionList[i],fbResn,1); //EU fps
+				            INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
+					    if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
+					    {
+						IsValidResolution = true;
+					    }
+					}
+				        if(!IsValidResolution)
+					{
+						getFallBackResolution(fallBackResolutionList[i],fbResn,0); //default fps
+				                INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
+						if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
+						{
+							IsValidResolution = true;
+						}
+					}
+					if(IsValidResolution)
+					{
+						setResn = &(edidData.suppResolutionList[resIndex]);
+						INT_INFO("[DsMgr] Got Next Best Resolution - %s\r\n",setResn->name);
+						break;
+					}
+				}
+			}
+
 			/* 
 				* The Persisted Resolution Does not matches with TV and Platform 
 				* Resolution List
