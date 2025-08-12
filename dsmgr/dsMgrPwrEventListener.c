@@ -345,30 +345,31 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                 dsAudioPortEnabledParam_t setMode;
                 int numPorts, i = 0;
 
-                numPorts = dsUTL_DIM(kSupportedPortTypes);
-                INT_INFO("[%s] numPorts[%d] \r\n", __FUNCTION__, numPorts);
+                device::List<device::AudioOutputPort> aPorts = device::Host::getInstance().getAudioOutputPorts();
+                numPorts = aPorts.size();
+                INT_INFO("[%s] Number of Audio Ports: [%d] \r\n", __FUNCTION__, numPorts);
                 for (i = 0; i < numPorts; i++)
                 {
                     try
                     {
-                        const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
-                        INT_INFO("[%s] Before audioPort[%d] at [%d]\r\n", __FUNCTION__, *audioPort,i);
-                        device::AudioOutputPort aPort = device::Host::getInstance().getAudioOutputPort(*audioPort);
-                        INT_INFO("[%s] After audioPort at [%d]\r\n", __FUNCTION__, i);
+                        int portType;
+                        INT_INFO("[%s] Current Index [%d] \r\n", __FUNCTION__, i);
+                        device::AudioOutputPort aPort = aPorts.at(i);
+
+                        INT_INFO("[%s] Audio Port Name: [%s] \r\n", __FUNCTION__, aPort.getName().c_str());
+                        portType = static_cast<int>(aPort.getType().getId());
+                        INT_INFO("[%s] Audio Port Type: [%d] \r\n", __FUNCTION__, portType);
+
                         memset(&getHandle, 0, sizeof(getHandle));
-                        getHandle.type = *audioPort;
+                        getHandle.type = static_cast<dsAudioPortType_t>(portType);
                         getHandle.index = 0;
                         INT_INFO("[%s] Before _dsGetAudioPort at [%d]\r\n", __FUNCTION__, i);
                         _dsGetAudioPort(&getHandle);
                         INT_INFO("[%s] After _dsGetAudioPort at [%d]\r\n", __FUNCTION__, i);
 
-                        INT_INFO("[%s] portName[%s] \r\n", __FUNCTION__, aPort.getName().c_str());
-
                         memset(&setMode, 0, sizeof(setMode));
                         setMode.handle = getHandle.handle;
-                        INT_INFO("[%s] Before strncpy at [%d]\r\n", __FUNCTION__, i);
-                        strncpy(setMode.portName, aPort.getName().c_str(), 32);
-                        INT_INFO("[%s] After strncpy at [%d]\r\n", __FUNCTION__, i);
+                        strncpy(setMode.portName, aPort.getName().c_str(), 31);
                         setMode.enabled = false;
                         INT_INFO("[%s] Before _dsEnableAudioPort at [%d]\r\n", __FUNCTION__, i);
                         _dsEnableAudioPort(&setMode);
@@ -376,7 +377,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     }
                     catch (...)
                     {
-                        INT_DEBUG("[%s] Audio port exception at %d \r\n", __FUNCTION__, i);
+                        INT_DEBUG("[%s] audio port exception at %d\r\n", __FUNCTION__,i);
                     }
                 }
             }
@@ -400,31 +401,33 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
 
                 int numPorts, i = 0;
 
-                numPorts = dsUTL_DIM(kSupportedPortTypes);
-                INT_INFO("[%s] numPorts[%d] \r\n", __FUNCTION__, numPorts);
+                device::List<device::AudioOutputPort> aPorts = device::Host::getInstance().getAudioOutputPorts();
+                numPorts = aPorts.size();
+                INT_INFO("[%s] numPorts [%d] \r\n", __FUNCTION__, numPorts);
                 for (i = 0; i < numPorts; i++)
                 {
                     try
                     {
-                        const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
-                        INT_INFO("[%s] Before audioPort[%d] at [%d]\r\n", __FUNCTION__, *audioPort,i);
-                        device::AudioOutputPort aPort = device::Host::getInstance().getAudioOutputPort(*audioPort);
-                        INT_INFO("[%s] After audioPort at [%d]\r\n", __FUNCTION__, i);
+                        int portType;
+                        INT_INFO("[%s] Current Index [%d] \r\n", __FUNCTION__, i);
+                        device::AudioOutputPort aPort = aPorts.at(i);
+                        INT_INFO("[%s] Audio Port Name: [%s] \r\n", __FUNCTION__, aPort.getName().c_str());
+
+                        portType = aPort.getType().getId();
+                        INT_INFO("[%s] Audio Port Type: [%d] \r\n", __FUNCTION__, portType);
+
                         memset(&getHandle, 0, sizeof(getHandle));
-                        getHandle.type = *audioPort;
+                        getHandle.type = static_cast<dsAudioPortType_t>(portType);
                         getHandle.index = 0;
                         INT_INFO("[%s] Before _dsGetAudioPort at [%d]\r\n", __FUNCTION__, i);
                         _dsGetAudioPort(&getHandle);
                         INT_INFO("[%s] After _dsGetAudioPort at [%d]\r\n", __FUNCTION__, i);
 
-                        INT_INFO("[%s] portName[%s] \r\n", __FUNCTION__, aPort.getName().c_str());
-
                         memset(&setMode, 0, sizeof(setMode));
                         setMode.handle = getHandle.handle;
-                        INT_INFO("[%s] Before strncpy at [%d]\r\n", __FUNCTION__, i);
-                        strncpy(setMode.portName, aPort.getName().c_str(), 32);
-                        INT_INFO("[%s] After strncpy at [%d]\r\n", __FUNCTION__, i);
+                        strncpy(setMode.portName, aPort.getName().c_str(), 31);
                         setMode.enabled = false;
+
                         INT_INFO("[%s] Before _dsGetEnablePersist at [%d]\r\n", __FUNCTION__, i);
                         _dsGetEnablePersist(&setMode);
                         INT_INFO("[%s] After _dsGetEnablePersist at [%d]\r\n", __FUNCTION__, i);
@@ -435,12 +438,12 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                             /*Get the values from persistent storage & update */
                             INT_INFO("[%s] Enabling audio ports %d \r\n", __FUNCTION__, powerState);
                             _dsEnableAudioPort(&setMode);
-                            INT_INFO("[%s] After _dsEnableAudioPort at [%d]\r\n", __FUNCTION__, i);
+                            INT_INFO("[%s] _dsEnableAudioPort done at [%d]\r\n", __FUNCTION__, i);
                         }
                     }
                     catch (...)
                     {
-                        INT_DEBUG("[%s] Audio port exception at %d \r\n", __FUNCTION__, i);
+                        INT_DEBUG("[%s] Audio port exception at %d \r\n",__FUNCTION__, i);
                     }
                 }
                 if (isEAS == IARM_BUS_SYS_MODE_EAS)
@@ -454,7 +457,6 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
             {
                 INT_DEBUG("[%s] Audio port exception \r\n",__FUNCTION__);
             }
-
         }
     }
     catch (...)
@@ -462,9 +464,9 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
         INT_DEBUG("Exception Caught during [%s]\r\n", __FUNCTION__);
         return 0;
     }
+    INT_DEBUG("Exiting [%s]\r\n", __FUNCTION__);
     return 0;
 }
-
 static bool get_video_port_standby_setting(const char * port)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
