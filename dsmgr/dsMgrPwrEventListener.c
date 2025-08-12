@@ -352,28 +352,11 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                 {
                     try
                     {
-                        int portType;
                         INT_INFO("[%s] Current Index [%d] \r\n", __FUNCTION__, i);
                         device::AudioOutputPort aPort = aPorts.at(i);
 
                         INT_INFO("[%s] Audio Port Name: [%s] \r\n", __FUNCTION__, aPort.getName().c_str());
-                        portType = static_cast<int>(aPort.getType().getId());
-                        INT_INFO("[%s] Audio Port Type: [%d] \r\n", __FUNCTION__, portType);
-
-                        memset(&getHandle, 0, sizeof(getHandle));
-                        getHandle.type = static_cast<dsAudioPortType_t>(portType);
-                        getHandle.index = 0;
-                        INT_INFO("[%s] Before _dsGetAudioPort at [%d]\r\n", __FUNCTION__, i);
-                        _dsGetAudioPort(&getHandle);
-                        INT_INFO("[%s] After _dsGetAudioPort at [%d]\r\n", __FUNCTION__, i);
-
-                        memset(&setMode, 0, sizeof(setMode));
-                        setMode.handle = getHandle.handle;
-                        strncpy(setMode.portName, aPort.getName().c_str(), 31);
-                        setMode.enabled = false;
-                        INT_INFO("[%s] Before _dsEnableAudioPort at [%d]\r\n", __FUNCTION__, i);
-                        _dsEnableAudioPort(&setMode);
-                        INT_INFO("[%s] After _dsEnableAudioPort at [%d]\r\n", __FUNCTION__, i);
+                        aPort.disable();
                     }
                     catch (...)
                     {
@@ -408,37 +391,17 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                 {
                     try
                     {
-                        int portType;
                         INT_INFO("[%s] Current Index [%d] \r\n", __FUNCTION__, i);
                         device::AudioOutputPort aPort = aPorts.at(i);
-                        INT_INFO("[%s] Audio Port Name: [%s] \r\n", __FUNCTION__, aPort.getName().c_str());
+                        bool isEnablePersist = aPort.getEnablePersist();
+                        INT_INFO("[%s] Audio Port Name: [%s] isEnablePersist[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), isEnablePersist);
 
-                        portType = aPort.getType().getId();
-                        INT_INFO("[%s] Audio Port Type: [%d] \r\n", __FUNCTION__, portType);
-
-                        memset(&getHandle, 0, sizeof(getHandle));
-                        getHandle.type = static_cast<dsAudioPortType_t>(portType);
-                        getHandle.index = 0;
-                        INT_INFO("[%s] Before _dsGetAudioPort at [%d]\r\n", __FUNCTION__, i);
-                        _dsGetAudioPort(&getHandle);
-                        INT_INFO("[%s] After _dsGetAudioPort at [%d]\r\n", __FUNCTION__, i);
-
-                        memset(&setMode, 0, sizeof(setMode));
-                        setMode.handle = getHandle.handle;
-                        strncpy(setMode.portName, aPort.getName().c_str(), 31);
-                        setMode.enabled = false;
-
-                        INT_INFO("[%s] Before _dsGetEnablePersist at [%d]\r\n", __FUNCTION__, i);
-                        _dsGetEnablePersist(&setMode);
-                        INT_INFO("[%s] After _dsGetEnablePersist at [%d]\r\n", __FUNCTION__, i);
-
-                        if (setMode.enabled == true)
+                        if (isEnablePersist)
                         {
                             /*Instead of enabling all the audio ports on power transition */
                             /*Get the values from persistent storage & update */
                             INT_INFO("[%s] Enabling audio ports %d \r\n", __FUNCTION__, powerState);
-                            _dsEnableAudioPort(&setMode);
-                            INT_INFO("[%s] _dsEnableAudioPort done at [%d]\r\n", __FUNCTION__, i);
+                            aPort.enable();
                         }
                     }
                     catch (...)
@@ -467,6 +430,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
     INT_DEBUG("Exiting [%s]\r\n", __FUNCTION__);
     return 0;
 }
+
 static bool get_video_port_standby_setting(const char * port)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
