@@ -285,8 +285,6 @@ void initializeThermalProtection()
         if (thermal_declock_grace_interval > 0) {
             LOG("[%s] Thermal Monitor [DECLOCK] Thresholds -- Critical:%d Concern:%d Safe:%d Grace Interval:%d\n", __FUNCTION__,
                 thermal_declock_critical_threshold, thermal_declock_concern_threshold, thermal_declock_safe_threshold, thermal_declock_grace_interval);
-            PLAT_API_GetClockSpeed(&cur_Cpu_Speed);
-            LOG("[%s] Thermal Monitor [DECLOCK] Default Frequency %d\n", __FUNCTION__, cur_Cpu_Speed);
             /* Discover clock rate for this system. Only discover if the rate is 0 */
             PLAT_API_DetemineClockSpeeds(
                 (PLAT_CPU_SPEED_NORMAL == 0 ) ? &PLAT_CPU_SPEED_NORMAL : NULL,
@@ -297,6 +295,8 @@ void initializeThermalProtection()
                 LOG("[%s] Thermal Monitor [DECLOCK] **ERROR** At least one clock speed is 0. Disabling declocking!\n", __FUNCTION__);
                 thermal_declock_grace_interval = 0;
             }
+	    cur_Cpu_Speed = PLAT_CPU_SPEED_NORMAL;
+	    LOG("[%s] Thermal Monitor [DECLOCK] Default Frequency during bootup : %d\n", __FUNCTION__, cur_Cpu_Speed);
         }
 #endif
 
