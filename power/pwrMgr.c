@@ -846,7 +846,6 @@ void performReboot(const char * requestor, const char * reboot_reason_custom, co
 
     std::thread async_reboot_thread([requestor_cpy, reboot_reason_custom_cpy, reboot_reason_other_cpy] () {
         v_secure_system("echo 0 > /opt/.rebootFlag");
-        sleep(5);
         if(0 == access("/rebootNow.sh", F_OK))
         {
             v_secure_system("/rebootNow.sh -s '%s' -r '%s' -o '%s'", requestor_cpy, reboot_reason_custom_cpy, reboot_reason_other_cpy);
