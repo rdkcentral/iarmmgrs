@@ -17,15 +17,6 @@
  * limitations under the License.
 */
 #include <linux/input.h>
-
-// Handle struct input_event time fields for both legacy and -D_TIME_BITS=64 glibc
-#if defined(__GLIBC__) && defined(_TIME_BITS) && _TIME_BITS == 64
-#define EV_TIME_SEC(ev)   ((ev).__sec)
-#define EV_TIME_USEC(ev)  ((ev).__usec)
-#else
-#define EV_TIME_SEC(ev)   ((ev).time.tv_sec)
-#define EV_TIME_USEC(ev)  ((ev).time.tv_usec)
-#endif
 #include <fcntl.h>
 #include <stdio.h>
 #include <string.h>
@@ -50,22 +41,22 @@ int main(int argc, char *argv[])
 	    memset(&ev, 0, count);
             int ret = read(fd, &ev, count);
             if (ret == count) {
-                printf("Getting input [%lu.%lu] - %d %d %d\r\n",
-                                (unsigned long)EV_TIME_SEC(ev), (unsigned long)EV_TIME_USEC(ev),
+                printf("Getting input [%ld.%ld] - %d %d %d\r\n",
+                                ev.time.tv_sec, ev.time.tv_usec,
                                 ev.type,
                                 ev.code,
                                 ev.value);
                 if (ev.type == EV_KEY) {
                     if (ev.value >= 0 && ev.value <=2) {
-                        printf("[%lu].[%lu] : Key [%d] [%s]\r\n",
-                                (unsigned long)EV_TIME_SEC(ev), (unsigned long)EV_TIME_USEC(ev),
+                        printf("[%ld].[%ld] : Key [%d] [%s]\r\n",
+                                ev.time.tv_sec, ev.time.tv_usec,
                                 ev.code,
                                 (ev.value == 1) ? "+++++PRESSED" : ((ev.value == 0) ? "=====Release" : "......."));
                     }
                 }
                 else if (ev.type == EV_SYN) {
-                    printf("[%lu].[%lu] : SYN [%s]\r\n",
-                                (unsigned long)EV_TIME_SEC(ev), (unsigned long)EV_TIME_USEC(ev),
+                    printf("[%ld].[%ld] : SYN [%s]\r\n",
+                                ev.time.tv_sec, ev.time.tv_usec,
                                 (ev.value == SYN_REPORT) ? "SYN_REPORT" : "SYN_OTHER");
                 }
             }

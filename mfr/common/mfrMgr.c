@@ -67,7 +67,7 @@ IARM_Result_t MFRLib_Loop()
 {
     while(1)
     {
-	printf("I-ARM MFR Lib: HeartBeat ping.\r\n");
+        printf("I-ARM MFR Lib: HeartBeat ping.\r\n");
         sleep(60);
     }
     return IARM_RESULT_SUCCESS;

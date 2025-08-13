@@ -59,24 +59,6 @@ extern "C"
 #include <iostream>
 #include <utils.h>
 
-#include <assert.h>
-#include <stdint.h>
-
-/* Check for Y2K38_SAFETY - Portable static assertion */
-#if defined(__cplusplus)
-#define STATIC_ASSERT(COND, MSG) static_assert(COND, #MSG)
-STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
-STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
-#elif defined(__STDC_VERSION__) && __STDC_VERSION__ >= 201112L
-#define STATIC_ASSERT(COND, MSG) _Static_assert(COND, #MSG)
-STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
-STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
-#else
-#define STATIC_ASSERT(COND, MSG) typedef char static_assertion_##MSG[(COND)?1:-1]
-STATIC_ASSERT(sizeof(double) == 8, double_must_be_8_bytes);
-STATIC_ASSERT(sizeof(time_t) >= 8, time_t_must_be_at_least_8_bytes);
-#endif
-
 #include "safec_lib.h"
 
 extern "C"
@@ -170,7 +152,6 @@ int main(int argc, char *argv[])
 
 #endif
 
-    /* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
     time_t tim=time(NULL);
      tm *now=localtime(&tim);
      INT_LOG("Date is %d/%02d/%02d\n", now->tm_year+1900, now->tm_mon+1, now->tm_mday);
@@ -347,17 +328,17 @@ bool loadConfig()
 
 		while (!feof(fp) && confData.length() < 65535)
 		{
-                        memset(buf,'\0', sizeof(buf));                 //CID:136517 - checked null argument
-                        nread = fread(buf, 1, sizeof(buf) - 1, fp);
-                        if (0 >= nread)
-                        {
-			    INT_LOG("dumMgr fread failed  \n");
-			    break; // stop since fread is error.
-                        }
-                        else
-                        {
-                            confData.append(buf, nread);
-                        }
+			memset(buf,'\0', sizeof(buf));                 //CID:136517 - checked null argument
+			nread = fread(buf, 1, sizeof(buf) - 1, fp);
+			if (0 >= nread)
+			{
+				INT_LOG("dumMgr fread failed  \n");
+				break; // stop since fread is error.
+			}
+			else
+			{
+				confData.append(buf, nread);
+			}
 		}
 
 		if (fp)
@@ -790,7 +771,6 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 					// since TI boxes can only announce one update we space updates on days of month to make
 					// sure all types get updated.  This is a temporary hack until control manager takes over from
 					// rfMgr
-					/* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
 					time_t theTime = time(NULL);
 					struct tm *aTime = localtime(&theTime);
 					int day = aTime->tm_mday;
@@ -1122,7 +1102,6 @@ void sendLoadInit(int id)
 	// time to load is set to immediate if we are before the time of day as we normally reboot very early
 	// morning and time to load should also be early morning
 	// however we do a sanity check so if we reboot later in the day we hold off till load time using time to load
-    /* coverity[ignore : Y2K38_SAFETY] see the assert check at the top which prevents overflow. */
     time_t tim=time(NULL);
      tm *now=localtime(&tim);
      INT_LOG("Time is %02d:%02d\n", now->tm_hour, now->tm_min);
