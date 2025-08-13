@@ -28,10 +28,9 @@ INCLUDES = -I=$(IARM) -I=$(IARM_MGR) \
            -I ./include \
            -I=$(includedir)/directfb \
            -I ../ir/include \
-           -I ../power/include \
            -I ../sysmgr/include \
            -I=$(includedir)/rdk/ds \
-           -I=$(includedir)/rdk/ds-hal \ 
+           -I=$(includedir)/rdk/ds-hal \
            -I=$(includedir)/rdk/halif/deepsleep-manager
 
 CC = $(CXX)
@@ -41,4 +40,4 @@ AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11
 bin_PROGRAMS = deepSleepMgrMain
 
 deepSleepMgrMain_SOURCES = deepSleepMgr.c  deepSleepMgrMain.c deepSleepInternal.h  deepsleeplogger.h
-deepSleepMgrMain_LDADD = -liarmmgrs-power-hal
+deepSleepMgrMain_LDADD =

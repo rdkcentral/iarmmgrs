@@ -450,6 +450,9 @@ static bool get_video_port_standby_setting(const char * port)
 static IARM_Result_t _SetStandbyVideoState(void *arg)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
+    if (NULL == arg) {
+	return IARM_RESULT_INVALID_PARAM;
+    }
     dsMgrStandbyVideoStateParam_t *param = (dsMgrStandbyVideoStateParam_t *)arg;
     if(NULL == param->port)
     {
@@ -516,6 +519,9 @@ static IARM_Result_t _SetStandbyVideoState(void *arg)
 static IARM_Result_t _GetStandbyVideoState(void *arg)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
+    if (NULL == arg) {
+	return IARM_RESULT_INVALID_PARAM;
+    }
     dsMgrStandbyVideoStateParam_t *param = (dsMgrStandbyVideoStateParam_t *)arg;
     if(NULL == param->port)
     {
@@ -534,7 +540,7 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
         param->result = -1;
         return IARM_RESULT_SUCCESS;
     }
-    param->isEnabled = ((true == get_video_port_standby_setting(param->port))? 1 : 0);
+    param->isEnabled = (get_video_port_standby_setting(param->port) ? 1 : 0);
     param->result = 0;
     return IARM_RESULT_SUCCESS;
 }
