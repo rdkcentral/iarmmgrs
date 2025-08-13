@@ -91,7 +91,7 @@ IARM_Result_t SYSMgr_Start()
         CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX));
         CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates));
         CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler));
-	initialized = 1;
+        initialized = 1;
 	#ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
               "STATUS=sysMgr is Successfully Initialized\n"
@@ -102,13 +102,12 @@ IARM_Result_t SYSMgr_Start()
 #ifdef PID_FILE_PATH
 #define xstr(s) str(s)
 #define str(s) #s
-    // write pidfile because sd_notify() does not work inside container
-    IARM_Bus_WritePIDFile(xstr(PID_FILE_PATH) "/sysmgr.pid");
+        // write pidfile because sd_notify() does not work inside container
+        IARM_Bus_WritePIDFile(xstr(PID_FILE_PATH) "/sysmgr.pid");
 #endif
-        
-      //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
+        //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
 
-	/*HDCP Profile required*/	
+	/*HDCP Profile required*/
 	CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
 	CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
 
@@ -154,10 +153,10 @@ IARM_Result_t SYSMgr_Start()
         systemStates.plant_id = {0};
         systemStates.stb_serial_no={0};
         systemStates.bootup = {0};
-        systemStates.hdcp_enabled.state = 1; /*Default HDCP state is enabled.*/		
-		systemStates.dst_offset = {0};
-		systemStates.ip_mode = {0};
-		systemStates.qam_ready_status = {0};
+        systemStates.hdcp_enabled.state = 1; /*Default HDCP state is enabled.*/
+        systemStates.dst_offset = {0};
+        systemStates.ip_mode = {0};
+        systemStates.qam_ready_status = {0};
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
     }
     else {

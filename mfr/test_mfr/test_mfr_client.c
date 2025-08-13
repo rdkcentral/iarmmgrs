@@ -207,7 +207,7 @@ int main()
 			printf("Call to %s: failed due to unsuccessful IARM_Malloc()\n","MFRLIB_API_SearchCPUClockSpeeds");
 		}
 
-		thermalSoCFreq = NULL;
+                thermalSoCFreq = NULL;
                 iarm_result = IARM_Malloc(IARM_MEMTYPE_PROCESSLOCAL, sizeof(IARM_Bus_MFRLib_ThermalSoCFreq_Param_t), (void**)&thermalSoCFreq);
                 if((iarm_result == IARM_RESULT_SUCCESS) && thermalSoCFreq)
                 {

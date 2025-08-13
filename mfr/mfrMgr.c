@@ -1560,10 +1560,10 @@ static IARM_Result_t getFSRflag_(void *arg)
 IARM_Result_t MFRLib_Stop(void)
 {
     if(is_connected)
-	{
-		IARM_Bus_Disconnect();
-		IARM_Bus_Term();
-	}
+    {
+	IARM_Bus_Disconnect();
+	IARM_Bus_Term();
+    }
     return IARM_RESULT_SUCCESS;
 }
 
@@ -1571,7 +1571,7 @@ IARM_Result_t MFRLib_Loop()
 {
     while(1)
     {
-	LOG("I-ARM MFR Lib: HeartBeat ping.\r\n");
+        LOG("I-ARM MFR Lib: HeartBeat ping.\r\n");
         sleep(300);
     }
     return IARM_RESULT_SUCCESS;
