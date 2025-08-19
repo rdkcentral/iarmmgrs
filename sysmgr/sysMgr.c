@@ -586,13 +586,16 @@ void GetSerialNumber(void)
     {
         pthread_mutex_unlock(&tMutexLock);
         return;
+    } else {
+           LOG("Arun: STB Serial Number is N.A, release LOCK for IARM_BUS_MFRLIB_API_GetSerializedData response.\n");
     }
+    pthread_mutex_unlock(&tMutexLock);
 
     param.type = mfrSERIALIZED_TYPE_SERIALNUMBER;
     param.bufLen = 0; 
     iarm_ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME, IARM_BUS_MFRLIB_API_GetSerializedData, &param, sizeof(param));
     param.buffer[param.bufLen] = '\0';
-
+    pthread_mutex_lock(&tMutexLock);
     if(iarm_ret == IARM_RESULT_SUCCESS)
     {
         memset(systemStates.stb_serial_no.payload, 0, sizeof(systemStates.stb_serial_no.payload));

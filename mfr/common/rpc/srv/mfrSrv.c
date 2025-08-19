@@ -99,17 +99,17 @@ void *find_func(const char* lib_name, const char *proc_name)
     if (dllib)
     {
 	ret = dlsym(dllib, proc_name);
-	if (ret) 
+	if (ret)
 	{
 	    printf("%s is defined and loaded\r\n",proc_name);
 	}
-	else 
+	else
 	{
 	    printf("%s is not defined\r\n",proc_name);
 	}
 	dlclose(dllib);
     }
-    else 
+    else
     {
 	printf("Opening library [%s] failed\r\n", lib_name);
     }
@@ -124,20 +124,20 @@ IARM_Result_t mfrMgr_start( )
     printf("Exiting %s\n",__func__);
     return retCode;
 #else
-    
+
      static mfr_init_t func = 0;
     IARM_Bus_Lock(lock);
     printf("In %s\n",__func__);
-    if (func == 0) 
+    if (func == 0)
     {
     	func = (mfr_init_t) find_func(RDK_MFRLIB_NAME, "mfr_init");
     }
-    if (func) 
+    if (func)
     {
         printf("Calling mfr_init  err %p\r\n", func);
      	  // mfrError_t err = func();
        mfrError_t err = mfr_init();
-      
+
        printf("Calling mfr_init returned value %d\r\n", err);
         if(mfrERR_NONE != err)
         {
@@ -155,7 +155,7 @@ IARM_Result_t mfrMgr_start( )
 	IARM_Bus_Connect();
 
 	IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_Init,_mfr_init);
-	
+
     retCode = IARM_RESULT_SUCCESS;
     }
 
@@ -175,7 +175,7 @@ IARM_Result_t _mfr_init(void *arg)
 
         IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_GetSerializedData,_mfrGetSerializedData);
         IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_SetSerializedData,_mfrSetSerializedData);
-        IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_Shutdown,_mfr_shutdown);    
+        IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_Shutdown,_mfr_shutdown);
         IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_WriteImage,_mfrWriteImage);
         IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_DeletePDRI,_mfrDeletePDRI);
         IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_ScrubAllBanks,_mfrScrubAllBanks);
@@ -197,9 +197,9 @@ IARM_Result_t _mfr_init(void *arg)
 
         if(IARM_RESULT_SUCCESS == retVal )
 	    {
-		
+
         mfrCrypto_init_t func  = (mfrCrypto_init_t) find_func(RDK_MFRCRYPTOLIB_NAME, "mfrCrypto_init");
-		
+
         if(func)
 		{
 		   printf("mfrCrypto_init returned ..... - %d\n",retVal);
@@ -230,7 +230,7 @@ IARM_Result_t _mfr_init(void *arg)
 		}
 		else
 		    printf("Some issue in finding the function mfrCrypto_init..\n");
-		
+
 	    }
         printf("_mfr_init sucess ..... - %d\n",retVal);
 
@@ -259,14 +259,14 @@ IARM_Result_t _mfrGetSerializedData(void *arg)
 
     printf("In %s\n",__func__);
 
-    if (func == 0) 
+    if (func == 0)
     {
         func = (mfrGetSerializedData_t) find_func(RDK_MFRLIB_NAME, "mfrGetSerializedData");
     }
-    if (func) 
+    if (func)
     {
 	mfrSerializedData_t data;
-	mfrCrypto_Encrypt_t *func_ptr = NULL; 
+	mfrCrypto_Encrypt_t *func_ptr = NULL;
 	mfrError_t err;
 	IARM_Bus_MFRLib_SerializedData_Param_t *param = (IARM_Bus_MFRLib_SerializedData_Param_t*) arg;
 
@@ -277,7 +277,7 @@ IARM_Result_t _mfrGetSerializedData(void *arg)
 	    if(encrypt_func == 0)
 	    {
 		    encrypt_func = (mfrCrypto_Encrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, param->crypto);
-    		if(!encrypt_func) 
+    		if(!encrypt_func)
     		{
     		    printf("Exiting %s\n",__func__);
     		    IARM_Bus_Unlock(lock);
@@ -286,7 +286,7 @@ IARM_Result_t _mfrGetSerializedData(void *arg)
 	    }
 	    func_ptr = encrypt_func;
 	}
-	err = func(param->type, &data, func_ptr); 	
+	err = func(param->type, &data, func_ptr);
         if(mfrERR_NONE == err)
         {
 
@@ -334,14 +334,14 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 
     IARM_Bus_Lock(lock);
     printf("In %s\n",__func__);
-    if (func == 0) 
+    if (func == 0)
     {
         func = (mfrSetSerializedData_t) find_func(RDK_MFRLIB_NAME, "mfrSetSerializedData");
     }
-    if (func) 
+    if (func)
     {
 	mfrSerializedData_t data;
-	mfrCrypto_Decrypt_t *func_ptr = NULL; 
+	mfrCrypto_Decrypt_t *func_ptr = NULL;
 	mfrError_t err;
 	IARM_Bus_MFRLib_SerializedData_Param_t *param = (IARM_Bus_MFRLib_SerializedData_Param_t*) arg;
         safec_rc = strcmp_s(param->crypto, strlen(param->crypto), "", &ind);
@@ -351,7 +351,7 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 	    if(decrypt_func == 0)
 	    {
 		decrypt_func = (mfrCrypto_Decrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, param->crypto);
-		if(!decrypt_func) 
+		if(!decrypt_func)
 		{
 		    printf("Exiting %s\n",__func__);
 		    IARM_Bus_Unlock(lock);
@@ -373,7 +373,7 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
                IARM_Bus_Unlock(lock);
                return IARM_RESULT_INVALID_PARAM;
             }
-	err = func(param->type, &data, func_ptr); 	
+	err = func(param->type, &data, func_ptr);
         if(mfrERR_NONE == err)
         {
 	    retCode = IARM_RESULT_SUCCESS;
@@ -393,8 +393,8 @@ static void writeImageCb(mfrUpgradeStatus_t status, void *cbData)
 
     LOG("In writeImage callback: error = %d, percentage = %02.02\n",status.error,status.percentage/100,status.percentage%100);
 
-    IARM_Bus_BroadcastEvent(IARM_BUS_MFRLIB_NAME, 
-				IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE, 
+    IARM_Bus_BroadcastEvent(IARM_BUS_MFRLIB_NAME,
+				IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE,
 				(void *) &param, sizeof(param));
 
     lastStatus = status;
@@ -410,22 +410,23 @@ IARM_Result_t _mfrWriteImage(void *arg)
     static mfrWriteImage_t func = 0;
     IARM_Bus_Lock(lock);
     printf("In writeImage_\n");
-    if (func == 0) 
+    if (func == 0)
     {
         func = (mfrWriteImage_t) find_func(RDK_MFRLIB_NAME, "mfrWriteImage");
-        if (func) 
+        if (func)
         {
 			printf("mfrWriteImage is defined and loaded\r\n");
         }
-        else 
+        else
         {
               printf("mfrWriteImage is not defined\r\n");
+			  IARM_Bus_Unlock(lock);
 	          return IARM_RESULT_INVALID_STATE;
         }
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
@@ -444,7 +445,7 @@ IARM_Result_t _mfrWriteImage(void *arg)
                printf("Waiting for upgrade to start\n");
                sleep(1);
             }
-            /* Poll for completion */    
+            /* Poll for completion */
             while( lastStatus.progress == mfrUPGRADE_PROGRESS_STARTED )
             {
                printf("Waiting for upgrade to complete\n");
@@ -454,10 +455,10 @@ IARM_Result_t _mfrWriteImage(void *arg)
             if(lastStatus.progress != mfrUPGRADE_PROGRESS_COMPLETED)
             {
                retCode = IARM_RESULT_IPCCORE_FAIL;
-            }        
-
+            }
         }
     }
+	IARM_Bus_Unlock(lock);
     printf("Exiting writeImage_\n");
     return retCode;
 #endif
@@ -473,22 +474,23 @@ IARM_Result_t _mfrGetImageWriteProgress(void *arg)
     static mfrGetImageWriteProgress_t func = 0;
     IARM_Bus_Lock(lock);
     printf("In %s\n",__func__);
-    if (func == 0) 
+    if (func == 0)
     {
 	    func = (mfrGetImageWriteProgress_t) find_func(RDK_MFRLIB_NAME, "mfrGetImageWriteProgress");
-	    if (func) 
+	    if (func)
 	    {
 	        printf("mfrGetImageWriteProgress is defined and loaded\r\n");
         }
-	    else 
+	    else
 	    {
 	        printf("mfrGetImageWriteProgress is not defined\r\n");
+			IARM_Bus_Unlock(lock);
 	        return IARM_RESULT_INVALID_STATE;
 	    }
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 
         IARM_Bus_MFRLib_GetImageWriteProgress_Param_t *pParam = (IARM_Bus_MFRLib_GetImageWriteProgress_Param_t *) arg;
@@ -499,6 +501,7 @@ IARM_Result_t _mfrGetImageWriteProgress(void *arg)
             retCode = IARM_RESULT_SUCCESS;
         }
     }
+	IARM_Bus_Unlock(lock);
     printf("Exiting %s\n",__func__);
     return retCode;
 #endif
@@ -514,22 +517,23 @@ IARM_Result_t _mfrSetImageWriteProgress(void *arg)
     static mfrSetImageWriteProgress_t func = 0;
     IARM_Bus_Lock(lock);
     printf("In %s\n",__func__);
-    if (func == 0) 
+    if (func == 0)
     {
         func = (mfrSetImageWriteProgress_t) find_func(RDK_MFRLIB_NAME, "mfrSetImageWriteProgress");
-	    if (func) 
+	    if (func)
 	    {
 	        printf("mfrSetImageWriteProgress is defined and loaded\r\n");
 	    }
-	    else 
+	    else
 	    {
 	        printf("mfrSetImageWriteProgress is not defined\r\n");
+			IARM_Bus_Unlock(lock);
 	        return IARM_RESULT_INVALID_STATE;
 	    }
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 
         IARM_Bus_MFRLib_SetImageWriteProgress_Param_t *pParam = (IARM_Bus_MFRLib_SetImageWriteProgress_Param_t *) arg;
@@ -540,6 +544,7 @@ IARM_Result_t _mfrSetImageWriteProgress(void *arg)
             retCode = IARM_RESULT_SUCCESS;
         }
     }
+	IARM_Bus_Unlock(lock);
     printf("Exiting %s\n",__func__);
     return retCode;
 #endif
@@ -554,14 +559,14 @@ IARM_Result_t _mfrDeletePDRI(void *arg)
     static mfrDeletePDRI_t func = 0;
 
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	    func = (mfrDeletePDRI_t) find_func(RDK_MFRLIB_NAME, "mfrDeletePDRI");
-		if (func) 
+		if (func)
 		{
-    		printf("mfrDeletePDRI(void) is defined and loaded\r\n");		
+    		printf("mfrDeletePDRI(void) is defined and loaded\r\n");
         }
-		else 
+		else
 		{
 	   		printf("mfrDeletePDRI(void) is not defined\r\n");
 	    	IARM_Bus_Unlock(lock);
@@ -570,7 +575,7 @@ IARM_Result_t _mfrDeletePDRI(void *arg)
 	}
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
         err = func();
         if(mfrERR_NONE == err)
@@ -594,14 +599,14 @@ IARM_Result_t _mfrScrubAllBanks(void *arg)
     static mfrScrubAllBanks_t func = 0;
 
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	    func = (mfrScrubAllBanks_t) find_func(RDK_MFRLIB_NAME, "mfrScrubAllBanks");
-	    if (func) 
+	    if (func)
 	    {
             printf("mfrScrubAllBanks(void) is defined and loaded\r\n");
 	    }
-	    else 
+	    else
 	    {
 	        printf("mfrScrubAllBanks(void) is not defined\r\n");
 	        IARM_Bus_Unlock(lock);
@@ -610,7 +615,7 @@ IARM_Result_t _mfrScrubAllBanks(void *arg)
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
         err = func();
         if(mfrERR_NONE == err)
@@ -622,7 +627,7 @@ IARM_Result_t _mfrScrubAllBanks(void *arg)
     }
     IARM_Bus_Unlock(lock);
     return retCode;
-        
+
 #endif
 }
 
@@ -639,22 +644,22 @@ IARM_Result_t _mfr_shutdown(void *arg)
     static mfr_shutdown_t func = 0;
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	    func = (mfr_shutdown_t) find_func(RDK_MFRLIB_NAME, "mfr_shutdown");
-	    if (func) 
+	    if (func)
 	    {
 	        printf("mfr_shutdown(void) is defined and loaded\r\n");
 	    }
-	    else 
+	    else
 	    {
 	        printf("mfr_shutdown(void) is not defined\r\n");
 	        IARM_Bus_Unlock(lock);
 	        return IARM_RESULT_INVALID_STATE;
 	    }
     }
-	
-    if (func) 
+
+    if (func)
     {
 	mfrError_t err = func();
         if(mfrERR_NONE == err)
@@ -670,7 +675,7 @@ IARM_Result_t _mfr_shutdown(void *arg)
 
 }
 
- 
+
 IARM_Result_t _mfrReboot(void *arg)
 {
 #ifndef RDK_MFRLIB_NAME
@@ -680,14 +685,14 @@ IARM_Result_t _mfrReboot(void *arg)
     static mfrReboot_t func = 0;
 
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	func = (mfrReboot_t) find_func(RDK_MFRLIB_NAME, "mfrReboot");
-	if (func) 
+	if (func)
 	{
 	    printf("mfrReboot (const char*) is defined and loaded\r\n");
 	}
-	else 
+	else
 	{
 	    printf("mfrReboot (const char*) is not defined\r\n");
 	    IARM_Bus_Unlock(lock);
@@ -696,10 +701,10 @@ IARM_Result_t _mfrReboot(void *arg)
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 	IARM_Bus_MFRLib_Reboot_Param_t *pParam = (IARM_Bus_MFRLib_Reboot_Param_t *)arg;
-	 
+
         err = func(pParam->imageName);
         if(mfrERR_NONE == err)
         {
@@ -710,7 +715,7 @@ IARM_Result_t _mfrReboot(void *arg)
     }
     IARM_Bus_Unlock(lock);
     return retCode;
-        
+
 #endif
 }
 
@@ -723,14 +728,14 @@ IARM_Result_t _mfrSetCableCardType(void *arg)
     static mfrSetCableCardType_t func = 0;
 
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	func = (mfrSetCableCardType_t) find_func(RDK_MFRLIB_NAME, "mfrSetCableCardType");
-	if (func) 
+	if (func)
 	{
 	    printf("mfrSetCableCardType is defined and loaded\r\n");
 	}
-	else 
+	else
 	{
 	    printf("mfrSetCableCardType is not defined\r\n");
 	    IARM_Bus_Unlock(lock);
@@ -739,21 +744,20 @@ IARM_Result_t _mfrSetCableCardType(void *arg)
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 	IARM_Bus_MFRLib_SetCableCardType_Param_t *pParam = (IARM_Bus_MFRLib_SetCableCardType_Param_t *)arg;
-	 
+
         err = func(pParam->type);
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrSetCableCardType returned err %d\r\n", err);
-            IARM_Bus_Unlock(lock);
             retCode = IARM_RESULT_SUCCESS;
         }
     }
     IARM_Bus_Unlock(lock);
     return retCode;
-        
+
 #endif
 }
 
@@ -767,14 +771,14 @@ IARM_Result_t _mfrSetHostFirmwareInfo(void *arg)
     errno_t safec_rc = -1;
 
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	func = (mfrSetHostFirmwareInfo_t) find_func(RDK_MFRLIB_NAME, "mfrSetHostFirmwareInfo");
-	if (func) 
+	if (func)
 	{
 	    printf("mfrSetHostFirmwareInfo is defined and loaded\r\n");
 	}
-	else 
+	else
 	{
 	    printf("mfrSetHostFirmwareInfo is not defined\r\n");
 	    IARM_Bus_Unlock(lock);
@@ -783,11 +787,11 @@ IARM_Result_t _mfrSetHostFirmwareInfo(void *arg)
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 	IARM_Bus_MFRLib_SetHostFirmwareInfo_Param_t *pParam = (IARM_Bus_MFRLib_SetHostFirmwareInfo_Param_t *)arg;
 	mfrHostFirmwareInfo_t host_firmware_info;
-	
+
 	host_firmware_info.firmwareDay = pParam->day;
 	host_firmware_info.firmwareMonth = pParam->month;
 	host_firmware_info.firmwareYear = pParam->year;
@@ -802,13 +806,12 @@ IARM_Result_t _mfrSetHostFirmwareInfo(void *arg)
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrSetHostFirmwareInfo returned err %d\r\n", err);
-            IARM_Bus_Unlock(lock);
             retCode = IARM_RESULT_SUCCESS;
         }
     }
     IARM_Bus_Unlock(lock);
     return retCode;
-        
+
 #endif
 }
 
@@ -821,14 +824,14 @@ IARM_Result_t _mfrGetBootImageName(void *arg)
     static mfrGetBootImageName_t func = 0;
 
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	func = (mfrGetBootImageName_t) find_func(RDK_MFRLIB_NAME, "mfrGetBootImageName");
-	if (func) 
+	if (func)
 	{
 	    printf("mfrGetBootImageName is defined and loaded\r\n");
 	}
-	else 
+	else
 	{
 	    printf("mfrGetBootImageName is not defined\r\n");
 	    IARM_Bus_Unlock(lock);
@@ -837,7 +840,7 @@ IARM_Result_t _mfrGetBootImageName(void *arg)
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 	IARM_Bus_MFRLib_GetBootImageName_Param_t *pParam = (IARM_Bus_MFRLib_GetBootImageName_Param_t *)arg;
 
@@ -845,13 +848,12 @@ IARM_Result_t _mfrGetBootImageName(void *arg)
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrGetBootImageName returned err %d\r\n", err);
-            IARM_Bus_Unlock(lock);
             retCode = IARM_RESULT_SUCCESS;
         }
     }
     IARM_Bus_Unlock(lock);
     return retCode;
-        
+
 #endif
 }
 
@@ -864,14 +866,14 @@ IARM_Result_t _mfrGetPathConfiguration(void *arg)
     static mfrGetPathConfiguration_t func = 0;
     printf("In %s \n",__func__);
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	func = (mfrGetPathConfiguration_t) find_func(RDK_MFRLIB_NAME, "mfrGetPathConfiguration");
-	if (func) 
+	if (func)
 	{
 	    printf("mfrGetPathConfiguration is defined and loaded\r\n");
 	}
-	else 
+	else
 	{
 	    printf("mfrGetPathConfiguration is not defined\r\n");
 	    IARM_Bus_Unlock(lock);
@@ -880,7 +882,7 @@ IARM_Result_t _mfrGetPathConfiguration(void *arg)
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 	IARM_Bus_MFRLib_GetPathConfiguration_Param_t *pParam = (IARM_Bus_MFRLib_GetPathConfiguration_Param_t *)arg;
 
@@ -888,13 +890,12 @@ IARM_Result_t _mfrGetPathConfiguration(void *arg)
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrGetPathConfiguration returned err %d\r\n", err);
-            IARM_Bus_Unlock(lock);
             retCode = IARM_RESULT_SUCCESS;
         }
     }
     IARM_Bus_Unlock(lock);
     return retCode;
-        
+
 #endif
 }
 
@@ -908,14 +909,14 @@ IARM_Result_t _mfrGetDFAST2Data(void *arg)
     errno_t safec_rc = -1;
 
     IARM_Bus_Lock(lock);
-    if (func == 0) 
+    if (func == 0)
     {
 	func = (mfrGetDFAST2Data_t) find_func(RDK_MFRLIB_NAME, "mfrGetDFAST2Data");
-	if (func) 
+	if (func)
 	{
 	    printf("mfrGetDFAST2Data is defined and loaded\r\n");
 	}
-	else 
+	else
 	{
 	    printf("mfrGetDFAST2Data is not defined\r\n");
 	    IARM_Bus_Unlock(lock);
@@ -924,7 +925,7 @@ IARM_Result_t _mfrGetDFAST2Data(void *arg)
     }
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
-    if (func) 
+    if (func)
     {
 	IARM_Bus_MFRLib_GetDFAST2Data_Param_t *pParam = (IARM_Bus_MFRLib_GetDFAST2Data_Param_t *)arg;
 	mfrDFAST2Params_t dfast_params;
@@ -940,13 +941,12 @@ IARM_Result_t _mfrGetDFAST2Data(void *arg)
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrGetDFAST2Data returned err %d\r\n", err);
-            IARM_Bus_Unlock(lock);
             retCode = IARM_RESULT_SUCCESS;
         }
     }
     IARM_Bus_Unlock(lock);
     return retCode;
-        
+
 #endif
 }
 
