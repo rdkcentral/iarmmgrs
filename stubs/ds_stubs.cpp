@@ -63,6 +63,16 @@ namespace device{
 	void VideoOutputPort::disable() {
 	}
 
+	void AudioOutputPort::enable() {
+	}
+
+	void AudioOutputPort::disable() {
+	}
+
+	bool AudioOutputPort::getEnablePersist () const {
+		return true;
+	}
+
 	void Manager::load() {
 	}
 
