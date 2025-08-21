@@ -65,7 +65,7 @@ extern "C"
 {
 #ifdef YOCTO_BUILD
 #include "secure_wrapper.h"
-#endif  
+#endif
 bool loadConfig();
 pthread_mutex_t tMutexLock;
 IARM_Result_t AcceptUpdate(void *arg);
@@ -98,12 +98,9 @@ int loadBeforeHour=4;
 int delayTillAnnounceTimeMin=10; // default is announce after 10 min;
 int announceCounter=10; // counter for wait seconds
 bool oneAnnouncePerRun=false;
-
-
-
-
 static pthread_mutex_t mapMutex;
 }
+
 typedef struct updateInProgress_t
 {
 	_IARM_Bus_DeviceUpdate_AcceptUpdate_Param_t *acceptParams;
@@ -155,7 +152,6 @@ int main(int argc, char *argv[])
 
 #endif
 
-
     time_t tim=time(NULL);
      tm *now=localtime(&tim);
      INT_LOG("Date is %d/%02d/%02d\n", now->tm_year+1900, now->tm_mon+1, now->tm_mday);
@@ -179,45 +175,104 @@ int main(int argc, char *argv[])
 
 IARM_Result_t deviceUpdateStart()
 {
-
 	IARM_Result_t status = IARM_RESULT_INVALID_STATE;
 
 	INT_LOG("Entering [%s] - [%s] - disabling io redirect buf\n", __FUNCTION__, IARM_BUS_DEVICE_UPDATE_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	int ret = pthread_mutex_init(&mapMutex, NULL);
-        if(ret != 0) {
-        INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
-        status = IARM_RESULT_INVALID_STATE;  
-        }
+	if(ret != 0) {
+		INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
+		return IARM_RESULT_INVALID_STATE;
+	}
+	pthread_mutex_lock(&mapMutex);
 	if (!initialized)
 	{
 		IARM_Result_t rc;
 
 		int retval = pthread_mutex_init(&tMutexLock, NULL);
                 if(retval != 0) {
-                INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
+                	INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
+                        pthread_mutex_unlock(&mapMutex);
+                        pthread_mutex_destroy(&mapMutex);
+                        return IARM_RESULT_INVALID_STATE;
                 }
 		pthread_mutex_lock(&tMutexLock);
 		rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
 		INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
 		rc = IARM_Bus_Connect();
 		INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
 		rc = IARM_Bus_RegisterEvent(IARM_BUS_DEVICE_UPDATE_EVENT_MAX);
 		INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n", rc);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent IARM_BUS_DEVICE_UPDATE_EVENT_MAX failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
 		rc = IARM_Bus_RegisterCall( IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate, AcceptUpdate); /* RPC Method Implementation*/
 		INT_LOG("dumMgr:I-ARM IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate Mgr: %d\n", rc);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterCall IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
-		IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
+		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
 				_deviceUpdateEventHandler);
-		IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD failed: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
+		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
 				_deviceUpdateEventHandler);
-		IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS,
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS returned: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
+		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS,
 				_deviceUpdateEventHandler);
-		IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_ERROR,
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS returned: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
+		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_ERROR,
 				_deviceUpdateEventHandler);
+		if (IARM_RESULT_SUCCESS != rc) {
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_ERROR returned: %d\n", rc);
+			pthread_mutex_unlock(&mapMutex);
+			pthread_mutex_destroy(&mapMutex);
+			pthread_mutex_unlock(&tMutexLock);
+			return rc;
+		}
 
 		initialized = 1;
 
@@ -230,6 +285,7 @@ IARM_Result_t deviceUpdateStart()
 		INT_LOG("dumMgr: I-ARM Device Update Mgr Error case: %d\n", __LINE__);
 		status = IARM_RESULT_INVALID_STATE;
 	}
+	pthread_mutex_unlock(&mapMutex);
 	return status;
 }
 
@@ -268,18 +324,21 @@ bool loadConfig()
 	{
 		string confData;
 		char buf[2048] = "";  //CID:136517 - string null
+		size_t nread = 0;
 
 		while (!feof(fp) && confData.length() < 65535)
 		{
-                        memset(buf,'\0', sizeof(buf));                 //CID:136517 - checked null argument
-     			if (0 >= fread(buf, 1, sizeof(buf) - 1, fp))   //cID:86017 - checked return
-                        {
-			    INT_LOG("dumMgr fread failed  \n");
-                        }
-                        else
-                        {
-                            confData.append(buf);
-                        }
+			memset(buf,'\0', sizeof(buf));                 //CID:136517 - checked null argument
+			nread = fread(buf, 1, sizeof(buf) - 1, fp);
+			if (0 >= nread)
+			{
+				INT_LOG("dumMgr fread failed  \n");
+				break; // stop since fread is error.
+			}
+			else
+			{
+				confData.append(buf, nread);
+			}
 		}
 
 		if (fp)
@@ -774,26 +833,28 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 
 
 		if(i>60){
-		if (updatesInProgress->size() > 0)
-		{
-			__TIMESTAMP();
-			INT_LOG("deviceUpdateMgr - updates in progress:\n");
-			map<int, updateInProgress_t *>::iterator pos = updatesInProgress->begin();
-			while (pos != updatesInProgress->end())
+			pthread_mutex_lock(&mapMutex);
+			if (updatesInProgress->size() > 0)
 			{
-				INT_LOG("     UpdateID:%d deviceID:%d percentDownload:%d Loaded:%d file:%s\n", pos->first,
-						pos->second->acceptParams->deviceID, pos->second->downloadPercent, pos->second->loadComplete,
-						pos->second->acceptParams->deviceImageFilePath);
-				if (pos->second->errorCode > 0)
+				__TIMESTAMP();
+				INT_LOG("deviceUpdateMgr - updates in progress:\n");
+				map<int, updateInProgress_t *>::iterator pos = updatesInProgress->begin();
+				while (pos != updatesInProgress->end())
 				{
-					INT_LOG("              ERROR on UpdateID:%d Type:%d Message:%s\n", pos->first, pos->second->errorCode,
-							pos->second->errorMsg.c_str());
+					INT_LOG("     UpdateID:%d deviceID:%d percentDownload:%d Loaded:%d file:%s\n", pos->first,
+							pos->second->acceptParams->deviceID, pos->second->downloadPercent, pos->second->loadComplete,
+							pos->second->acceptParams->deviceImageFilePath);
+					if (pos->second->errorCode > 0)
+					{
+						INT_LOG("              ERROR on UpdateID:%d Type:%d Message:%s\n", pos->first, pos->second->errorCode,
+								pos->second->errorMsg.c_str());
+					}
+					pos++;
 				}
-				pos++;
-			}
 
-		}
-i=0;
+			}
+			pthread_mutex_unlock(&mapMutex);
+			i=0;
 		}
 			fflush(stdout);
 	}
@@ -832,9 +893,15 @@ IARM_Result_t deviceUpdateStop(void)
 	if (initialized)
 	{
 		pthread_mutex_lock(&tMutexLock);
-		IARM_Bus_UnRegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD);
-		IARM_Bus_Disconnect();
-		IARM_Bus_Term();
+		if (IARM_Bus_UnRegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD) != IARM_RESULT_SUCCESS) {
+			INT_LOG("%s:%d: IARM_Bus_UnRegisterEventHandler failed\n", __FUNCTION__, __LINE__);
+		}
+		if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+			INT_LOG("%s:%d: IARM_Bus_Disconnect failed\n", __FUNCTION__, __LINE__);
+		}
+		if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+			INT_LOG("%s:%d: IARM_Bus_Term failed\n", __FUNCTION__, __LINE__);
+		}
 		pthread_mutex_unlock(&tMutexLock);
 		pthread_mutex_destroy(&tMutexLock);
 		initialized = false;
@@ -856,7 +923,11 @@ typedef struct
 updateInProgress_t *getUpdateInProgress(int id)
 {
 	pthread_mutex_lock(&mapMutex);
-	updateInProgress_t *uip = updatesInProgress->find(id)->second;
+	updateInProgress_t *uip = nullptr;
+	auto it = updatesInProgress->find(id);
+	if (it != updatesInProgress->end()) {
+		uip = it->second;
+	}
 	pthread_mutex_unlock(&mapMutex);
 	return uip;
 

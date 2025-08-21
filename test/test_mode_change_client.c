@@ -49,11 +49,18 @@ int main()
 	IARM_Bus_CommonAPI_SysModeChange_Param_t sysModeParam;
 
 	printf("SysClient Entering %d\r\n", getpid());
-	IARM_Bus_Init("Client");
-	IARM_Bus_Connect();
-
-	IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange,_SysModeChange);
-
+	if (IARM_Bus_Init("Client") != IARM_RESULT_SUCCESS) {
+		printf("Failed to initialize IARM Bus\n");
+		return -1;
+	}
+	if (IARM_Bus_Connect() != IARM_RESULT_SUCCESS) {
+		printf("Failed to connect to IARM Bus\n");
+		return -1;
+	}
+	if (IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange,_SysModeChange) != IARM_RESULT_SUCCESS) {
+		printf("Failed to register SysModeChange call\n");
+		return -1;
+	}
 	printf("Enter 'x' to exit, 'e' to send EAS and 'w' to send warehouse and 'n' to send normal Sys mode changes\n");
 	
 	while(x != 'x') {
@@ -63,32 +70,42 @@ int main()
 			case 'e':
 				sysModeParam.oldMode = currentMode;
 				sysModeParam.newMode = IARM_BUS_SYS_MODE_EAS;
-				IARM_Bus_Call(IARM_BUS_DAEMON_NAME,
+				if (IARM_Bus_Call(IARM_BUS_DAEMON_NAME,
                 			IARM_BUS_DAEMON_API_SysModeChange,
                 			&sysModeParam,
-                			sizeof(sysModeParam));
+                			sizeof(sysModeParam)) != IARM_RESULT_SUCCESS) {
+					printf("Failed to send SysModeChange EAS\n");
+				}
 			break;
 			case 'w':
 				sysModeParam.oldMode = currentMode;
 				sysModeParam.newMode = IARM_BUS_SYS_MODE_WAREHOUSE;
-				IARM_Bus_Call(IARM_BUS_DAEMON_NAME,
+				if (IARM_Bus_Call(IARM_BUS_DAEMON_NAME,
                 			IARM_BUS_DAEMON_API_SysModeChange,
                 			&sysModeParam,
-                			sizeof(sysModeParam));
+                			sizeof(sysModeParam)) != IARM_RESULT_SUCCESS) {
+					printf("Failed to send SysModeChange Warehouse\n");
+				}
 			break;
 			case 'n':
 				sysModeParam.oldMode = currentMode;
 				sysModeParam.newMode = IARM_BUS_SYS_MODE_NORMAL;
-				IARM_Bus_Call(IARM_BUS_DAEMON_NAME,
+				if (IARM_Bus_Call(IARM_BUS_DAEMON_NAME,
                 			IARM_BUS_DAEMON_API_SysModeChange,
                 			&sysModeParam,
-                			sizeof(sysModeParam));
+                			sizeof(sysModeParam)) != IARM_RESULT_SUCCESS) {
+					printf("Failed to send SysModeChange Normal\n");
+				}
 			break;
 		}
 		x = getchar();
 	}
-	IARM_Bus_Disconnect();
-	IARM_Bus_Term();
+	if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+		printf("Failed to disconnect from IARM Bus\n");
+	}
+	if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+		printf("Failed to terminate IARM Bus\n");
+	}
 	printf("Client Exiting\r\n");
 }
 

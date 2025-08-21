@@ -38,7 +38,7 @@ int main(int argc, char *argv[])
         struct input_event ev;
         const int count = sizeof(ev);
         while(1) {
-            bzero(&ev, count);
+            memset(&ev, 0, count);
             int ret = read(fd, &ev, count);
             if (ret == count) {
                 printf("Getting input [%ld.%ld] - %d %d %d\r\n",
