@@ -51,6 +51,7 @@
     retStatus = (call); \
     if (IARM_RESULT_SUCCESS != retStatus) { \
         pthread_mutex_unlock(&tMutexLock); \
+        LOG("IARM call failed, error: %d\n", retStatus); \
         return retStatus; \
     }
 

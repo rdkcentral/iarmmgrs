@@ -192,9 +192,9 @@ IARM_Result_t deviceUpdateStart()
 		int retval = pthread_mutex_init(&tMutexLock, NULL);
                 if(retval != 0) {
                 	INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			return IARM_RESULT_INVALID_STATE;
+                        pthread_mutex_unlock(&mapMutex);
+                        pthread_mutex_destroy(&mapMutex);
+                        return IARM_RESULT_INVALID_STATE;
                 }
 		pthread_mutex_lock(&tMutexLock);
 		rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
