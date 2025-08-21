@@ -283,29 +283,40 @@ static IARM_Result_t _GetHDCPProfile(void *arg)
 
 static IARM_Result_t _GetSystemStates(void *arg)
 {
+#if 0
+    __TIMESTAMP();LOG("_GetSystemStates In\r\n");
 #ifdef USE_MFR_FOR_SERIAL
     GetSerialNumber();
+    __TIMESTAMP();LOG("_GetSystemStates GetSerialNumber\r\n");
 #endif
     pthread_mutex_lock(&tMutexLock);
     static int current_channel_map_state = 0;
     IARM_Bus_SYSMgr_GetSystemStates_Param_t *param = (IARM_Bus_SYSMgr_GetSystemStates_Param_t *)arg;
-
+	
+    __TIMESTAMP();LOG("_GetSystemStates arg assigned to param\r\n");
+	
     if(current_channel_map_state != systemStates.channel_map.state) {
       __TIMESTAMP();LOG("_GetSystemStates return ChannelMapState = %d\r\n", systemStates.channel_map.state);
       current_channel_map_state = systemStates.channel_map.state;
     }
-
+    __TIMESTAMP();LOG("_GetSystemStates MEDIA_CLIENT define\r\n");
     #ifdef MEDIA_CLIENT
     	systemStates.channel_map.state=2;
     	systemStates.TuneReadyStatus.state=1;
+	__TIMESTAMP();LOG("_GetSystemStates SystemState time source fillling\r\n");
 	if(systemStates.time_source.state==0) {
    	   if( access( ntp_filename, F_OK ) != -1 ) {
+	     __TIMESTAMP();LOG("_GetSystemStates SystemState time source state 1 set\r\n");
       	      systemStates.time_source.state=1;
 	   }
 	}
     #endif
+    __TIMESTAMP();LOG("_GetSystemStates param filling\r\n");
     *param = systemStates;
+    __TIMESTAMP();LOG("_GetSystemStates param filled\r\n");
     pthread_mutex_unlock(&tMutexLock);
+    __TIMESTAMP();LOG("_GetSystemStates Out\r\n");
+#endif
     return IARM_RESULT_SUCCESS;
 }
 
@@ -319,7 +330,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 	if (strcmp(owner, IARM_BUS_SYSMGR_NAME)  == 0) 
 	{
 	
-		//__TIMESTAMP();LOG("_sysEventHandler invoked ww\r\n");
+		__TIMESTAMP();LOG("_sysEventHandler invoked ww\r\n");
 		pthread_mutex_lock(&tMutexLock);
 		IARM_Bus_SYSMgr_EventData_t *sysEventData = (IARM_Bus_SYSMgr_EventData_t*)data;
 
@@ -406,8 +417,6 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				systemStates.red_recov_state.error = error;
 				break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_TIME_SOURCE :
-				systemStates.time_source.state = state;
-				systemStates.time_source.error = error;
 				break;
 				/*
 					payload contains any of the string below for various time zones
@@ -570,6 +579,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 		}
 		pthread_mutex_unlock(&tMutexLock);
 	}
+	__TIMESTAMP();LOG("_sysEventHandler out\r\n");
 }
 
 /**
