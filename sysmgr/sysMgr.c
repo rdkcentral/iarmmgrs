@@ -47,7 +47,7 @@
 #include <systemd/sd-daemon.h>
 #endif
 
-#define CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(call) \
+#define UNLOCK_AND_RETURN_IF_ERROR(call) \
     retStatus = (call); \
     if (IARM_RESULT_SUCCESS != retStatus) { \
         pthread_mutex_unlock(&tMutexLock); \
@@ -87,11 +87,11 @@ IARM_Result_t SYSMgr_Start()
     pthread_mutex_lock(&tMutexLock);
     if (!initialized) {
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_Init(IARM_BUS_SYSMGR_NAME));
-        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_Connect());
-        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX));
-        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates));
-        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler));
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Init(IARM_BUS_SYSMGR_NAME));
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Connect());
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX));
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates));
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler));
         initialized = 1;
 	#ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
@@ -109,12 +109,12 @@ IARM_Result_t SYSMgr_Start()
         //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
 
 	/*HDCP Profile required*/
-	CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
-	CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
+	UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
+	UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
 
 
-        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref));
-	CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref));
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref));
+	UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref));
         keyLogStatus = 1;
 
         systemStates.channel_map = {0};
@@ -184,8 +184,8 @@ IARM_Result_t SYSMgr_Stop(void)
     IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
     pthread_mutex_lock(&tMutexLock);
     if (initialized) {
-        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_Disconnect());
-        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_Term());
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Disconnect());
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Term());
         initialized = 0;
         pthread_mutex_unlock(&tMutexLock);
         pthread_mutex_destroy(&tMutexLock);
