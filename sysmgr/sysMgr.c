@@ -47,7 +47,7 @@
 #include <systemd/sd-daemon.h>
 #endif
 
-#define CHECK_AND_RETURN_ERROR(call) \
+#define CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(call) \
     retStatus = (call); \
     if (IARM_RESULT_SUCCESS != retStatus) { \
         pthread_mutex_unlock(&tMutexLock); \
@@ -62,7 +62,7 @@ static IARM_Result_t _GetSystemStates(void *arg);
 static volatile int initialized = 0;
 
 
-#define NTP_FILE_NAME	"/tmp/stt_received"
+static const char *ntp_filename = "/tmp/stt_received"
 /*Support for HDCP Profile */
 static const char *profile_1_filename ="/opt/.hdcp_profile_1";
 static int CheckHdcpProfile(void);
@@ -87,11 +87,11 @@ IARM_Result_t SYSMgr_Start()
     pthread_mutex_lock(&tMutexLock);
     if (!initialized) {
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        CHECK_AND_RETURN_ERROR(IARM_Bus_Init(IARM_BUS_SYSMGR_NAME));
-        CHECK_AND_RETURN_ERROR(IARM_Bus_Connect());
-        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX));
-        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates));
-        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler));
+        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_Init(IARM_BUS_SYSMGR_NAME));
+        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_Connect());
+        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX));
+        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates));
+        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler));
         initialized = 1;
 	#ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
@@ -109,12 +109,12 @@ IARM_Result_t SYSMgr_Start()
         //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
 
 	/*HDCP Profile required*/
-	CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
-	CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
+	CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
+	CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
 
 
-        CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref));
-	CHECK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref));
+        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref));
+	CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref));
         keyLogStatus = 1;
 
         systemStates.channel_map = {0};
@@ -184,8 +184,8 @@ IARM_Result_t SYSMgr_Stop(void)
     IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
     pthread_mutex_lock(&tMutexLock);
     if (initialized) {
-        CHECK_AND_RETURN_ERROR(IARM_Bus_Disconnect());
-        CHECK_AND_RETURN_ERROR(IARM_Bus_Term());
+        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_Disconnect());
+        CHECK_MUTEXUNLOCK_AND_RETURN_ERROR(IARM_Bus_Term());
         initialized = 0;
         pthread_mutex_unlock(&tMutexLock);
         pthread_mutex_destroy(&tMutexLock);
@@ -198,7 +198,7 @@ IARM_Result_t SYSMgr_Stop(void)
 }
 
 /**
- * @brief This functions sets/updates the HDCP Profile                             
+ * @brief This functions sets/updates the HDCP Profile
  *
  * @param callCtx: Context to the caller function
  * @param methodID: Method to be invoke
@@ -293,7 +293,7 @@ static IARM_Result_t _GetSystemStates(void *arg)
     	systemStates.channel_map.state=2;
     	systemStates.TuneReadyStatus.state=1;
 	if(systemStates.time_source.state==0) {
-   	   if( access(NTP_FILE_NAME, F_OK ) != -1 ) {
+ 	   if( access(ntp_filename, F_OK ) != -1 ) {
       	      systemStates.time_source.state=1;
 	   }
 	}
@@ -588,7 +588,7 @@ void GetSerialNumber(void)
         pthread_mutex_unlock(&tMutexLock);
         return;
     } else {
-           LOG("Arun: STB Serial Number is N.A, release LOCK for IARM_BUS_MFRLIB_API_GetSerializedData response.\n");
+           LOG("STB Serial Number is N.A, release LOCK for IARM_BUS_MFRLIB_API_GetSerializedData response.\n");
     }
     pthread_mutex_unlock(&tMutexLock);
 
