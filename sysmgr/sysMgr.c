@@ -62,7 +62,7 @@ static IARM_Result_t _GetSystemStates(void *arg);
 static volatile int initialized = 0;
 
 
-static const char *ntp_filename = "/tmp/stt_received"
+static const char *ntp_filename = "/tmp/stt_received";
 /*Support for HDCP Profile */
 static const char *profile_1_filename ="/opt/.hdcp_profile_1";
 static int CheckHdcpProfile(void);
