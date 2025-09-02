@@ -53,11 +53,9 @@ IARM_Result_t DISKMgr_Start()
 
 IARM_Result_t DISKMgr_Loop()
 {
-    time_t curr = 0;
     while(1)
     {
-        time(&curr);
-        LOG("I-ARM Disk Mgr: HeartBeat at %s\r\n", ctime(&curr));
+        LOG("I-ARM Disk Mgr: HeartBeat ping.\r\n");
         sleep(2000);
     }
     return IARM_RESULT_SUCCESS;

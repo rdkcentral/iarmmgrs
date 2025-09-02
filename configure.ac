@@ -53,7 +53,7 @@ AC_ARG_ENABLE([yocto],
         AS_HELP_STRING([--enable-yocto],[enable yocto (default is no)]),
         [
           case "${enableval}" in
-           yes) IS_YOCTO_ENABLED=true 
+           yes) IS_YOCTO_ENABLED=true
                 YOCTO_FLAG=" -DYOCTO_BUILD ";;
            no)  IS_YOCTO_ENABLED=false ;;
           *) AC_MSG_ERROR([bad value ${enableval} for --enable-yocto]) ;;
@@ -97,9 +97,6 @@ AC_CONFIG_FILES([Makefile
                  disk/Makefile
                  deviceUpdateMgr/Makefile
                  ir/Makefile
-                 power/Makefile
-                 pwrstate/Makefile
                  test/Makefile
                  mfr/Makefile])
 AC_OUTPUT
-
