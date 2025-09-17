@@ -24,7 +24,7 @@ IARM        = $(includedir)/rdk/iarmbus
 IARM_MGR    = $(includedir)/rdk/iarmmgrs-hal
 
 INCLUDES = -I=$(IARM) -I=$(IARM_MGR) \
-           -I ../power/include \
+           \
            -I=/usr/include/directfb \
            -I ../sysmgr/include
 

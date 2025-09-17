@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -48,17 +47,24 @@
 #include <systemd/sd-daemon.h>
 #endif
 
+#define UNLOCK_AND_RETURN_IF_ERROR(call) \
+    retStatus = (call); \
+    if (IARM_RESULT_SUCCESS != retStatus) { \
+        pthread_mutex_unlock(&tMutexLock); \
+        LOG("IARM call failed, error: %d\n", retStatus); \
+        return retStatus; \
+    }
 
-static pthread_mutex_t tMutexLock;
+static pthread_mutex_t tMutexLock = PTHREAD_MUTEX_INITIALIZER;
 static IARM_Bus_SYSMgr_GetSystemStates_Param_t systemStates;
 static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
 static IARM_Result_t _GetSystemStates(void *arg);
 static volatile int initialized = 0;
 
 
-static char *ntp_filename ="/tmp/stt_received";
+static const char *ntp_filename = "/tmp/stt_received";
 /*Support for HDCP Profile */
-static char *profile_1_filename ="/opt/.hdcp_profile_1";
+static const char *profile_1_filename ="/opt/.hdcp_profile_1";
 static int CheckHdcpProfile(void);
 static void GetSerialNumber(void);
 
@@ -74,26 +80,18 @@ static IARM_Result_t _SetKeyCodeLoggingPref(void *arg);
 
 IARM_Result_t SYSMgr_Start()
 {
-
+	IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
 	LOG("Entering [%s] - [%s] - disabling io redirect buf\r\n", __FUNCTION__, IARM_BUS_SYSMGR_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 
+    pthread_mutex_lock(&tMutexLock);
     if (!initialized) {
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        pthread_mutex_init (&tMutexLock, NULL);
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        pthread_mutex_lock(&tMutexLock);
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_Init(IARM_BUS_SYSMGR_NAME);
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_Connect();
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX);
-      //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates);
-      //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler);
-      //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Init(IARM_BUS_SYSMGR_NAME));
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Connect());
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX));
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates));
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler));
         initialized = 1;
 	#ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
@@ -105,19 +103,18 @@ IARM_Result_t SYSMgr_Start()
 #ifdef PID_FILE_PATH
 #define xstr(s) str(s)
 #define str(s) #s
-    // write pidfile because sd_notify() does not work inside container
-    IARM_Bus_WritePIDFile(xstr(PID_FILE_PATH) "/sysmgr.pid");
+        // write pidfile because sd_notify() does not work inside container
+        IARM_Bus_WritePIDFile(xstr(PID_FILE_PATH) "/sysmgr.pid");
 #endif
-        
-      //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
+        //  LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
 
-		/*HDCP Profile required*/	
-		IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile);
-		IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile);
+	/*HDCP Profile required*/
+	UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetHDCPProfile,_SetHDCPProfile));
+	UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetHDCPProfile,_GetHDCPProfile));
 
 
-        IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref);
-	IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref);
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetKeyCodeLoggingPref,_GetKeyCodeLoggingPref));
+	UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_SetKeyCodeLoggingPref,_SetKeyCodeLoggingPref));
         keyLogStatus = 1;
 
         systemStates.channel_map = {0};
@@ -157,28 +154,25 @@ IARM_Result_t SYSMgr_Start()
         systemStates.plant_id = {0};
         systemStates.stb_serial_no={0};
         systemStates.bootup = {0};
-        systemStates.hdcp_enabled.state = 1; /*Default HDCP state is enabled.*/		
-		systemStates.dst_offset = {0};
-		systemStates.ip_mode = {0};
-		systemStates.qam_ready_status = {0};
-       // LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        pthread_mutex_unlock(&tMutexLock);
+        systemStates.hdcp_enabled.state = 1; /*Default HDCP state is enabled.*/
+        systemStates.dst_offset = {0};
+        systemStates.ip_mode = {0};
+        systemStates.qam_ready_status = {0};
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
-        return IARM_RESULT_SUCCESS;
     }
     else {
       LOG("VENU: I-ARM Sys Mgr Error case: %d\r\n", __LINE__);
-        return IARM_RESULT_INVALID_STATE;
+      retStatus = IARM_RESULT_INVALID_STATE;
     }
+    pthread_mutex_unlock(&tMutexLock);
+    return retStatus;
 }
 
 IARM_Result_t SYSMgr_Loop()
 {
-    time_t curr = 0;
     while(1)
     {
-        time(&curr);
-        LOG("I-ARM Sys Mgr: HeartBeat at %s\r\n", ctime(&curr));
+        LOG("I-ARM Sys Mgr: HeartBeat ping.\r\n");
         sleep(2000);
     }
     return IARM_RESULT_SUCCESS;
@@ -187,22 +181,24 @@ IARM_Result_t SYSMgr_Loop()
 
 IARM_Result_t SYSMgr_Stop(void)
 {
+    IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
+    pthread_mutex_lock(&tMutexLock);
     if (initialized) {
-        pthread_mutex_lock(&tMutexLock);
-        IARM_Bus_Disconnect();
-        IARM_Bus_Term();
-        pthread_mutex_unlock(&tMutexLock);
-        pthread_mutex_destroy (&tMutexLock);
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Disconnect());
+        UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Term());
         initialized = 0;
-        return IARM_RESULT_SUCCESS;
+        pthread_mutex_unlock(&tMutexLock);
+        pthread_mutex_destroy(&tMutexLock);
     }
     else {
-        return IARM_RESULT_INVALID_STATE;
+        pthread_mutex_unlock(&tMutexLock);
+        retStatus = IARM_RESULT_INVALID_STATE;
     }
+    return retStatus;
 }
 
 /**
- * @brief This functions sets/updates the HDCP Profile                             
+ * @brief This functions sets/updates the HDCP Profile
  *
  * @param callCtx: Context to the caller function
  * @param methodID: Method to be invoke
@@ -226,11 +222,9 @@ static int CheckHdcpProfile(void)
 
 static IARM_Result_t _SetHDCPProfile(void *arg)
 {
-
-IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *param = (IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *)arg;
-int    new_profile = 0;
-
-	new_profile = param->HdcpProfile;
+    IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
+    IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *param = (IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *)arg;
+    int new_profile = param->HdcpProfile;
 
     if ((CheckHdcpProfile() != new_profile) && (new_profile == 0 || new_profile == 1)) {
         int fd = -1;
@@ -249,10 +243,10 @@ int    new_profile = 0;
 			IARM_Bus_SYSMgr_EventData_t eventData;
 			eventData.data.hdcpProfileData.hdcpProfile = new_profile;
 			__TIMESTAMP(); printf("<<<<<<< Send HDCP Profile UPdate Event is %d>>>>>>>>",eventData.data.hdcpProfileData.hdcpProfile);
-			IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_HDCP_PROFILE_UPDATE,(void *)&eventData,sizeof(eventData));	
+			retStatus = IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_HDCP_PROFILE_UPDATE,(void *)&eventData,sizeof(eventData));
 		}
     }
-    return IARM_RESULT_SUCCESS;
+    return retStatus;
 }
 
 /**
@@ -299,7 +293,7 @@ static IARM_Result_t _GetSystemStates(void *arg)
     	systemStates.channel_map.state=2;
     	systemStates.TuneReadyStatus.state=1;
 	if(systemStates.time_source.state==0) {
-   	   if( access( ntp_filename, F_OK ) != -1 ) {
+ 	   if( access(ntp_filename, F_OK ) != -1 ) {
       	      systemStates.time_source.state=1;
 	   }
 	}
@@ -366,6 +360,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 			case   IARM_BUS_SYSMGR_SYSSTATE_MOTO_HRV_RX :
 				systemStates.card_moto_hrv_rx.state = state;
 				systemStates.card_moto_hrv_rx.error = error;
+				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_DAC_INIT_TIMESTAMP :
 				systemStates.dac_init_timestamp.state = state;
 				systemStates.dac_init_timestamp.error = error;
@@ -587,16 +582,20 @@ void GetSerialNumber(void)
     IARM_Bus_MFRLib_GetSerializedData_Param_t param;
     IARM_Result_t iarm_ret = IARM_RESULT_IPCCORE_FAIL;
 
+    pthread_mutex_lock(&tMutexLock);
     if(strlen(systemStates.stb_serial_no.payload) > 0)
     {
+        pthread_mutex_unlock(&tMutexLock);
         return;
+    } else {
+           LOG("STB Serial Number is N.A, release LOCK for IARM_BUS_MFRLIB_API_GetSerializedData response.\n");
     }
+    pthread_mutex_unlock(&tMutexLock);
 
     param.type = mfrSERIALIZED_TYPE_SERIALNUMBER;
     param.bufLen = 0; 
     iarm_ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME, IARM_BUS_MFRLIB_API_GetSerializedData, &param, sizeof(param));
     param.buffer[param.bufLen] = '\0';
-
     pthread_mutex_lock(&tMutexLock);
     if(iarm_ret == IARM_RESULT_SUCCESS)
     {

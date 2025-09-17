@@ -188,9 +188,7 @@ IARM_Result_t DeepSleepMgr_Stop(void)
 
 static gboolean heartbeatMsg(gpointer data)
 {
-    time_t curr = 0;
-    time(&curr);
-    LOG("I-ARM Deep Sleep Mgr: HeartBeat at %s\r\n", ctime(&curr));
+    LOG("I-ARM Deep Sleep Mgr: HeartBeat ping.\r\n");
     return TRUE;
 }
 
