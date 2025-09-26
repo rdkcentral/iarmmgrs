@@ -33,7 +33,6 @@
 #include <fcntl.h>
 #include <string.h>
 #include <stdlib.h>
-#include <time.h>
 #include <pthread.h>
 #include <sys/types.h>
 #include <sys/stat.h>
@@ -97,6 +96,84 @@ static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
 IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal Mode
 
+#define RES_MAX_LEN 10
+#define RES_MAX_COUNT 6
+#define DEFAULT_PROGRESSIVE_FPS "60"
+#define RESOLUTION_BASE_UHD     "2160p"
+#define RESOLUTION_BASE_FHD     "1080p"
+#define RESOLUTION_BASE_FHD_INT "1080i"
+#define RESOLUTION_BASE_HD      "720p"
+#define RESOLUTION_BASE_PAL     "576p"
+#define RESOLUTION_BASE_NTSC    "480p"
+
+#define EU_PROGRESSIVE_FPS  "50"
+#define EU_INTERLACED_FPS   "25"
+
+static bool IsEUPlatform = false;
+char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
+
+static bool isEUPlatform()
+{
+        char line[256];
+	bool isEUflag = false;
+        const char* devPropPath = "/etc/device.properties";
+	char deviceProp[15]= "FRIENDLY_ID", UKRegion[5]= " UK", USRegion[5]= " US";
+
+
+	FILE *file = fopen(devPropPath,"r");
+	if(file == NULL){
+	    INT_ERROR("%s: Unable to open file %s \r\n",__FUNCTION__,devPropPath);
+	    return false;
+	}
+	while(fgets(line, sizeof(line), file)) {
+	    if(strstr(line,deviceProp)!=NULL){
+                if(strstr(line,USRegion)!=NULL)
+		{
+                    INT_INFO("%s: %s ,isEUflag:%d \r\n",__FUNCTION__,line,isEUflag);
+		}
+		else{ // EU - UK/IT/DE
+		    isEUflag = true;
+		    INT_INFO("%s: %s ,isEUflag:%d \r\n",__FUNCTION__,line,isEUflag);
+		}
+		break;
+	    }
+	}
+	fclose(file);
+	return isEUflag;
+}
+
+static void setupPlatformConfig()
+{
+    char resList[RES_MAX_COUNT][RES_MAX_LEN] = {"2160p","1080p","1080i","720p","576p","480p"};
+    int count = 0, n = sizeof(resList) / sizeof(resList[0]);
+    IsEUPlatform = isEUPlatform();
+    for(int i=0; i<n; i++)
+    {
+        if((strstr(resList[i],"576p") !=NULL) && !IsEUPlatform) //include 576p for EU only
+	    continue;
+
+	snprintf(fallBackResolutionList[count],RES_MAX_LEN,"%s",resList[i]);
+        count++;
+    }
+}
+
+static bool getSecondaryResolution(char* res, char *secRes)
+{
+    bool ret = true;
+    if(strstr(res,RESOLUTION_BASE_HD) != NULL)
+        snprintf(secRes,RES_MAX_LEN,"%s",RESOLUTION_BASE_HD); //720p
+    else if(strstr(res,RESOLUTION_BASE_FHD) != NULL)
+         snprintf(secRes,RES_MAX_LEN,"%s%s",RESOLUTION_BASE_FHD,DEFAULT_PROGRESSIVE_FPS); //1080p60
+    else if(strstr(res,RESOLUTION_BASE_FHD_INT) != NULL)
+         snprintf(secRes,RES_MAX_LEN,"%s",RESOLUTION_BASE_FHD_INT); //1080i
+    else if(strstr(res,RESOLUTION_BASE_UHD) != NULL)
+         snprintf(secRes,RES_MAX_LEN,"%s%s",RESOLUTION_BASE_UHD,DEFAULT_PROGRESSIVE_FPS); //2160p60
+    else
+	 ret = false; //For other resolutions 480p 576p
+
+    return ret;
+}
+
 
 /*DSMgr Glib variables */
 /* For glib APIs*/
@@ -133,19 +210,33 @@ IARM_Result_t DSMgr_Start()
 {
 	FILE *fDSCtrptr = NULL;
 	IARM_Bus_SYSMgr_GetSystemStates_Param_t tuneReadyParam;
-
+	IARM_Result_t iarmStatus;
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
     INT_INFO("Entering [%s] - [%s] - disabling io redirect buf \r\n", __FUNCTION__, IARM_BUS_DSMGR_NAME);
 	
 	/* Register with IARM Libs and Connect */
-	IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
-    IARM_Bus_Connect();
-	IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
-
+	iarmStatus = IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to initialize IARM Bus for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
+	iarmStatus = IARM_Bus_Connect();
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to connect IARM Bus for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
+	iarmStatus = IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
 	/*Initialize the DS Manager - DS Srv and DS HAL */
-	dsMgr_init();
-	  
+	iarmStatus = dsMgr_init();
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to initialize DS Manager for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
 	iInitResnFlag = 1;
         dsEdidIgnoreParam_t ignoreEdidParam;
         memset(&ignoreEdidParam,0,sizeof(ignoreEdidParam));
@@ -154,12 +245,27 @@ IARM_Result_t DSMgr_Start()
 	IsIgnoreEdid_gs = ignoreEdidParam.ignoreEDID;
 	INT_INFO("ResOverride DSMgr_Start IsIgnoreEdid_gs: %d\n", IsIgnoreEdid_gs);
 	/*Register the Events */
-	IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME,IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,_EventHandler);
-	IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG,_EventHandler);
-	IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS,_EventHandler);
-
+	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME,IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,_EventHandler);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
+		return iarmStatus;
+	}
+	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG,_EventHandler);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
+	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS,_EventHandler);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
+		return iarmStatus;
+	}
 	/*Register EAS handler so that we can ensure audio settings for EAS */
-	IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
+	iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_COMMON_API_SysModeChange);
+		return iarmStatus;
+	}
 
         /*Refactored dsMGR code*/
        PowerController_Init();
@@ -168,9 +274,14 @@ IARM_Result_t DSMgr_Start()
         initPwrEventListner();   
 	/* Create  Thread for listening Hot Plug events */
 	pthread_mutex_init (&tdsMutexLock, NULL);
-	pthread_cond_init (&tdsMutexCond, NULL);
-	pthread_create (&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL);
-			
+	if (pthread_cond_init(&tdsMutexCond, NULL) != 0) {
+		INT_ERROR("Failed to create pthread_cond_init tdsMutexCond.");
+		return IARM_RESULT_IPCCORE_FAIL;
+	}
+	if (pthread_create(&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL) != 0) {
+		INT_ERROR("Failed pthread_create _DSMgrResnThreadFunc.");
+		return IARM_RESULT_IPCCORE_FAIL;
+	}
 	/* Read the HDMI DDC Line delay to be introduced 
 	 * for setting  the resolution
 	 * The DDC line is used for EDID and HDCP Negotiation
@@ -186,8 +297,11 @@ IARM_Result_t DSMgr_Start()
 	}
 	INT_DEBUG("Retry DS manager Resolution count is iResnCount = %d \r\n",iResnCount);
 
-
-	IARM_Bus_Call(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_API_GetSystemStates, &tuneReadyParam, sizeof(tuneReadyParam));
+	iarmStatus = IARM_Bus_Call(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_API_GetSystemStates, &tuneReadyParam, sizeof(tuneReadyParam));
+	if (IARM_RESULT_SUCCESS != iarmStatus) {
+		INT_ERROR("Failed to get Tune Ready status for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
+		return iarmStatus;
+	}
 	INT_INFO("Tune Ready Status on start up is %d \r\n",tuneReadyParam.TuneReadyStatus.state);
     
 	/* Read the Tune Ready status on startup  and update the tune ready flag */
@@ -207,6 +321,7 @@ IARM_Result_t DSMgr_Start()
 
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
+    setupPlatformConfig();
     return IARM_RESULT_SUCCESS;
 }
 
@@ -224,26 +339,32 @@ IARM_Result_t DSMgr_Loop()
 
 static gboolean heartbeatMsg(gpointer data)
 {
-    time_t curr = 0;
-    time(&curr);
-    INT_INFO("I-ARM BUS DS Mgr: HeartBeat at %s\r\n", ctime(&curr));
+    INT_INFO("I-ARM BUS DS Mgr: HeartBeat ping.\r\n");
     return TRUE;
 }
 
 IARM_Result_t DSMgr_Stop()
 {
-    
-	if(dsMgr_Gloop)
-    { 
+    IARM_Result_t iarmStatus = IARM_RESULT_SUCCESS;
+    if(dsMgr_Gloop)
+    {
         g_main_loop_quit(dsMgr_Gloop);
     }
     dsMgrDeinitPwrControllerEvt();
     PowerController_Term();
-    IARM_Bus_Disconnect();
-    IARM_Bus_Term();
-	pthread_mutex_destroy (&tdsMutexLock);
-	pthread_cond_destroy  (&tdsMutexCond);
-	
+    iarmStatus = IARM_Bus_Disconnect();
+    if (IARM_RESULT_SUCCESS != iarmStatus) {
+        INT_ERROR("DSMgr_Stop: Failed to disconnect IARM Bus\r\n");
+        return iarmStatus;
+    }
+    iarmStatus = IARM_Bus_Term();
+    if (IARM_RESULT_SUCCESS != iarmStatus) {
+        INT_ERROR("DSMgr_Stop: Failed to terminate IARM Bus\r\n");
+        return iarmStatus;
+    }
+    pthread_mutex_destroy (&tdsMutexLock);
+    pthread_cond_destroy  (&tdsMutexCond);
+
     return IARM_RESULT_SUCCESS;
 }
 
@@ -301,7 +422,6 @@ static void setBGColor(dsVideoBackgroundColor_t color)
     vidPortParam.type = dsVIDEOPORT_TYPE_HDMI;
     vidPortParam.index = 0;
     _dsGetVideoPort(&vidPortParam);
-    vidPortParam.handle;
 
     if(vidPortParam.handle != NULL)
     {
@@ -411,8 +531,10 @@ static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                                                 g_timeout_add_seconds((guint)1,dumpEdidOnChecksumDiff,NULL);
 					}
 
-					IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t) IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, (void *)&HDCPeventData, sizeof(HDCPeventData));
-					
+					if (IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+								(void *)&HDCPeventData, sizeof(HDCPeventData)) != IARM_RESULT_SUCCESS) {
+						INT_ERROR("Failed to broadcast HDCP status for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
+					}
 				}
                 break;	
 			default:
@@ -512,6 +634,80 @@ static int _SetVideoPortResolution()
 	return 0;
 }
 
+static void parseResolution(char* pResn, char* bResn)
+{
+	char tmpResn[RES_MAX_LEN];
+	int len = 0;
+	snprintf(tmpResn,sizeof(tmpResn),"%s",pResn);
+	char *token = strtok(tmpResn, "ip");
+	strncpy(bResn,token,RES_MAX_LEN);
+	len = strlen(bResn);
+	if (strchr(pResn, 'i') != NULL) {
+		snprintf(bResn+len, sizeof(bResn)-len, "%s", "i");  // Append 'i'
+	} else if (strchr(pResn, 'p') != NULL) {
+		snprintf(bResn+len, sizeof(bResn)-len, "%s", "p");  // Append 'p'
+	}
+	return;
+}
+
+static void getFallBackResolution(char* Resn,char *fbResn, int flag)
+{
+	char tmpResn[RES_MAX_LEN];
+	snprintf(tmpResn,RES_MAX_LEN,"%s",Resn);
+	int len = strlen(tmpResn);
+        if(flag) // EU
+	{
+		if((strcmp(Resn,RESOLUTION_BASE_UHD) ==0) || (strcmp(Resn,RESOLUTION_BASE_FHD) ==0) || (strcmp(Resn,RESOLUTION_BASE_HD) ==0))
+		{
+		        snprintf(tmpResn+len, sizeof(tmpResn)-len, "%s", EU_PROGRESSIVE_FPS);  //2160p50, 1080p50 , 720p50
+		}
+		else if((strcmp(Resn,RESOLUTION_BASE_FHD_INT) ==0))
+		{
+		        snprintf(tmpResn+len, sizeof(tmpResn)-len, "%s", EU_INTERLACED_FPS);  // 1080i25
+                }
+		else
+		{ // do nothing //576p, 480p
+		}
+	}else{
+		if((strcmp(Resn,RESOLUTION_BASE_UHD) ==0) || (strcmp(Resn,RESOLUTION_BASE_FHD) ==0))
+		{
+		        snprintf(tmpResn+len, sizeof(tmpResn)-len, "%s", DEFAULT_PROGRESSIVE_FPS);  // 2160p60, 1080p60
+		}
+	}
+	snprintf(fbResn,RES_MAX_LEN,"%s",tmpResn);
+        return;
+}
+
+static bool isResolutionSupported(dsDisplayEDID_t *edidData, int numResolutions, int pNumResolutions, char *Resn,int* index)
+{
+	bool supported = false;
+	dsVideoPortResolution_t *setResn = NULL;
+	for (int i = numResolutions-1; i >= 0; i--)
+	{
+		setResn = &(edidData->suppResolutionList[i]);
+		if(strcmp(setResn->name,Resn) == 0)
+		{
+			for (int j = pNumResolutions-1; j >=0; j--)
+			{
+				dsVideoPortResolution_t *pfResolution = &kResolutions[j];
+				if (0 == (strcmp(pfResolution->name,setResn->name)))
+				{
+				        INT_INFO("[DsMgr] Resolution supported %s \r\n",pfResolution->name);
+					supported = true;
+					break;
+				}
+			}
+		}
+		if(supported)
+		{
+			*index = i;
+			break;
+		}
+	}
+	return supported;
+}
+
+
 /**
  * @brief This Function does following :
  *   Read Persisted resolution 
@@ -528,6 +724,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	errno_t rc = -1;
 	intptr_t _displayHandle = 0;
 	int numResolutions = 0,i=0;
+        int resIndex=0;
 	intptr_t _handle = *handle;
 	bool IsValidResolution = false;
 	dsVideoPortSetResolutionParam_t Setparam;
@@ -535,6 +732,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	dsVideoPortResolution_t *setResn = NULL;
 	dsDisplayEDID_t edidData;
 	dsDisplayGetEDIDParam_t Edidparam;
+	int pNumResolutions = dsUTL_DIM(kResolutions);
 	/*
 		* Default Resolution Compatible check is false - Do not Force compatible resolution on startup
 	*/
@@ -606,33 +804,68 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					break;
 				}
 			}
-                        /*
-                        * The Persisted Resolution Does not matches with TV resolution list 
-			*  Set  the Best Resolution Supported by TV and Platform
-			*/
-                        if (false == IsValidResolution)
+
+			//SECONDARY VIC Settings only for EU platforms
+			/* Check if alternate freq or secondary resolution supported by the TV*/
+			/* if resolution with 50Hz not supported check for same resolution with 60Hz*/
+			/* Other FPS like 30, 25, 24 not used to avoid any judders */
+                        if (false == IsValidResolution && IsEUPlatform)
+                        {
+				char secResn[RES_MAX_LEN];
+				// get secondary resolution based on presolution
+				if(getSecondaryResolution(presolution->name,secResn))
+				{
+					if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,secResn,&resIndex))
+					{
+						setResn = &(edidData.suppResolutionList[resIndex]);
+						INT_INFO("Breaking..Got Secondary Resolution - %s..\r\n",setResn->name);
+                                                IsValidResolution = true;
+                                                Setparam.forceCompatible = true;
+					}
+				}
+			}
+			/* Fallback to next best resolution*/
+			if(false == IsValidResolution)
 			{
-                        	/* Set  the Best Resolution Supported by TV and Platform*/
-                		for (i = numResolutions-1; i >= 0; i--)
-                		{
-                        		setResn = &(edidData.suppResolutionList[i]);
-                        		int pNumResolutions = dsUTL_DIM(kResolutions);
-                        		for (int j = pNumResolutions-1; j >=0; j--)
-		        		{
-		                		dsVideoPortResolution_t *pfResolution = &kResolutions[j];
-		                		if (0 == (strcmp(pfResolution->name,setResn->name)))
-		                		{
-							INT_INFO("[DsMgr] Set Best TV Supported Resolution %s \r\n",pfResolution->name);
-		                			IsValidResolution = true;
-		                    			break;
-		                		}
-                                        }
-                                	if (IsValidResolution)
-                                	{
-                                		break;
-                                        }
-                                }
-                        }
+				int index =0;
+				char baseResn[RES_MAX_LEN], fbResn[RES_MAX_LEN];
+				parseResolution(presolution->name,baseResn);
+				int fNumResolutions = sizeof(fallBackResolutionList)/sizeof(fallBackResolutionList[0]);
+				for(i=0; i<fNumResolutions; i++)
+				{
+					if(strcmp(fallBackResolutionList[i],baseResn)==0){
+						index =i;
+						break;
+					}
+				}
+				for(i=index+1;i<fNumResolutions;i++)
+				{
+					if(IsEUPlatform){
+					    getFallBackResolution(fallBackResolutionList[i],fbResn,1); //EU fps
+				            INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
+					    if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
+					    {
+						IsValidResolution = true;
+					    }
+					}
+				        if(!IsValidResolution)
+					{
+						getFallBackResolution(fallBackResolutionList[i],fbResn,0); //default fps
+				                INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
+						if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
+						{
+							IsValidResolution = true;
+						}
+					}
+					if(IsValidResolution)
+					{
+						setResn = &(edidData.suppResolutionList[resIndex]);
+						INT_INFO("[DsMgr] Got Next Best Resolution - %s\r\n",setResn->name);
+						break;
+					}
+				}
+			}
+
 			/* 
 				* The Persisted Resolution Does not matches with TV and Platform 
 				* Resolution List
@@ -761,53 +994,53 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
  */
 static void* _DSMgrResnThreadFunc(void *arg)
 {
-   
+	dsDisplayEvent_t edisplayEventStatusLocal = dsDISPLAY_EVENT_MAX;
 	/* Loop */
-    while (1)
-    {
-		 INT_INFO ("_DSMgrResnThreadFunc... wait for for HDMI or Tune Ready Events \r\n");
-		
+	while (1)
+	{
+		INT_INFO ("_DSMgrResnThreadFunc... wait for for HDMI or Tune Ready Events \r\n");
+
 		/*Wait for the Event*/
 		pthread_mutex_lock(&tdsMutexLock);
 		pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
+		edisplayEventStatusLocal = edisplayEventStatus;
 		pthread_mutex_unlock(&tdsMutexLock);
-	  
-	    INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",__FUNCTION__, (edisplayEventStatus == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"),iTuneReady);
-
+		INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",
+			__FUNCTION__, (edisplayEventStatusLocal == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"),iTuneReady);
 
 		//On hot plug event , Remove event source 
 		if(hotplug_event_src)
 		{
 			g_source_remove(hotplug_event_src);
 			INT_INFO("Removed Hot Plug Event Time source %d  \r\n",hotplug_event_src);
-      hotplug_event_src = 0;
+			hotplug_event_src = 0;
 		}
 
 		/*Set the Resolution only on HDMI Hot plug Connect and Tune Ready events */
-		if((1 == iTuneReady) && (dsDISPLAY_EVENT_CONNECTED == edisplayEventStatus)) {
+		if((1 == iTuneReady) && (dsDISPLAY_EVENT_CONNECTED == edisplayEventStatusLocal)) {
 			/*Set Video Output Port  Resolution */
-                        if(bHDCPAuthenticated)
-                        {
-                            _SetVideoPortResolution();
+			if(bHDCPAuthenticated)
+			{
+				_SetVideoPortResolution();
 			}
-                        /* Set audio mode on HDMI hot plug */
+			/* Set audio mode on HDMI hot plug */
 			_setAudioMode();	
 		}/*Set the Resolution only on HDMI Hot plug - Disconnect and Tune Ready event */
-		else if((1 == iTuneReady) && (dsDISPLAY_EVENT_DISCONNECTED == edisplayEventStatus)) {
-			 /* * To avoid reoslution settings of HDMI hot plug when TV goes from power OFF to ON condition 
-			 	* Delay the setting of resolution by 5 sec. This will help to filter out un-necessary 
-			 	* resolution settings on HDMI hot plug.  
+		else if((1 == iTuneReady) && (dsDISPLAY_EVENT_DISCONNECTED == edisplayEventStatusLocal)) {
+			/* * To avoid reoslution settings of HDMI hot plug when TV goes from power OFF to ON condition 
+			 * Delay the setting of resolution by 5 sec. This will help to filter out un-necessary 
+			 * resolution settings on HDMI hot plug.  
 			 */
-	             bHDCPAuthenticated = false;
-                     if(isComponentPortPresent())
-                     {
-			 hotplug_event_src = g_timeout_add_seconds((guint)5,_SetResolutionHandler,dsMgr_Gloop); 
-			 INT_INFO("Schedule a handler to set the resolution after 5 sec for %d time src.. \r\n",hotplug_event_src);
-                     }
+			bHDCPAuthenticated = false;
+			if(isComponentPortPresent())
+			{
+				hotplug_event_src = g_timeout_add_seconds((guint)5,_SetResolutionHandler,dsMgr_Gloop); 
+				INT_INFO("Schedule a handler to set the resolution after 5 sec for %d time src.. \r\n",hotplug_event_src);
+			}
 		}
- 
-     }
-    return arg;
+
+	}
+	return arg;
 }
 
 
@@ -969,19 +1202,17 @@ static void dumpHdmiEdidInfo(dsDisplayEDID_t* pedidData)
 {
 	INT_DEBUG("Connected HDMI Display Device Info !!!!!\r\n");
 
-	if (NULL == pedidData) {
-		INT_INFO("Received EDID is NULL \r\n");
-		return;
-	}    
-
-	if(pedidData->monitorName)
-	INT_DEBUG("HDMI  Monitor Name is %s \r\n",pedidData->monitorName);
-	INT_DEBUG("HDMI  Manufacturing ID is %d \r\n",pedidData->serialNumber);
-	INT_DEBUG("HDMI  Product Code is %d \r\n",pedidData->productCode);
-	INT_DEBUG("HDMI  Device Type is  %s \r\n",pedidData->hdmiDeviceType?"HDMI":"DVI");
-	INT_DEBUG("HDMI  Sink Device %s a Repeater \r\n",pedidData->isRepeater?"is":"is not");
-	INT_DEBUG("HDMI  Physical Address is %d:%d:%d:%d \r\n",pedidData->physicalAddressA,
-			pedidData->physicalAddressB,pedidData->physicalAddressC,pedidData->physicalAddressD);
+	if ((NULL != pedidData) && (strlen(pedidData->monitorName))) {
+		INT_DEBUG("HDMI  Monitor Name is %s \r\n",pedidData->monitorName);
+		INT_DEBUG("HDMI  Manufacturing ID is %d \r\n",pedidData->serialNumber);
+		INT_DEBUG("HDMI  Product Code is %d \r\n",pedidData->productCode);
+		INT_DEBUG("HDMI  Device Type is  %s \r\n", (pedidData->hdmiDeviceType == true)?"HDMI":"DVI");
+		INT_DEBUG("HDMI  Sink Device %s a Repeater \r\n",pedidData->isRepeater?"is":"is not");
+		INT_DEBUG("HDMI  Physical Address is %d:%d:%d:%d \r\n",pedidData->physicalAddressA,
+				pedidData->physicalAddressB,pedidData->physicalAddressC,pedidData->physicalAddressD);
+	} else {
+		INT_INFO("Received EDID is NULL or pedidData->monitorName is NULL\r\n");
+	}
 }
 
 
