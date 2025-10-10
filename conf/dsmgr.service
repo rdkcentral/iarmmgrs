@@ -19,7 +19,6 @@
 [Unit]
 Description=IARM Mgr Daemon DS MGR
 After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager.service
-OnFailure=reboot-notifier@%i.service
 
 [Service]
 Type=notify
