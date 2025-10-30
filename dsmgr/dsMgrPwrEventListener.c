@@ -141,18 +141,10 @@ void initPwrEventListner()
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetLEDStatus, _SetLEDState);
     IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetRebootConfig, _SetRebootConfig);
 
-    /* Check for Power Controller Connection and if failure, start a new thread and wait until connection established 
+    /*  Start a new thread and wait until connection established 
      * if connection is eastablished, proceed with fetching and Getting values from Power control and initialize*/
-    if(POWER_CONTROLLER_ERROR_NONE == PowerController_Connect())
-    {
-        INT_DEBUG("PowerController_Connect is Success \r\n");
-        dsMgrPwrControllerFetchNinitStateValues();
-    }
-    else
-    {
-        INT_ERROR("DSMgr PowerController_Connect Failed Retrying in Thread\r\n");
-        dsMgrPwrCtrlEstablishConnection();
-    }
+     INT_INFO("DSMgr PowerController_Connect setup in a Thread\r\n");
+     dsMgrPwrCtrlEstablishConnection();
 }
 
 static void dsMgrPwrCtrlEstablishConnection(void)
