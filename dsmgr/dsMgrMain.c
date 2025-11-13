@@ -33,6 +33,8 @@
 extern "C" {
 #endif
 #include <stdio.h>
+#include <signal.h>
+#include <stdlib.h>
 #include <sys/types.h>
 #include <unistd.h>
 #include "libIBus.h"
@@ -77,6 +79,12 @@ void dslogCallback(int priority,const char *buff)
 } 
   
 #endif
+
+static void dsmgr_processkill_thread(int signum)
+{
+  printf("Exiting DSMgr process calling reboot now script %d \r\n",signum);
+  system("sh /rebootNow.sh -s dsMgrMain");
+}
 
 int main(int argc, char *argv[])
 {
@@ -128,6 +136,10 @@ int main(int argc, char *argv[])
 
 #endif
     DSMgr_Start();
+    printf("DSMgr Register signal handler\n");
+    signal(SIGABRT,dsmgr_processkill_thread);
+    signal(SIGTERM,dsmgr_processkill_thread);
+    signal(SIGSEGV,dsmgr_processkill_thread);
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
