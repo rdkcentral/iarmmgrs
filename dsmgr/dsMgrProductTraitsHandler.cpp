@@ -214,7 +214,7 @@ void ux_controller::initialize_safe_defaults()
     else
     {
         ledEnabledInStandby = true;
-        ledEnabledInOnState = true;
+        ledEnabledInOnState = false;
     }
 }
 
@@ -233,7 +233,7 @@ void ux_controller::sync_power_led_with_power_state(PowerController_PowerState_t
 
     try
     {
-        INT_DEBUG("%s: setting power LED State to %s\n", __func__, (led_state ? "ON" : "FALSE"));
+        INT_INFO("%s: setting power LED State to %s\n", __func__, (led_state ? "ON" : "FALSE"));
         dsFPDStateParam_t param ;
         param.eIndicator = dsFPD_INDICATOR_POWER;
         param.state = (led_state ? dsFPD_STATE_ON : dsFPD_STATE_OFF);
@@ -247,7 +247,7 @@ void ux_controller::sync_power_led_with_power_state(PowerController_PowerState_t
 
 void ux_controller::sync_display_ports_with_power_state(PowerController_PowerState_t power_state) const
 {
-    INT_INFO("sync_display_ports_with_power_state: %d  ",power_state);
+    INT_INFO("sync_display_ports_with_power_state: %d\n",power_state);
     _SetAVPortsPowerState(power_state);
 }
 bool ux_controller::initialize_ux_controller(unsigned int profile_id) // Not thread-safe
@@ -397,6 +397,8 @@ bool ux_controller_stb_eu::applyPreMaintenanceRebootConfig(PowerController_Power
 bool ux_controller_stb_eu::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
+
+    INT_INFO("applyPostRebootConfig: target_state=%d, last_known_state=%d\n", target_state, last_known_state);
     if ((POWER_STATE_ON == last_known_state) && (POWER_STATE_STANDBY == target_state))
     {
         //Special handling. Although the new power state is standby, leave display and LED enabled.
