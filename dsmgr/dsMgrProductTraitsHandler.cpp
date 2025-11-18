@@ -31,7 +31,6 @@
 #include "dsRpc.h"
 
 using namespace dsMgrProductTraits;
-extern bool isTVOperatingInFactory();
 extern int _SetAVPortsPowerState(PowerController_PowerState_t powerState);
 extern IARM_Result_t _dsSetFPState(void *arg);
 
@@ -476,9 +475,9 @@ bool ux_controller_tv::applyPostRebootConfig(PowerController_PowerState_t target
            when user is away - in that scenario, we assume that there is no audience and keep the TV in standby.
 
            Important: The above behaviour can be a nuisance during production or testing as it can lead to the TV going dark during various production/QA stages immediately
-           after a hard reboot. Use isTVOperatingInFactory() and doForceDisplayOnPostReboot() to detect those scenarios and act accordingly.
+           after a hard reboot. Use doForceDisplayOnPostReboot() to detect those scenarios and act accordingly.
            */
-        if(true == doForceDisplayOnPostReboot() || (true == isTVOperatingInFactory()))
+        if(true == doForceDisplayOnPostReboot())
             sync_display_ports_with_power_state(POWER_STATE_ON);
         else
         {
