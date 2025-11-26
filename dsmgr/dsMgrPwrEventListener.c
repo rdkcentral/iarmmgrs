@@ -43,6 +43,8 @@
 #include "frontPanelIndicator.hpp"
 #include "videoOutputPort.hpp"
 #include "host.hpp"
+#include "audioOutputPortType.hpp"
+#include "videoOutputPortType.hpp"
 #include "exception.hpp"
 #include "manager.hpp"
 #include "dsMgrProductTraitsHandler.h"
@@ -74,6 +76,8 @@ extern IARM_Result_t _dsEnableAudioPort(void *arg);
 extern IARM_Result_t _dsSetFPState(void *arg);
 extern IARM_Result_t _dsGetEnablePersist(void *arg);
 extern void _setEASAudioMode();
+extern IARM_Result_t _dsGetVideoPort(void *arg);
+extern IARM_Result_t _dsEnableVideoPort(void *arg);
 
 static DSMgr_Standby_Video_State_t g_standby_video_port_setting[MAX_NUM_VIDEO_PORTS];
 static dsMgrProductTraits::ux_controller * ux = nullptr;
@@ -290,50 +294,64 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
     INT_INFO("Entering [%s] powerState:%d \r\n", __FUNCTION__,powerState);
     try
     {
+        dsVideoPortGetHandleParam_t vHandleParam;
+        dsVideoPortSetEnabledParam_t vPortEnableParam;
+        dsAudioGetHandleParam_t aHandleParam;
+        dsAudioPortEnabledParam_t aPortEnableParam;
+
+        memset(&vHandleParam, 0, sizeof(vHandleParam));
+        memset(&vPortEnableParam, 0, sizeof(vPortEnableParam));
+        memset(&aHandleParam, 0, sizeof(aHandleParam));
+        memset(&aPortEnableParam, 0, sizeof(aPortEnableParam));
+
         if (POWER_STATE_ON != powerState)
         {
-            if (POWER_STATE_OFF != powerState)
-            {
-                INT_INFO("[%s] POWERSTATE %d \r\n", __FUNCTION__, powerState);
-                // We're in one of the standby modes. Certain ports may have to be left on.
-                try
-                {
-                    device::List<device::VideoOutputPort> videoPorts = device::Host::getInstance().getVideoOutputPorts();
-                    for (size_t i = 0; i < videoPorts.size(); i++)
-                    {
-                        bool doEnable = get_video_port_standby_setting(videoPorts.at(i).getName().c_str());
-                        INT_DEBUG("[%s]Video port %s will be %s in standby mode.\n", __FUNCTION__, videoPorts.at(i).getName().c_str(), (doEnable ? "enabled" : "disabled"));
-                        if (false == doEnable)
-                            videoPorts.at(i).disable();
-                    }
-                }
-                catch (...)
-                {
-                    INT_DEBUG("[%s] Video port exception %d \r\n", __FUNCTION__, powerState);
-                }
-                INT_INFO("[%s] Video port standby done \r\n",__FUNCTION__);
-            }
-            else
-            {
-                try
-                {
-                    // Disable all ports when going into POWERSTATE_OFF
-                    device::List<device::VideoOutputPort> videoPorts = device::Host::getInstance().getVideoOutputPorts();
-                    for (size_t i = 0; i < videoPorts.size(); i++)
-                    {
-                        videoPorts.at(i).disable();
-                    }
-                }
-                catch (...)
-                {
-                    INT_DEBUG("[%s] Video port exception %d \r\n", __FUNCTION__, powerState);
-                }
-                INT_INFO("[%s] Video port disable done \r\n", __FUNCTION__ );
-            }
+            INT_INFO("[%s] POWERSTATE %d \r\n", __FUNCTION__, powerState);
+            // We're in one of the standby modes. Certain ports may have to be left on.
             try
             {
-                dsAudioGetHandleParam_t getHandle;
-                dsAudioPortEnabledParam_t setMode;
+                device::List<device::VideoOutputPort> videoPorts = device::Host::getInstance().getVideoOutputPorts();
+                INT_INFO("[%s] Number of Video Ports: [%d] \r\n", __FUNCTION__, videoPorts.size());
+                for (size_t i = 0; i < videoPorts.size(); i++)
+                {
+                    try
+                    {
+                        device::VideoOutputPort vPort = videoPorts.at(i);
+                        dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
+                        bool doEnable = get_video_port_standby_setting(vPort.getName().c_str());
+                        INT_DEBUG("[%s]Video port %s will be %s for PowerState[%d]\n", __FUNCTION__, vPort.getName().c_str(), (doEnable ? "enabled" : "disabled"), powerState);
+                        if ((false == doEnable) || (POWER_STATE_OFF == powerState))
+                        {
+                            INT_INFO("[%s] Disabling VideoPort[%s]Type[%d] for powerState [%d] \r\n",__FUNCTION__, vPort.getName().c_str(), videoPortType, powerState);
+                            vHandleParam.type = videoPortType;
+                            vHandleParam.index = 0;
+                            _dsGetVideoPort(&vHandleParam);
+
+                            vPortEnableParam.handle = vHandleParam.handle;
+                            strncpy(vPortEnableParam.portName, vPort.getName().c_str(), 31);
+                            vPortEnableParam.enabled = false; // Disable the port
+                            _dsEnableVideoPort(&vPortEnableParam);
+                            INT_INFO("[%s] VideoPort[%s] disabled for powerState [%d] \r\n",__FUNCTION__, vPort.getName().c_str(), powerState);
+                        }
+                        else
+                        {
+                            INT_INFO("[%s] Disable VideoPort[%d] skipped!!! \r\n", __FUNCTION__, i);
+                        }
+                    }
+                    catch (...)
+                    {
+                        INT_DEBUG("[%s] video port exception at %d\r\n", __FUNCTION__,i);
+                    }
+                }
+            }
+            catch (...)
+            {
+                INT_DEBUG("[%s] Video port exception %d \r\n", __FUNCTION__, powerState);
+            }
+            INT_INFO("[%s] VideoPort configuration done \r\n",__FUNCTION__);
+
+            try
+            {
                 int numPorts, i = 0;
 
                 device::List<device::AudioOutputPort> aPorts = device::Host::getInstance().getAudioOutputPorts();
@@ -344,8 +362,18 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     try
                     {
                         device::AudioOutputPort aPort = aPorts.at(i);
-                        INT_INFO("[%s] Disabling Audio PortName [%s] at [%d] for powerState [%d] \r\n",__FUNCTION__, aPort.getName().c_str(), i, powerState);
-                        aPort.disable();
+                        INT_INFO("[%s] Disabling AudioPort[%s] at [%d] for powerState [%d] \r\n",__FUNCTION__, aPort.getName().c_str(), i, powerState);
+                        dsAudioPortType_t portType = static_cast<dsAudioPortType_t>(aPort.getType().getId());
+
+                        aHandleParam.type = portType;
+                        aHandleParam.index = 0;
+                        _dsGetAudioPort(&aHandleParam);
+
+                        aPortEnableParam.handle = aHandleParam.handle;
+                        strncpy(aPortEnableParam.portName, aPort.getName().c_str(), 31);
+                        aPortEnableParam.enabled = false; // Disable the port
+                        _dsEnableAudioPort(&aPortEnableParam);
+                        INT_INFO("[%s] AudioPort[%s] disabled for powerState [%d] \r\n",__FUNCTION__, aPort.getName().c_str(), powerState);
                     }
                     catch (...)
                     {
@@ -357,19 +385,30 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
             {
                 INT_DEBUG("[%s] audio port exception \r\n", __FUNCTION__);
             }
+            INT_INFO("[%s] AudioPort configuration done \r\n",__FUNCTION__);
         }
         else
         {
             try
             {
                 device::List<device::VideoOutputPort> videoPorts = device::Host::getInstance().getVideoOutputPorts();
+                INT_INFO("[%s] Number of Video Ports: [%d] \r\n", __FUNCTION__, videoPorts.size());
                 for (size_t i = 0; i < videoPorts.size(); i++)
                 {
-                    videoPorts.at(i).enable();
+                    device::VideoOutputPort vPort = videoPorts.at(i);
+                    dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
+                    INT_INFO("[%s] Enabling VideoPort[%s]Type[%d] for powerState[%d] \r\n", __FUNCTION__, vPort.getName().c_str(), videoPortType, powerState);
+                    vHandleParam.type = videoPortType;
+                    vHandleParam.index = 0;
+                    _dsGetVideoPort(&vHandleParam);
+
+                    vPortEnableParam.handle = vHandleParam.handle;
+                    strncpy(vPortEnableParam.portName, vPort.getName().c_str(), 31);
+                    vPortEnableParam.enabled = true; // Enable the port
+                    _dsEnableVideoPort(&vPortEnableParam);
+                    INT_INFO("[%s] VideoPort[%s] Enabled for powerState[%d] \r\n", __FUNCTION__, vPort.getName().c_str(), powerState);
                 }
-        
-                dsAudioGetHandleParam_t getHandle;
-                dsAudioPortEnabledParam_t setMode;
+                INT_INFO("[%s] VideoPort configuration done \r\n",__FUNCTION__);
 
                 int numPorts, i = 0;
 
@@ -381,19 +420,32 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     try
                     {
                         device::AudioOutputPort aPort = aPorts.at(i);
-                        bool isEnablePersist = aPort.getEnablePersist();
-                        INT_INFO("[%s] Audio PortName[%s] isEnablePersist[%d] at [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), isEnablePersist, i);
+                        dsAudioPortType_t portType = static_cast<dsAudioPortType_t>(aPort.getType().getId());
 
-                        if (isEnablePersist)
+                        memset(&aHandleParam, 0, sizeof(aHandleParam));
+                        memset(&aPortEnableParam, 0, sizeof(aPortEnableParam));
+
+                        aHandleParam.type = portType;
+                        aHandleParam.index = 0;
+                        _dsGetAudioPort(&aHandleParam);
+
+                        aPortEnableParam.handle = aHandleParam.handle;
+                        strncpy(aPortEnableParam.portName, aPort.getName().c_str(), 31);
+                        aPortEnableParam.enabled = false; // Default to disabled and decide based on persist value
+                        _dsGetEnablePersist(&aPortEnableParam);
+                        INT_INFO("[%s] Audio PortName[%s] isEnablePersist[%d] at [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), aPortEnableParam.enabled, i);
+
+                        if (true == aPortEnableParam.enabled)
                         {
                             /*Instead of enabling all the audio ports on power transition */
                             /*Get the values from persistent storage & update */
-                            INT_INFO("[%s] Enabling audio port[%d] for powerState[%d] \r\n", __FUNCTION__, i, powerState);
-                            aPort.enable();
+                            INT_INFO("[%s] Enabling AudioPort[%d] for powerState[%d] \r\n", __FUNCTION__, i, powerState);
+                            _dsEnableAudioPort(&aPortEnableParam);
+                            INT_INFO("[%s] AudioPort[%d] Enabled for powerState[%d] \r\n", __FUNCTION__, i, powerState);
                         }
                         else
                         {
-                            INT_INFO("[%s] Enable audio port[%d] skipped!!! \r\n", __FUNCTION__, i);
+                            INT_INFO("[%s] Enable AudioPort[%d] skipped!!! \r\n", __FUNCTION__, i);
                         }
                     }
                     catch (...)
@@ -401,6 +453,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         INT_DEBUG("[%s] Audio port exception at %d \r\n",__FUNCTION__, i);
                     }
                 }
+                INT_INFO("[%s] AudioPort configuration done \r\n",__FUNCTION__);
                 if (isEAS == IARM_BUS_SYS_MODE_EAS)
                 {
                     /* Force Stereo in EAS mode. */
