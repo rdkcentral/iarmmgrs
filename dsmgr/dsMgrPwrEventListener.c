@@ -248,11 +248,128 @@ static void _PwrEventHandler(const PowerController_PowerState_t currentState,
     pthread_mutex_unlock(&tdsPwrEventMutexLock);
 }
 
+static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool enabledStatus)
+{
+    dsVideoPortGetHandleParam_t vHandleParam;
+    dsVideoPortSetEnabledParam_t vPortEnableParam;
+    IARM_Result_t vPortRetCode = IARM_RESULT_SUCCESS;
+    try
+    {
+        dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
+        INT_INFO("[%s] VideoPort[%s] Type[%d] Enabled[%d]\r\n",__FUNCTION__, vPort.getName().c_str(), videoPortType, enabledStatus);
+
+        vHandleParam.type = videoPortType;
+        vHandleParam.index = 0; // Assumes only one video port per type. Update if multiple ports are supported later
+        vHandleParam.handle = (intptr_t)0;
+
+        vPortRetCode = _dsGetVideoPort(&vHandleParam);
+        if (IARM_RESULT_SUCCESS != vPortRetCode)
+        {
+            INT_ERROR("[%s] Failed to _dsGetVideoPort for port [%s], Error:[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), vPortRetCode);
+        }
+        else
+        {
+            vPortEnableParam.enabled = enabledStatus;
+            vPortEnableParam.handle = vHandleParam.handle;
+            snprintf(vPortEnableParam.portName, sizeof(vPortEnableParam.portName), "%s", vPort.getName().c_str());
+
+            vPortRetCode = _dsEnableVideoPort(&vPortEnableParam);
+            if (IARM_RESULT_SUCCESS != vPortRetCode)
+            {
+                INT_ERROR("[%s] Failed to _dsEnableVideoPort for port [%s], Error:[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), vPortRetCode);
+            }
+            INT_INFO("VideoPort[%s] successfully %s\r\n", vPort.getName().c_str(), (enabledStatus ? "enabled" : "disabled"));
+        }
+    }
+    catch (...)
+    {
+        INT_DEBUG("Exception Caught during [DSMGR - configureVideoPort]\r\n");
+        vPortRetCode = IARM_RESULT_INVALID_STATE;
+    }
+    return vPortRetCode;
+}
+
+static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool enabledStatus)
+{
+    dsAudioGetHandleParam_t aHandleParam;
+    dsAudioPortEnabledParam_t aPortEnableParam;
+    IARM_Result_t aPortRetCode = IARM_RESULT_SUCCESS;
+
+    try
+    {
+        dsAudioPortType_t portType = static_cast<dsAudioPortType_t>(aPort.getType().getId());
+        bool skipOperation = false;
+        INT_INFO("[%s] AudioPort[%s] Type[%d] Enabled[%d]\r\n",__FUNCTION__, aPort.getName().c_str(), portType, enabledStatus);
+
+        aHandleParam.type = portType;
+        aHandleParam.index = 0; // Assumes only one audio port per type. Update if multiple ports are supported later
+        aHandleParam.handle = (intptr_t)0;
+
+        aPortRetCode = _dsGetAudioPort(&aHandleParam);
+        if (IARM_RESULT_SUCCESS != aPortRetCode)
+        {
+            INT_ERROR("[%s] Failed to _dsGetAudioPort for port [%s], Error:[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortRetCode);
+        }
+        else
+        {
+            aPortEnableParam.enabled = enabledStatus;
+            aPortEnableParam.handle = aHandleParam.handle;
+            snprintf(aPortEnableParam.portName, sizeof(aPortEnableParam.portName), "%s", aPort.getName().c_str());
+
+            // Retrieve the persistent enable state only if we are enabling the port
+            if ( true == enabledStatus )
+            {
+                aPortEnableParam.enabled = false; // Value will be retrieved from persistent storage
+
+                aPortRetCode = _dsGetEnablePersist(&aPortEnableParam);
+                if (IARM_RESULT_SUCCESS != aPortRetCode)
+                {
+                    INT_ERROR("[%s] Failed to _dsGetEnablePersist for port [%s], Error:[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortRetCode);
+                }
+                else
+                {
+                    INT_INFO("[%s] Audio PortName[%s] isEnablePersist[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortEnableParam.enabled);
+                    skipOperation = !aPortEnableParam.enabled;
+                }
+            }
+
+            // Proceed to enable/disable the port only if previous operation was successful
+            if ( IARM_RESULT_SUCCESS == aPortRetCode)
+            {
+                // skip enabling the port if persistent state is disabled
+                if ( skipOperation )
+                {
+                    INT_INFO("[%s] Enable AudioPort[%s] skipped!!!\r\n", __FUNCTION__, aPort.getName().c_str());
+                }
+                else
+                {
+                    INT_INFO("[%s] Setting AudioPort[%s] to [%s]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortEnableParam.enabled ? "Enabled" : "Disabled");
+                    aPortRetCode = _dsEnableAudioPort(&aPortEnableParam);
+                    if (IARM_RESULT_SUCCESS != aPortRetCode)
+                    {
+                        INT_ERROR("[%s] _dsEnableAudioPort failed for port [%s], Error:[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortRetCode);
+                    }
+                    else
+                    {
+                        INT_INFO("AudioPort[%s] successfully %s\r\n", aPort.getName().c_str(), (enabledStatus ? "enabled" : "disabled"));
+                    }
+                }
+            }
+        }
+    }
+    catch (...)
+    {
+        INT_DEBUG("Exception Caught during [DSMGR - configureAudioPort]\r\n");
+        aPortRetCode = IARM_RESULT_INVALID_STATE;
+    }
+    return aPortRetCode;
+}
+
 static int _SetLEDStatus(PowerController_PowerState_t powerState)
 {
     INT_INFO("Entering [%s]\r\n", __FUNCTION__);
     try {
-        
+
         dsFPDStateParam_t param;
 
         param.eIndicator = dsFPD_INDICATOR_POWER;
@@ -283,123 +400,6 @@ static int _SetLEDStatus(PowerController_PowerState_t powerState)
         return 0;
     }
     return 0;
-}
-
-static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool enabledStatus)
-{
-    dsVideoPortGetHandleParam_t vHandleParam;
-    dsVideoPortSetEnabledParam_t vPortEnableParam;
-    IARM_Result_t vPortRetCode = IARM_RESULT_SUCCESS;
-    try
-    {
-        dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
-        INT_INFO("[%s] VideoPort[%s] Type[%d] Enabled[%d]\r\n",__FUNCTION__, vPort.getName().c_str(), videoPortType, enabledStatus);
-
-        vHandleParam.type = videoPortType;
-        vHandleParam.index = 0; // Assuming index 0 for now
-        vHandleParam.handle = (intptr_t)0;
-
-        vPortRetCode = _dsGetVideoPort(&vHandleParam);
-        if (IARM_RESULT_SUCCESS != vPortRetCode)
-        {
-            INT_ERROR("DSMgr disableVideoPort: _dsGetVideoPort failed for port [%s], Error:[%d]\r\n", vPort.getName().c_str(), vPortRetCode);
-        }
-        else
-        {
-            vPortEnableParam.enabled = enabledStatus;
-            vPortEnableParam.handle = vHandleParam.handle;
-            snprintf(vPortEnableParam.portName, sizeof(vPortEnableParam.portName), "%s", vPort.getName().c_str());
-
-            vPortRetCode = _dsEnableVideoPort(&vPortEnableParam);
-            if (IARM_RESULT_SUCCESS != vPortRetCode)
-            {
-                INT_ERROR("DSMgr disableVideoPort: _dsEnableVideoPort failed for port [%s], Error:[%d]\r\n", vPort.getName().c_str(), vPortRetCode);
-            }
-            INT_INFO("VideoPort[%s] successfully %s\r\n", vPort.getName().c_str(), (enabledStatus ? "enabled" : "disabled"));
-        }
-    }
-    catch (...)
-    {
-        INT_DEBUG("Exception Caught during [DSMGR - configureVideoPort]\r\n");
-        vPortRetCode = IARM_RESULT_INVALID_STATE;
-    }
-    return vPortRetCode;
-}
-
-static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool enabledStatus)
-{
-    dsAudioGetHandleParam_t aHandleParam;
-    dsAudioPortEnabledParam_t aPortEnableParam;
-    IARM_Result_t aPortRetCode = IARM_RESULT_SUCCESS;
-
-    try
-    {
-        dsAudioPortType_t portType = static_cast<dsAudioPortType_t>(aPort.getType().getId());
-        bool skipOperation = false;
-        INT_INFO("[%s] AudioPort[%s] Type[%d] Enabled[%d]\r\n",__FUNCTION__, aPort.getName().c_str(), portType, enabledStatus);
-
-        aHandleParam.type = portType;
-        aHandleParam.index = 0; // Assuming index 0 for now
-        aHandleParam.handle = (intptr_t)0;
-
-        aPortRetCode = _dsGetAudioPort(&aHandleParam);
-        if (IARM_RESULT_SUCCESS != aPortRetCode)
-        {
-            INT_ERROR("DSMgr disableAudioPort: _dsGetAudioPort failed for port [%s], Error:[%d]\r\n", aPort.getName().c_str(), aPortRetCode);
-        }
-        else
-        {
-            aPortEnableParam.enabled = enabledStatus;
-            aPortEnableParam.handle = aHandleParam.handle;
-            snprintf(aPortEnableParam.portName, sizeof(aPortEnableParam.portName), "%s", aPort.getName().c_str());
-
-            // Retrieve the persistent enable state only if we are enabling the port
-            if ( true == enabledStatus )
-            {
-                aPortEnableParam.enabled = false; // Value will be retrieved from persistent storage
-
-                aPortRetCode = _dsGetEnablePersist(&aPortEnableParam);
-                if (IARM_RESULT_SUCCESS != aPortRetCode)
-                {
-                    INT_ERROR("[%s] _dsGetEnablePersist failed for port [%s], Error:[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortRetCode);
-                }
-                else
-                {
-                    INT_INFO("[%s] Audio PortName[%s] isEnablePersist[%d] \r\n", __FUNCTION__, aPort.getName().c_str(), aPortEnableParam.enabled);
-                    skipOperation = !aPortEnableParam.enabled;
-                }
-            }
-
-            // Proceed to enable/disable the port only if previous operation was successful
-            if ( IARM_RESULT_SUCCESS == aPortRetCode)
-            {
-                // skip enabling the port if persistent state is disabled
-                if ( skipOperation )
-                {
-                    INT_INFO("[%s] Enable AudioPort[%s] skipped!!! \r\n", __FUNCTION__, aPort.getName().c_str());
-                }
-                else
-                {
-                    INT_INFO("[%s] Setting AudioPort[%s] to %s \r\n", __FUNCTION__, aPort.getName().c_str(), aPortEnableParam.enabled ? "Enabled" : "Disabled");
-                    aPortRetCode = _dsEnableAudioPort(&aPortEnableParam);
-                    if (IARM_RESULT_SUCCESS != aPortRetCode)
-                    {
-                        INT_ERROR("[%s] _dsEnableAudioPort failed for port [%s], Error:[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortRetCode);
-                    }
-                    else
-                    {
-                        INT_INFO("AudioPort[%s] successfully %s\r\n", aPort.getName().c_str(), (enabledStatus ? "enabled" : "disabled"));
-                    }
-                }
-            }
-        }
-    }
-    catch (...)
-    {
-        INT_DEBUG("Exception Caught during [DSMGR - configureAudioPort]\r\n");
-        aPortRetCode = IARM_RESULT_INVALID_STATE;
-    }
-    return aPortRetCode;
 }
 
 int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
