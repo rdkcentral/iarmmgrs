@@ -331,7 +331,6 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
     {
         dsAudioPortType_t portType = static_cast<dsAudioPortType_t>(aPort.getType().getId());
         int index = aPort.getIndex();
-        bool skipOperation = false;
         INT_INFO("[%s] AudioPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), portType, index, enabledStatus);
 
         aHandleParam.type = portType;
@@ -345,6 +344,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
         }
         else
         {
+            bool skipOperation = false;
             aPortEnableParam.handle = aHandleParam.handle;
             snprintf(aPortEnableParam.portName, sizeof(aPortEnableParam.portName), "%s", aPort.getName().c_str());
 
