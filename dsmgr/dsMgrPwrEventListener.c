@@ -252,16 +252,16 @@ static void _PwrEventHandler(const PowerController_PowerState_t currentState,
  * @brief Enables or disables a given video output port using libdssrv APIs.
  *
  * This function configures the specified video output port by enabling or disabling it,
- * depending on the value of the enabledStatus parameter. It interacts with the underlying
+ * depending on the value of the requestEnable parameter. It interacts with the underlying
  * device abstraction layer to retrieve the port handle and set its enabled state.
  *
  * @param[in] vPort Reference to the VideoOutputPort object to be configured.
- * @param[in] enabledStatus Boolean flag indicating whether to enable (true) or disable (false) the port.
+ * @param[in] requestEnable Boolean flag indicating whether to enable (true) or disable (false) the port.
  *
  * @return IARM_Result_t Returns IARM_RESULT_SUCCESS on success, or an appropriate error code
  *         (e.g., IARM_RESULT_INVALID_STATE) on failure.
  */
-static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool enabledStatus)
+static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool requestEnable)
 {
     dsVideoPortGetHandleParam_t vHandleParam;
     dsVideoPortSetEnabledParam_t vPortEnableParam;
@@ -270,7 +270,7 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool ena
     {
         dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
         int index = vPort.getIndex();
-        INT_INFO("[%s] VideoPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), videoPortType, index, enabledStatus);
+        INT_INFO("[%s] VideoPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), videoPortType, index, requestEnable);
 
         vHandleParam.type = videoPortType;
         vHandleParam.index = index;
@@ -283,7 +283,7 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool ena
         }
         else
         {
-            vPortEnableParam.enabled = enabledStatus;
+            vPortEnableParam.enabled = requestEnable;
             vPortEnableParam.handle = vHandleParam.handle;
             snprintf(vPortEnableParam.portName, sizeof(vPortEnableParam.portName), "%s", vPort.getName().c_str());
 
@@ -294,7 +294,7 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool ena
             }
             else
             {
-                INT_INFO("VideoPort[%s] successfully %s\r\n", vPort.getName().c_str(), (enabledStatus ? "enabled" : "disabled"));
+                INT_INFO("VideoPort[%s] successfully %s\r\n", vPort.getName().c_str(), (requestEnable ? "enabled" : "disabled"));
             }
         }
     }
@@ -310,18 +310,18 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool ena
  * @brief Configures the enable/disable state of the specified audio output port.
  *
  * This function sets the enabled state of the given audio output port (`aPort`)
- * to the value specified by `enabledStatus`. If the port is already in the desired
+ * to the value specified by `requestEnable`. If the port is already in the desired
  * state, the function may skip the operation to avoid unnecessary changes.
  * Special handling is included to persist the enable state as needed.
  *
  * @param[in]  aPort         Reference to the AudioOutputPort object to configure.
- * @param[in]  enabledStatus Boolean value indicating whether to enable (true) or disable (false) the port.
+ * @param[in]  requestEnable Boolean value indicating whether to enable (true) or disable (false) the port.
  *
  * @return IARM_RESULT_SUCCESS on success,
  *         IARM_RESULT_INVALID_STATE if an error or exception occurs,
  *         or another appropriate IARM_Result_t error code.
  */
-static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool enabledStatus)
+static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool requestEnable)
 {
     dsAudioGetHandleParam_t aHandleParam;
     dsAudioPortEnabledParam_t aPortEnableParam;
@@ -331,7 +331,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
     {
         dsAudioPortType_t portType = static_cast<dsAudioPortType_t>(aPort.getType().getId());
         int index = aPort.getIndex();
-        INT_INFO("[%s] AudioPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), portType, index, enabledStatus);
+        INT_INFO("[%s] AudioPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), portType, index, requestEnable);
 
         aHandleParam.type = portType;
         aHandleParam.index = index;
@@ -349,7 +349,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
             snprintf(aPortEnableParam.portName, sizeof(aPortEnableParam.portName), "%s", aPort.getName().c_str());
 
             // Retrieve the persistent enable state only if we are enabling the port
-            if ( true == enabledStatus )
+            if (true == requestEnable)
             {
                 aPortEnableParam.enabled = false; // Value will be retrieved from persistent storage
 
@@ -370,10 +370,10 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
             }
 
             // Proceed to enable/disable the port only if previous operation was successful
-            if ( IARM_RESULT_SUCCESS == aPortRetCode)
+            if (IARM_RESULT_SUCCESS == aPortRetCode)
             {
                 // skip enabling the port if persistent state is disabled
-                if ( skipOperation )
+                if (skipOperation)
                 {
                     INT_INFO("[%s] Enable AudioPort[%s] skipped!!!\r\n", __FUNCTION__, aPort.getName().c_str());
                 }
@@ -446,7 +446,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
         if (POWER_STATE_ON != powerState)
         {
             INT_INFO("[%s] POWERSTATE %d \r\n", __FUNCTION__, powerState);
-            // We're in one of the standby modes. Certain ports may have to be left on.
+            // We're in a non-ON power state (standby or off). Certain ports may have to be left on in standby modes.
             try
             {
                 device::List<device::VideoOutputPort> videoPorts = device::Host::getInstance().getVideoOutputPorts();
