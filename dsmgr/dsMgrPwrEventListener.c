@@ -387,7 +387,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
                     }
                     else
                     {
-                        INT_INFO("AudioPort[%s] '%s' successfully\r\n", aPort.getName().c_str(), (aPortEnableParam.enabled ? "enabled" : "disabled"));
+                        INT_INFO("AudioPort[%s] successfully %s\r\n", aPort.getName().c_str(), (aPortEnableParam.enabled ? "enabled" : "disabled"));
                     }
                 }
             }
