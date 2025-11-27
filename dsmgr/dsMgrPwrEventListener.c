@@ -356,12 +356,9 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
 
             try
             {
-                int numPorts, i = 0;
-
                 device::List<device::AudioOutputPort> aPorts = device::Host::getInstance().getAudioOutputPorts();
-                numPorts = aPorts.size();
-                INT_INFO("[%s] Number of Audio Ports: [%d] \r\n", __FUNCTION__, numPorts);
-                for (i = 0; i < numPorts; i++)
+                INT_INFO("[%s] Number of Audio Ports: [%d] \r\n", __FUNCTION__, aPorts.size());
+                for (size_t i = 0; i < aPorts.size(); i++)
                 {
                     try
                     {
@@ -416,45 +413,49 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                 INT_INFO("[%s] Number of Video Ports: [%d] \r\n", __FUNCTION__, videoPorts.size());
                 for (size_t i = 0; i < videoPorts.size(); i++)
                 {
-                    dsVideoPortGetHandleParam_t vHandleParam;
-                    dsVideoPortSetEnabledParam_t vPortEnableParam;
-                    IARM_Result_t vPortRetCode = IARM_RESULT_SUCCESS;
-
-                    device::VideoOutputPort vPort = videoPorts.at(i);
-                    INT_INFO("[%s] Enabling VideoPort[%s] for powerState[%d] \r\n", __FUNCTION__, vPort.getName().c_str(), powerState);
-                    dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
-                    INT_INFO("[%s] VideoPortType[%d]\r\n", __FUNCTION__, videoPortType);
-
-                    vHandleParam.type = videoPortType;
-                    vHandleParam.index = 0; // Assuming index 0 for now
-                    vHandleParam.handle = (intptr_t)0;
-
-                    vPortRetCode = _dsGetVideoPort(&vHandleParam);
-                    if (IARM_RESULT_SUCCESS != vPortRetCode)
+                    try
                     {
-                        INT_ERROR("[%s] _dsGetVideoPort failed for port [%s], Error:[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), vPortRetCode);
-                        continue;
-                    }
+                        dsVideoPortGetHandleParam_t vHandleParam;
+                        dsVideoPortSetEnabledParam_t vPortEnableParam;
+                        IARM_Result_t vPortRetCode = IARM_RESULT_SUCCESS;
 
-                    vPortEnableParam.enabled = true; // Enable the port
-                    vPortEnableParam.handle = vHandleParam.handle;
-                    snprintf(vPortEnableParam.portName, sizeof(vPortEnableParam.portName), "%s", vPort.getName().c_str());
-                    vPortRetCode = _dsEnableVideoPort(&vPortEnableParam);
-                    if (IARM_RESULT_SUCCESS != vPortRetCode)
-                    {
-                        INT_ERROR("[%s] _dsEnableVideoPort failed for port [%s], Error:[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), vPortRetCode);
-                        continue;
+                        device::VideoOutputPort vPort = videoPorts.at(i);
+                        INT_INFO("[%s] Enabling VideoPort[%s] for powerState[%d] \r\n", __FUNCTION__, vPort.getName().c_str(), powerState);
+                        dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
+                        INT_INFO("[%s] VideoPortType[%d]\r\n", __FUNCTION__, videoPortType);
+
+                        vHandleParam.type = videoPortType;
+                        vHandleParam.index = 0; // Assuming index 0 for now
+                        vHandleParam.handle = (intptr_t)0;
+
+                        vPortRetCode = _dsGetVideoPort(&vHandleParam);
+                        if (IARM_RESULT_SUCCESS != vPortRetCode)
+                        {
+                            INT_ERROR("[%s] _dsGetVideoPort failed for port [%s], Error:[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), vPortRetCode);
+                            continue;
+                        }
+
+                        vPortEnableParam.enabled = true; // Enable the port
+                        vPortEnableParam.handle = vHandleParam.handle;
+                        snprintf(vPortEnableParam.portName, sizeof(vPortEnableParam.portName), "%s", vPort.getName().c_str());
+                        vPortRetCode = _dsEnableVideoPort(&vPortEnableParam);
+                        if (IARM_RESULT_SUCCESS != vPortRetCode)
+                        {
+                            INT_ERROR("[%s] _dsEnableVideoPort failed for port [%s], Error:[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), vPortRetCode);
+                            continue;
+                        }
+                        INT_INFO("[%s] VideoPort[%s] Enabled for powerState[%d] \r\n", __FUNCTION__, vPort.getName().c_str(), powerState);
                     }
-                    INT_INFO("[%s] VideoPort[%s] Enabled for powerState[%d] \r\n", __FUNCTION__, vPort.getName().c_str(), powerState);
+                    catch (...)
+                    {
+                        INT_DEBUG("[%s] video port exception at %d\r\n", __FUNCTION__, i);
+                    }
                 }
                 INT_INFO("[%s] VideoPort configuration done \r\n",__FUNCTION__);
 
-                int numPorts, i = 0;
-
                 device::List<device::AudioOutputPort> aPorts = device::Host::getInstance().getAudioOutputPorts();
-                numPorts = aPorts.size();
-                INT_INFO("[%s] Number of Audio Ports: [%d] \r\n", __FUNCTION__, numPorts);
-                for (i = 0; i < numPorts; i++)
+                INT_INFO("[%s] Number of Audio Ports: [%d] \r\n", __FUNCTION__, aPorts.size());
+                for (size_t i = 0; i < aPorts.size(); i++)
                 {
                     try
                     {
