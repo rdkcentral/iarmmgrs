@@ -278,7 +278,10 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool ena
             {
                 INT_ERROR("[%s] Failed to _dsEnableVideoPort for port [%s], Error:[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), vPortRetCode);
             }
-            INT_INFO("VideoPort[%s] successfully %s\r\n", vPort.getName().c_str(), (enabledStatus ? "enabled" : "disabled"));
+            else
+            {
+                INT_INFO("VideoPort[%s] successfully %s\r\n", vPort.getName().c_str(), (enabledStatus ? "enabled" : "disabled"));
+            }
         }
     }
     catch (...)
@@ -421,7 +424,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     {
                         device::VideoOutputPort vPort = videoPorts.at(i);
                         bool doEnable = get_video_port_standby_setting(vPort.getName().c_str());
-                        INT_DEBUG("[%s]Video port %s will be %s for PowerState[%d]\n", __FUNCTION__, vPort.getName().c_str(), (doEnable ? "enabled" : "disabled"), powerState);
+                        INT_DEBUG("[%s] Video port %s will be %s for PowerState[%d]\n", __FUNCTION__, vPort.getName().c_str(), (doEnable ? "enabled" : "disabled"), powerState);
                         if ((false == doEnable) || (POWER_STATE_OFF == powerState))
                         {
                             // Disable the port
@@ -437,7 +440,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         }
                         else
                         {
-                            INT_INFO("[%s] Disable VideoPort[%d] skipped!!! \r\n", __FUNCTION__, i);
+                            INT_INFO("[%s] Disable VideoPort[%d] skipped!!!\r\n", __FUNCTION__, i);
                         }
                     }
                     catch (...)
