@@ -262,16 +262,18 @@ static void _PwrEventHandler(const PowerController_PowerState_t currentState,
  *         (e.g., IARM_RESULT_INVALID_STATE) on failure.
  */
 static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool enabledStatus)
+{
     dsVideoPortGetHandleParam_t vHandleParam;
     dsVideoPortSetEnabledParam_t vPortEnableParam;
     IARM_Result_t vPortRetCode = IARM_RESULT_SUCCESS;
     try
     {
         dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
-        INT_INFO("[%s] VideoPort[%s] Type[%d] Enabled[%d]\r\n",__FUNCTION__, vPort.getName().c_str(), videoPortType, enabledStatus);
+        int index = vPort.getIndex();
+        INT_INFO("[%s] VideoPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), videoPortType, index, enabledStatus);
 
         vHandleParam.type = videoPortType;
-        vHandleParam.index = 0; // Assumes only one video port per type. Update if multiple ports are supported later
+        vHandleParam.index = index;
         vHandleParam.handle = (intptr_t)0;
 
         vPortRetCode = _dsGetVideoPort(&vHandleParam);
@@ -328,11 +330,12 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
     try
     {
         dsAudioPortType_t portType = static_cast<dsAudioPortType_t>(aPort.getType().getId());
+        int index = aPort.getIndex();
         bool skipOperation = false;
-        INT_INFO("[%s] AudioPort[%s] Type[%d] Enabled[%d]\r\n",__FUNCTION__, aPort.getName().c_str(), portType, enabledStatus);
+        INT_INFO("[%s] AudioPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), portType, index, enabledStatus);
 
         aHandleParam.type = portType;
-        aHandleParam.index = 0; // Assumes only one audio port per type. Update if multiple ports are supported later
+        aHandleParam.index = index;
         aHandleParam.handle = (intptr_t)0;
 
         aPortRetCode = _dsGetAudioPort(&aHandleParam);
@@ -465,7 +468,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                             }
                             else
                             {
-                                INT_ERROR("[%s] Failed to disable VideoPort[%d] for powerState [%d] \r\n",__FUNCTION__, i, powerState);
+                                INT_ERROR("[%s] Failed to disable VideoPort[%d] for powerState [%d] \r\n", __FUNCTION__, i, powerState);
                             }
                         }
                         else
@@ -483,7 +486,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
             {
                 INT_DEBUG("[%s] Video port exception %d \r\n", __FUNCTION__, powerState);
             }
-            INT_INFO("[%s] VideoPort configuration done \r\n",__FUNCTION__);
+            INT_INFO("[%s] VideoPort configuration done \r\n", __FUNCTION__);
 
             try
             {
@@ -502,7 +505,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         }
                         else
                         {
-                            INT_ERROR("[%s] Failed to disable AudioPort[%d] for powerState [%d] \r\n",__FUNCTION__, i, powerState);
+                            INT_ERROR("[%s] Failed to disable AudioPort[%d] for powerState [%d] \r\n", __FUNCTION__, i, powerState);
                         }
                     }
                     catch (...)
@@ -566,7 +569,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     }
                     catch (...)
                     {
-                        INT_DEBUG("[%s] Audio port exception at %d \r\n",__FUNCTION__, i);
+                        INT_DEBUG("[%s] Audio port exception at %d \r\n", __FUNCTION__, i);
                     }
                 }
                 INT_INFO("[%s] AudioPort configuration done \r\n", __FUNCTION__);
@@ -579,7 +582,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
             }
             catch (...)
             {
-                INT_DEBUG("[%s] Audio port exception \r\n",__FUNCTION__);
+                INT_DEBUG("[%s] Audio port exception \r\n", __FUNCTION__);
             }
         }
     }
