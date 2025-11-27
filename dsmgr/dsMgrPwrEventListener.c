@@ -168,7 +168,7 @@ static void dsMgrPwrCtrlEstablishConnection(void)
 
 static void* dsMgrPwrRetryEstablishConnThread(void *arg)
 {
-    INT_INFO("%s: Entry  \r\n",__FUNCTION__);
+    INT_INFO("%s: Entry  \r\n", __FUNCTION__);
 
     while(1)
     {
@@ -440,7 +440,7 @@ static int _SetLEDStatus(PowerController_PowerState_t powerState)
 
 int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
 {
-    INT_INFO("Entering [%s] powerState:%d \r\n", __FUNCTION__,powerState);
+    INT_INFO("Entering [%s] powerState:%d \r\n", __FUNCTION__, powerState);
     try
     {
         if (POWER_STATE_ON != powerState)
@@ -729,7 +729,7 @@ static PowerController_PowerState_t dsMgrPwrMgrToPowerControllerPowerState(PWRMg
         INT_ERROR("DSMgr dsMgrPwrMgrToPowerControllerPowerState Invalid Power State\r\n");
         break;
     }
-    INT_DEBUG("[%s] _state=[%d]  powerState[%d]\r\n", __FUNCTION__,_state,powerState);
+    INT_DEBUG("[%s] _state=[%d]  powerState[%d]\r\n", __FUNCTION__, _state, powerState);
     return powerState;
 }
 
@@ -802,7 +802,7 @@ static IARM_Result_t _SetRebootConfig(void *arg)
 
 static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
 {
-    INT_INFO("%s: Entry  \r\n",__FUNCTION__);
+    INT_INFO("%s: Entry  \r\n", __FUNCTION__);
 
     /* In Loop and waiting for an event conditionally */
     while (true)
@@ -814,7 +814,7 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
         {
              /* This case can enter if the de init is trigerred which wants to exit the thread function 
                   and unlock happens after the end of while loop, it will not process any events for this case*/
-            INT_DEBUG("[%s:%d]:dsMgrPwrEventHandlingThreadFunc Exiting due to m_dsMgrPwrStopThread true \n",__FUNCTION__,__LINE__);
+            INT_DEBUG("[%s:%d]:dsMgrPwrEventHandlingThreadFunc Exiting due to m_dsMgrPwrStopThread true \n", __FUNCTION__, __LINE__);
             pthread_mutex_unlock(&tdsPwrEventMutexLock);
             break;
         }
@@ -896,9 +896,9 @@ void dsMgrDeinitPwrControllerEvt(void)
     pthread_mutex_unlock(&tdsPwrEventMutexLock);
 
     /* wait for the event thread handler to complete its operation */
-    INT_DEBUG("[%s:%d]:Before Joining thread id\n",__FUNCTION__,__LINE__);
+    INT_DEBUG("[%s:%d]:Before Joining thread id\n", __FUNCTION__, __LINE__);
     pthread_join(edsPwrEventHandlerThreadID, NULL);
-    INT_DEBUG("[%s:%d]:Completed  Joined thread id\n",__FUNCTION__,__LINE__);
+    INT_DEBUG("[%s:%d]:Completed  Joined thread id\n", __FUNCTION__, __LINE__);
 
     /* clean the queue with guarding mutex*/
     pthread_mutex_lock(&tdsPwrEventQueueMutexLock); 
