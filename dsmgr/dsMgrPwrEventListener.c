@@ -248,8 +248,20 @@ static void _PwrEventHandler(const PowerController_PowerState_t currentState,
     pthread_mutex_unlock(&tdsPwrEventMutexLock);
 }
 
+/**
+ * @brief Enables or disables a given video output port using libdssrv APIs.
+ *
+ * This function configures the specified video output port by enabling or disabling it,
+ * depending on the value of the enabledStatus parameter. It interacts with the underlying
+ * device abstraction layer to retrieve the port handle and set its enabled state.
+ *
+ * @param[in] vPort Reference to the VideoOutputPort object to be configured.
+ * @param[in] enabledStatus Boolean flag indicating whether to enable (true) or disable (false) the port.
+ *
+ * @return IARM_Result_t Returns IARM_RESULT_SUCCESS on success, or an appropriate error code
+ *         (e.g., IARM_RESULT_INVALID_STATE) on failure.
+ */
 static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool enabledStatus)
-{
     dsVideoPortGetHandleParam_t vHandleParam;
     dsVideoPortSetEnabledParam_t vPortEnableParam;
     IARM_Result_t vPortRetCode = IARM_RESULT_SUCCESS;
@@ -292,6 +304,21 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool ena
     return vPortRetCode;
 }
 
+/**
+ * @brief Configures the enable/disable state of the specified audio output port.
+ *
+ * This function sets the enabled state of the given audio output port (`aPort`)
+ * to the value specified by `enabledStatus`. If the port is already in the desired
+ * state, the function may skip the operation to avoid unnecessary changes.
+ * Special handling is included to persist the enable state as needed.
+ *
+ * @param[in]  aPort         Reference to the AudioOutputPort object to configure.
+ * @param[in]  enabledStatus Boolean value indicating whether to enable (true) or disable (false) the port.
+ *
+ * @return IARM_RESULT_SUCCESS on success,
+ *         IARM_RESULT_INVALID_STATE if an error or exception occurs,
+ *         or another appropriate IARM_Result_t error code.
+ */
 static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool enabledStatus)
 {
     dsAudioGetHandleParam_t aHandleParam;
@@ -434,7 +461,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                             IARM_Result_t retCode = configureVideoPort(vPort, false);
                             if (IARM_RESULT_SUCCESS == retCode)
                             {
-                                INT_INFO("[%s] VideoPort[%d] disabled for powerState [%d] \r\n",__FUNCTION__, i, powerState);
+                                INT_INFO("[%s] VideoPort[%d] disabled for powerState [%d] \r\n", __FUNCTION__, i, powerState);
                             }
                             else
                             {
@@ -471,7 +498,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         IARM_Result_t retCode = configureAudioPort(aPort, false);
                         if (IARM_RESULT_SUCCESS == retCode)
                         {
-                            INT_INFO("[%s] AudioPort[%d] disabled for powerState [%d] \r\n",__FUNCTION__, i, powerState);
+                            INT_INFO("[%s] AudioPort[%d] disabled for powerState [%d] \r\n", __FUNCTION__, i, powerState);
                         }
                         else
                         {
@@ -488,7 +515,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
             {
                 INT_DEBUG("[%s] audio port exception \r\n", __FUNCTION__);
             }
-            INT_INFO("[%s] AudioPort configuration done \r\n",__FUNCTION__);
+            INT_INFO("[%s] AudioPort configuration done \r\n", __FUNCTION__);
         }
         else
         {
@@ -517,7 +544,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         INT_DEBUG("[%s] video port exception at %d\r\n", __FUNCTION__, i);
                     }
                 }
-                INT_INFO("[%s] VideoPort configuration done \r\n",__FUNCTION__);
+                INT_INFO("[%s] VideoPort configuration done \r\n", __FUNCTION__);
 
                 device::List<device::AudioOutputPort> aPorts = device::Host::getInstance().getAudioOutputPorts();
                 INT_INFO("[%s] Number of Audio Ports: [%d] \r\n", __FUNCTION__, aPorts.size());
@@ -542,7 +569,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         INT_DEBUG("[%s] Audio port exception at %d \r\n",__FUNCTION__, i);
                     }
                 }
-                INT_INFO("[%s] AudioPort configuration done \r\n",__FUNCTION__);
+                INT_INFO("[%s] AudioPort configuration done \r\n", __FUNCTION__);
                 if (isEAS == IARM_BUS_SYS_MODE_EAS)
                 {
                     /* Force Stereo in EAS mode. */
