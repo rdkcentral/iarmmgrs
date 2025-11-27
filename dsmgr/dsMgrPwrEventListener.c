@@ -315,7 +315,6 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
         }
         else
         {
-            aPortEnableParam.enabled = enabledStatus;
             aPortEnableParam.handle = aHandleParam.handle;
             snprintf(aPortEnableParam.portName, sizeof(aPortEnableParam.portName), "%s", aPort.getName().c_str());
 
@@ -334,6 +333,10 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
                     INT_INFO("[%s] Audio PortName[%s] isEnablePersist[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortEnableParam.enabled);
                     skipOperation = !aPortEnableParam.enabled;
                 }
+            }
+            else
+            {
+                aPortEnableParam.enabled = false; // Disabling the port
             }
 
             // Proceed to enable/disable the port only if previous operation was successful
@@ -354,7 +357,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool ena
                     }
                     else
                     {
-                        INT_INFO("AudioPort[%s] successfully %s\r\n", aPort.getName().c_str(), (enabledStatus ? "enabled" : "disabled"));
+                        INT_INFO("AudioPort[%s] '%s' successfully\r\n", aPort.getName().c_str(), (aPortEnableParam.enabled ? "enabled" : "disabled"));
                     }
                 }
             }
