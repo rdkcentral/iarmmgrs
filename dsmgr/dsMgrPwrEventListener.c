@@ -133,14 +133,34 @@ void initPwrEventListner()
     }
     catch (...){
         INT_DEBUG("Exception Caught during [device::Manager::load]\r\n");
-    }   
+    }
+    IARM_Result_t rc;
 
-    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetStandbyVideoState, _SetStandbyVideoState);
-    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_GetStandbyVideoState, _GetStandbyVideoState);
-    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetAvPortState, _SetAvPortState);
-    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetLEDStatus, _SetLEDState);
-    IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetRebootConfig, _SetRebootConfig);
-
+    rc = IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetStandbyVideoState, _SetStandbyVideoState);
+    if (IARM_RESULT_SUCCESS != rc)
+    {
+        INT_ERROR("IARM_Bus_RegisterCall Failed for IARM_BUS_DSMGR_API_SetStandbyVideoState, Error:[%d]\r\n", rc);
+    }
+    rc = IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_GetStandbyVideoState, _GetStandbyVideoState);
+    if (IARM_RESULT_SUCCESS != rc)
+    {
+        INT_ERROR("IARM_Bus_RegisterCall Failed for IARM_BUS_DSMGR_API_GetStandbyVideoState, Error:[%d]\r\n", rc);
+    }
+    rc = IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetAvPortState, _SetAvPortState);
+    if (IARM_RESULT_SUCCESS != rc)
+    {
+        INT_ERROR("IARM_Bus_RegisterCall Failed for IARM_BUS_DSMGR_API_SetAvPortState, Error:[%d]\r\n", rc);
+    }
+    rc = IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetLEDStatus, _SetLEDState);
+    if (IARM_RESULT_SUCCESS != rc)
+    {
+        INT_ERROR("IARM_Bus_RegisterCall Failed for IARM_BUS_DSMGR_API_SetLEDStatus, Error:[%d]\r\n", rc);
+    }
+    rc = IARM_Bus_RegisterCall(IARM_BUS_DSMGR_API_SetRebootConfig, _SetRebootConfig);
+    if (IARM_RESULT_SUCCESS != rc)
+    {
+        INT_ERROR("IARM_Bus_RegisterCall Failed for IARM_BUS_DSMGR_API_SetRebootConfig, Error:[%d]\r\n", rc);
+    }
     /*  Start a new thread and wait until connection established 
      * if connection is eastablished, proceed with fetching and Getting values from Power control and initialize*/
      INT_INFO("DSMgr PowerController_Connect setup in a Thread\r\n");
@@ -455,7 +475,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
             try
             {
                 device::List<device::VideoOutputPort> videoPorts = device::Host::getInstance().getVideoOutputPorts();
-                INT_INFO("[%s] Number of Video Ports: [%d] \r\n", __FUNCTION__, videoPorts.size());
+                INT_INFO("[%s] Number of Video Ports: [%zu] \r\n", __FUNCTION__, videoPorts.size());
                 for (size_t i = 0; i < videoPorts.size(); i++)
                 {
                     try
@@ -496,7 +516,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
             try
             {
                 device::List<device::AudioOutputPort> aPorts = device::Host::getInstance().getAudioOutputPorts();
-                INT_INFO("[%s] Number of Audio Ports: [%d] \r\n", __FUNCTION__, aPorts.size());
+                INT_INFO("[%s] Number of Audio Ports: [%zu] \r\n", __FUNCTION__, aPorts.size());
                 for (size_t i = 0; i < aPorts.size(); i++)
                 {
                     try
@@ -538,7 +558,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
             try
             {
                 device::List<device::VideoOutputPort> videoPorts = device::Host::getInstance().getVideoOutputPorts();
-                INT_INFO("[%s] Number of Video Ports: [%d] \r\n", __FUNCTION__, videoPorts.size());
+                INT_INFO("[%s] Number of Video Ports: [%zu] \r\n", __FUNCTION__, videoPorts.size());
                 for (size_t i = 0; i < videoPorts.size(); i++)
                 {
                     try
@@ -563,7 +583,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                 INT_INFO("[%s] VideoPort configuration done \r\n", __FUNCTION__);
 
                 device::List<device::AudioOutputPort> aPorts = device::Host::getInstance().getAudioOutputPorts();
-                INT_INFO("[%s] Number of Audio Ports: [%d] \r\n", __FUNCTION__, aPorts.size());
+                INT_INFO("[%s] Number of Audio Ports: [%zu] \r\n", __FUNCTION__, aPorts.size());
                 for (size_t i = 0; i < aPorts.size(); i++)
                 {
                     try

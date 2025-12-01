@@ -36,8 +36,6 @@ namespace device{
 		return Host::getInstance().getVideoOutputPorts().at(0);
 	}
 
-
-
 	VideoOutputPort::~VideoOutputPort() {}
 
 	const VideoOutputPortType &VideoOutputPort::getType() const {
@@ -45,10 +43,17 @@ namespace device{
 		return t;
 	}
 
-	VideoOutputPort::Display::Display(VideoOutputPort &vPort)
-	{
-        (void)vPort; /* NOP for stubs */
- 	}
+    VideoOutputPort::Display::Display(VideoOutputPort &vPort) :
+                                                            _productCode(0), _serialNumber(0),
+                                                            _manufacturerYear(0), _manufacturerWeek(0),
+                                                            _hdmiDeviceType(true), _isSurroundCapable(false),
+                                                            _isDeviceRepeater(false), _aspectRatio(0),
+                                                            _physicalAddressA(1), _physicalAddressB(0),
+                                                            _physicalAddressC(0), _physicalAddressD(0),
+                                                            _handle(-1)
+    {
+
+    }
 
 	VideoOutputPort::Display::~Display() {}
 
@@ -81,6 +86,10 @@ namespace device{
 
 	VideoOutputPortType::VideoOutputPortType(const int id) {
 		(void)id;
+        _dtcpSupported = false;
+        _hdcpSupported = false;
+        _dynamic = false;
+        _restrictedResolution = 0;
 	}
 
 	VideoOutputPortType::~VideoOutputPortType() {}
