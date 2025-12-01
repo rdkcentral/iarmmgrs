@@ -1,5 +1,7 @@
 #include "host.hpp"
 #include "iarm/IarmImpl.hpp"
+#include "videoOutputPortType.hpp"
+#include "audioOutputPortType.hpp"
 #include "manager.hpp"
 #include "dsRpc.h"
 #include "sleepMode.hpp"
@@ -14,6 +16,8 @@ namespace device{
 	Host::~Host() {
 
 	} 
+
+	IarmImpl::~IarmImpl() {}
 
 	Host& Host::getInstance() {
 		static Host instance; // instance is in thread-safe now.
@@ -31,6 +35,30 @@ namespace device{
 	VideoOutputPort & VideoOutputPort::getInstance(int id) {
 		return Host::getInstance().getVideoOutputPorts().at(0);
 	}
+
+	VideoOutputPort::VideoOutputPort(const VideoOutputPort &other)
+	{
+        /* NOP for stubs */
+	}
+
+	VideoOutputPort::~VideoOutputPort() {}
+
+	const VideoOutputPortType &VideoOutputPort::getType() const {
+		static VideoOutputPortType t;
+		return t;
+	}
+
+	VideoOutputPort::Display::Display(VideoOutputPort &vPort)
+	{
+        /* NOP for stubs */
+	}
+
+	VideoOutputPort::Display::Display(const VideoOutputPort::Display &other)
+	{
+        /* NOP for stubs */
+	}
+
+	VideoOutputPort::Display::~Display() {}
 
 	AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) {
 	}
@@ -52,6 +80,11 @@ namespace device{
 	
 	AudioOutputPort & AudioOutputPort::getInstance(int id) {
 		return Host::getInstance().getAudioOutputPorts().at(0);
+	}
+
+	const AudioOutputPortType &AudioOutputPort::getType() const {
+		static AudioOutputPortType t;
+		return t;
 	}
 
 	SleepMode Host::getPreferredSleepMode() {
