@@ -94,6 +94,13 @@ namespace device{
 	VideoOutputPort::~VideoOutputPort() {
 		// Stub destructor implementation
 	}
+	
+	// FIX(Linker Error): Add missing VideoOutputPort::Display nested class implementation
+	// Reason: libds.so expects Display destructor and vtable but they're not defined
+	// Impact: Fixes undefined reference linker errors for Display nested class
+	VideoOutputPort::Display::~Display() {
+		// Stub destructor for nested Display class
+	}
 
 	List<AudioOutputPort> Host::getAudioOutputPorts() {
 		return device::List<device::AudioOutputPort>();
