@@ -310,9 +310,8 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool req
  * @brief Configures the enable/disable state of the specified audio output port.
  *
  * This function sets the enabled state of the given audio output port (`aPort`)
- * to the value specified by `requestEnable`. If the port is already in the desired
- * state, the function may skip the operation to avoid unnecessary changes.
- * Special handling is included to persist the enable state as needed.
+ * to the value specified by `requestEnable`. When enabling, the function retrieves
+ * the persistent enable state from storage and skips the operation if persistence is disabled.
  *
  * @param[in]  aPort         Reference to the AudioOutputPort object to configure.
  * @param[in]  requestEnable Boolean value indicating whether to enable (true) or disable (false) the port.
@@ -463,16 +462,16 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                             IARM_Result_t retCode = configureVideoPort(vPort, false);
                             if (IARM_RESULT_SUCCESS == retCode)
                             {
-                                INT_INFO("[%s] VideoPort[%d] disabled for powerState [%d] \r\n", __FUNCTION__, i, powerState);
+                                INT_INFO("[%s] VideoPort[%s] disabled for powerState [%d] \r\n", __FUNCTION__, vPort.getName().c_str(), powerState);
                             }
                             else
                             {
-                                INT_ERROR("[%s] Failed to disable VideoPort[%d] for powerState [%d] \r\n", __FUNCTION__, i, powerState);
+                                INT_ERROR("[%s] Failed to disable VideoPort[%s] for powerState [%d] \r\n", __FUNCTION__, vPort.getName().c_str(), powerState);
                             }
                         }
                         else
                         {
-                            INT_INFO("[%s] Disable VideoPort[%d] skipped!!!\r\n", __FUNCTION__, i);
+                            INT_INFO("[%s] Disable VideoPort[%s] skipped!!!\r\n", __FUNCTION__, vPort.getName().c_str());
                         }
                     }
                     catch (...)
@@ -500,11 +499,11 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         IARM_Result_t retCode = configureAudioPort(aPort, false);
                         if (IARM_RESULT_SUCCESS == retCode)
                         {
-                            INT_INFO("[%s] AudioPort[%d] disabled for powerState [%d] \r\n", __FUNCTION__, i, powerState);
+                            INT_INFO("[%s] AudioPort[%s] disabled for powerState [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
                         }
                         else
                         {
-                            INT_ERROR("[%s] Failed to disable AudioPort[%d] for powerState [%d] \r\n", __FUNCTION__, i, powerState);
+                            INT_ERROR("[%s] Failed to disable AudioPort[%s] for powerState [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
                         }
                     }
                     catch (...)
@@ -568,7 +567,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     }
                     catch (...)
                     {
-                        INT_DEBUG("[%s] Audio port exception at %d \r\n", __FUNCTION__, i);
+                        INT_DEBUG("[%s] Audio port exception at %zu \r\n", __FUNCTION__, i);
                     }
                 }
                 INT_INFO("[%s] AudioPort configuration done \r\n", __FUNCTION__);
