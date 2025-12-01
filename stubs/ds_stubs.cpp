@@ -36,27 +36,19 @@ namespace device{
 		return Host::getInstance().getVideoOutputPorts().at(0);
 	}
 
-	VideoOutputPort::VideoOutputPort(const VideoOutputPort &other)
-	{
-        /* NOP for stubs */
-	}
+
 
 	VideoOutputPort::~VideoOutputPort() {}
 
 	const VideoOutputPortType &VideoOutputPort::getType() const {
-		static VideoOutputPortType t;
+		static VideoOutputPortType t(0);
 		return t;
 	}
 
 	VideoOutputPort::Display::Display(VideoOutputPort &vPort)
 	{
-        /* NOP for stubs */
-	}
-
-	VideoOutputPort::Display::Display(const VideoOutputPort::Display &other)
-	{
-        /* NOP for stubs */
-	}
+        (void)vPort; /* NOP for stubs */
+ 	}
 
 	VideoOutputPort::Display::~Display() {}
 
@@ -83,7 +75,7 @@ namespace device{
 	}
 
 	const AudioOutputPortType &AudioOutputPort::getType() const {
-		static AudioOutputPortType t;
+		static AudioOutputPortType t(0);
 		return t;
 	}
 
