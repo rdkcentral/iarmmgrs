@@ -79,6 +79,18 @@ namespace device{
 		return t;
 	}
 
+	VideoOutputPortType::VideoOutputPortType(const int id) {
+		(void)id;
+	}
+
+	VideoOutputPortType::~VideoOutputPortType() {}
+
+	AudioOutputPortType::AudioOutputPortType(int id) {
+		(void)id;
+	}
+
+	AudioOutputPortType::~AudioOutputPortType() {}
+
 	SleepMode Host::getPreferredSleepMode() {
 		return SleepMode::getInstance(dsHOST_SLEEP_MODE_LIGHT);
 	}
