@@ -315,16 +315,22 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool req
  *
  * @param[in]  aPort         Reference to the AudioOutputPort object to configure.
  * @param[in]  requestEnable Boolean value indicating whether to enable (true) or disable (false) the port.
+ * @param[in]  isConfigurationSkipped Pointer to a boolean that will be set to true if the configuration was skipped.
  *
  * @return IARM_RESULT_SUCCESS on success,
  *         IARM_RESULT_INVALID_STATE if an error or exception occurs,
  *         or another appropriate IARM_Result_t error code.
  */
-static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool requestEnable)
+static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool requestEnable, bool* isConfigurationSkipped)
 {
     dsAudioGetHandleParam_t aHandleParam;
     dsAudioPortEnabledParam_t aPortEnableParam;
     IARM_Result_t aPortRetCode = IARM_RESULT_SUCCESS;
+
+    if (nullptr == isConfigurationSkipped)
+    {
+        return IARM_RESULT_INVALID_PARAM;
+    }
 
     try
     {
@@ -343,7 +349,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
         }
         else
         {
-            bool skipOperation = false;
+            *isConfigurationSkipped = false;
             aPortEnableParam.handle = aHandleParam.handle;
             snprintf(aPortEnableParam.portName, sizeof(aPortEnableParam.portName), "%s", aPort.getName().c_str());
 
@@ -360,7 +366,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
                 else
                 {
                     INT_INFO("[%s] Audio PortName[%s] isEnablePersist[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortEnableParam.enabled);
-                    skipOperation = !aPortEnableParam.enabled;
+                    *isConfigurationSkipped = !aPortEnableParam.enabled;
                 }
             }
             else
@@ -372,7 +378,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
             if (IARM_RESULT_SUCCESS == aPortRetCode)
             {
                 // skip enabling the port if persistent state is disabled
-                if (skipOperation)
+                if (*isConfigurationSkipped)
                 {
                     INT_INFO("[%s] Enable AudioPort[%s] skipped!!!\r\n", __FUNCTION__, aPort.getName().c_str());
                 }
@@ -389,6 +395,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
                         INT_INFO("AudioPort[%s] successfully %s\r\n", aPort.getName().c_str(), (aPortEnableParam.enabled ? "enabled" : "disabled"));
                     }
                 }
+
             }
         }
     }
@@ -476,7 +483,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     }
                     catch (...)
                     {
-                        INT_DEBUG("[%s] video port exception at %d\r\n", __FUNCTION__, i);
+                        INT_DEBUG("[%s] video port exception at %zu\r\n", __FUNCTION__, i);
                     }
                 }
             }
@@ -496,10 +503,18 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     {
                         // Disable the Audio Port
                         device::AudioOutputPort aPort = aPorts.at(i);
-                        IARM_Result_t retCode = configureAudioPort(aPort, false);
+                        bool isOperationSkipped = false;
+                        IARM_Result_t retCode = configureAudioPort(aPort, false, &isOperationSkipped);
                         if (IARM_RESULT_SUCCESS == retCode)
                         {
-                            INT_INFO("[%s] AudioPort[%s] disabled for powerState [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
+                            if (isOperationSkipped)
+                            {
+                                INT_INFO("[%s] Disabling AudioPort[%s] skipped for powerState [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
+                            }
+                            else
+                            {
+                                INT_INFO("[%s] AudioPort[%s] disabled for powerState [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
+                            }
                         }
                         else
                         {
@@ -508,7 +523,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     }
                     catch (...)
                     {
-                        INT_DEBUG("[%s] audio port exception at %d\r\n", __FUNCTION__, i);
+                        INT_DEBUG("[%s] audio port exception at %zu\r\n", __FUNCTION__, i);
                     }
                 }
             }
@@ -542,7 +557,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     }
                     catch (...)
                     {
-                        INT_DEBUG("[%s] video port exception at %d\r\n", __FUNCTION__, i);
+                        INT_DEBUG("[%s] video port exception at %zu\r\n", __FUNCTION__, i);
                     }
                 }
                 INT_INFO("[%s] VideoPort configuration done \r\n", __FUNCTION__);
@@ -554,11 +569,19 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                     try
                     {
                         device::AudioOutputPort aPort = aPorts.at(i);
+                        bool isOperationSkipped = false;
                         // Enable the Audio Port
-                        IARM_Result_t retCode = configureAudioPort(aPort, true);
+                        IARM_Result_t retCode = configureAudioPort(aPort, true, &isOperationSkipped);
                         if (IARM_RESULT_SUCCESS == retCode)
                         {
-                            INT_INFO("[%s] AudioPort[%s] enabled for powerState[%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
+                            if (isOperationSkipped)
+                            {
+                                INT_INFO("[%s] Enabling AudioPort[%s] skipped for powerState[%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
+                            }
+                            else
+                            {
+                                INT_INFO("[%s] AudioPort[%s] enabled for powerState[%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
+                            }
                         }
                         else
                         {

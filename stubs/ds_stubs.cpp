@@ -1,4 +1,5 @@
 #include "host.hpp"
+#include "iarm/IarmImpl.hpp"
 #include "manager.hpp"
 #include "dsRpc.h"
 #include "sleepMode.hpp"
