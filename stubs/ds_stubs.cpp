@@ -4,6 +4,17 @@
 #include "sleepMode.hpp"
 #include <mutex>
 
+// FIX(Build Error): Provide forward declaration/stub for IarmImpl to fix incomplete type error  
+// Reason: unique_ptr destructor requires complete type definition
+// Impact: Fixes compilation error for incomplete type IarmImpl
+namespace device {
+    class IarmImpl {
+    public:
+        virtual ~IarmImpl() = default;
+        // Stub implementation for compilation
+    };
+}
+
 using namespace std;
 
 namespace device{
@@ -34,8 +45,10 @@ namespace device{
 	VideoOutputPort& Host::getVideoOutputPort(const std::string& name) {
 		auto ports = getVideoOutputPorts();
 		if (ports.size() == 0) {
-			// Return a static instance for stub implementation
-			static VideoOutputPort stub_instance;
+			// FIX(Build Error): Provide required constructor parameters for VideoOutputPort
+			// Reason: VideoOutputPort requires 5 parameters (type, index, id, audioPortId, resolution)
+			// Impact: Fixes compilation error. Stub implementation with safe defaults.
+			static VideoOutputPort stub_instance(0, 0, 0, 0, "720p");
 			return stub_instance;
 		}
 		return ports.at(0);
@@ -44,7 +57,10 @@ namespace device{
 	VideoOutputPort & VideoOutputPort::getInstance(int id) {
 		auto ports = Host::getInstance().getVideoOutputPorts();
 		if (ports.size() == 0) {
-			static VideoOutputPort stub_instance;
+			// FIX(Build Error): Provide required constructor parameters for VideoOutputPort
+			// Reason: VideoOutputPort requires 5 parameters (type, index, id, audioPortId, resolution)
+			// Impact: Fixes compilation error. Stub implementation with safe defaults.
+			static VideoOutputPort stub_instance(0, 0, id, 0, "720p");
 			return stub_instance;
 		}
 		return ports.at(0);
