@@ -34,7 +34,7 @@ g++ -fPIC -shared -o libWPEFrameworkPowerController.so powerctrl_stubs.cpp  -I$W
 
 gcc -fPIC -shared -o libdshal.so dshal_stubs.c -I${DS_IF_PATH}/include -I$WORKDIR/mfr/include
 g++ -fPIC -shared -o libdshalsrv.so dshalsrv_stubs.c -I${DS_IF_PATH}/include -I${IARMBUS_PATH}/core/include -I${DS_PATH}/rpc/include
-g++ -fPIC -shared -o libds.so ds_stubs.cpp -I${DS_IF_PATH}/include/ -I${DS_PATH}/ds/include -I${DS_PATH}/rpc/include
+g++ -fPIC -shared -o libds.so ds_stubs.cpp -I${DS_IF_PATH}/include/ -I${DS_PATH}/ds -I${DS_PATH}/ds/include -I${DS_PATH}/rpc/include
 
 cp libIARMBus.so /usr/local/lib/
 cp libtelemetry_msgsender.so /usr/local/lib/
