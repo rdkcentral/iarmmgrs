@@ -1,5 +1,6 @@
 #include <string.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <setjmp.h>
 #include "plat_power.h"
 #include "power_controller.h"
@@ -111,5 +112,13 @@ pmStatus_t PLAT_TERM(void)
 
 int v_secure_system(const char *format, ...)
 {
-  return 0;
+  // Security: Stub implementation rejects all system calls for safety
+  // In production, this should implement proper input validation and sandboxing
+  if (format == NULL) {
+    return -1; // Invalid parameter
+  }
+  
+  // For stub implementation, log and reject all system calls
+  printf("Security: v_secure_system call rejected in stub: %s\n", format);
+  return -1; // Fail securely - don't execute arbitrary commands
 }

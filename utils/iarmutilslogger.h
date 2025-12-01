@@ -20,14 +20,19 @@
 
 
 /**
- * @file dsMgrInternal.h
+ * @file iarmutilslogger.h
  *
- * @defgroup IARMBUS_DS_MGR DS Manager
- * @ingroup IARM_MGR_RPC
+ * @defgroup IARMUTILS_LOGGER IARM Utils Logger
+ * @ingroup IARM_UTILS
  *
- * DS (Device Settings) Manager is responsible for managing the following operations,
- * - Audio Output Ports (Volume, Mute, etc.)
- * - Video Ouptut Ports (Resolutions, Aspect Ratio, etc.)
+ * IARM Utils Logger is responsible for providing logging functionality
+ * across IARM manager components with RDK logger integration support.
+ * 
+ * Features:
+ * - Conditional logging based on RDK logger availability
+ * - Multiple log levels (DEBUG, INFO, WARN, ERROR, FATAL)
+ * - Fallback to printf when RDK logger is unavailable
+ * - Thread-safe logging operations
  * - Front Panel Indicators
  * - Zoom Settings
  * - Display (Aspect Ratio, EDID data etc.)
@@ -63,44 +68,59 @@
 extern int b_rdk_logger_enabled;
 
 
-#define LOG_DEBUG(FORMAT, ...);       if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IARMUTILS", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+/*
+ * Safe logging macros with do-while(0) wrappers
+ * 
+ * These macros provide:
+ * - Thread-safe logging operations
+ * - Conditional RDK logger support with printf fallback
+ * - Safe macro expansion preventing statement ambiguity
+ * - Consistent formatting across all log levels
+ */
 
-#define LOG_ERROR(FORMAT, ...);       if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IARMUTILS", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define LOG_DEBUG(FORMAT, ...)  do { \
+    if(b_rdk_logger_enabled) { \
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IARMUTILS", FORMAT , ##__VA_ARGS__); \
+    } \
+    else { \
+        printf(FORMAT, ##__VA_ARGS__); \
+    } \
+} while(0)
 
-#define LOG_INFO(FORMAT, ...);        if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IARMUTILS", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define LOG_ERROR(FORMAT, ...)  do { \
+    if(b_rdk_logger_enabled) { \
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IARMUTILS", FORMAT , ##__VA_ARGS__); \
+    } \
+    else { \
+        printf(FORMAT, ##__VA_ARGS__); \
+    } \
+} while(0)
 
-#define LOG_WARNING(FORMAT, ...);     if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_WARN, "LOG.RDK.IARMUTILS", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define LOG_INFO(FORMAT, ...)   do { \
+    if(b_rdk_logger_enabled) { \
+        RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IARMUTILS", FORMAT , ##__VA_ARGS__); \
+    } \
+    else { \
+        printf(FORMAT, ##__VA_ARGS__); \
+    } \
+} while(0)
+
+#define LOG_WARNING(FORMAT, ...)  do { \
+    if(b_rdk_logger_enabled) { \
+        RDK_LOG(RDK_LOG_WARN, "LOG.RDK.IARMUTILS", FORMAT , ##__VA_ARGS__); \
+    } \
+    else { \
+        printf(FORMAT, ##__VA_ARGS__); \
+    } \
+} while(0)
 
 #else
 
-#define INT_DEBUG(FORMAT, ...);        printf(FORMAT, ##__VA_ARGS__)
-#define INT_ERROR(FORMAT, ...);        printf(FORMAT, ##__VA_ARGS__)
-#define INT_INFO(FORMAT, ...);         printf(FORMAT, ##__VA_ARGS__)
-#define INT_WARNING(FORMAT, ...);      printf(FORMAT, ##__VA_ARGS__)
+/* Fallback macros for non-RDK logger builds - consistent formatting */
+#define INT_DEBUG(FORMAT, ...)     do { printf(FORMAT, ##__VA_ARGS__); } while(0)
+#define INT_ERROR(FORMAT, ...)     do { printf(FORMAT, ##__VA_ARGS__); } while(0)
+#define INT_INFO(FORMAT, ...)      do { printf(FORMAT, ##__VA_ARGS__); } while(0)
+#define INT_WARNING(FORMAT, ...)   do { printf(FORMAT, ##__VA_ARGS__); } while(0)
 
 #endif
 

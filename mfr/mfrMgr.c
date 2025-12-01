@@ -28,9 +28,12 @@
 
 #include <stdio.h>
 #include <memory.h>
+#include <string.h>
 #include <dlfcn.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
+#include <time.h>
 
 #include "mfrMgrInternal.h"
 #include "mfrMgr.h"
@@ -92,15 +95,102 @@ static mfrUpgradeStatus_t lastStatus;
 
 static profile_t profileType = PROFILE_INVALID;
 
+/* Mutex for protecting dynamic library loading operations */
+static pthread_mutex_t mfr_dlopen_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+/* Keep track of loaded library handles for proper cleanup */
+static void *mfr_library_handle = NULL;
+
+/* Control flag for main loop termination */
+static volatile int mfr_loop_running = 1;
+
+/* Rate limiting for DoS prevention */
+static time_t last_wifi_request_time = 0;
+static int wifi_request_count = 0;
+static pthread_mutex_t rate_limit_mutex = PTHREAD_MUTEX_INITIALIZER;
+
+#define MAX_WIFI_REQUESTS_PER_SECOND 5
+#define RATE_LIMIT_WINDOW 1
+
+/**
+ * @brief Validates that a library path is secure
+ * @param libpath The library path to validate
+ * @return 1 if valid, 0 if invalid
+ */
+static int validate_library_path(const char *libpath)
+{
+    if (!libpath) return 0;
+    
+    /* Ensure path doesn't contain dangerous characters */
+    if (strstr(libpath, "..") || strstr(libpath, "//") || 
+        strchr(libpath, ';') || strchr(libpath, '|') || 
+        strchr(libpath, '&') || strchr(libpath, '$')) {
+        LOG("Security: Invalid characters in library path: %s\n", libpath);
+        return 0;
+    }
+    
+    /* Ensure path is reasonable length to prevent buffer attacks */
+    if (strlen(libpath) > 256) {
+        LOG("Security: Library path too long: %zu chars\n", strlen(libpath));
+        return 0;
+    }
+    
+    return 1;
+}
+
+/**
+ * @brief Secure wrapper for dlopen with path validation
+ * @param filename Library path to open
+ * @param flags dlopen flags  
+ * @return Handle to library or NULL if validation fails
+ */
+static void* secure_dlopen(const char *filename, int flags)
+{
+    if (!validate_library_path(filename)) {
+        LOG("Security: dlopen blocked for unsafe path: %s\n", filename);
+        return NULL;
+    }
+    return dlopen(filename, flags);
+}
+
+/**
+ * @brief Validates input string for buffer overflow prevention
+ * @param input String to validate (may not be null-terminated)
+ * @param max_len Maximum allowed length
+ * @return 1 if valid, 0 if invalid
+ */
+static int validate_string_input(const char *input, size_t max_len)
+{
+    if (!input) return 0;
+    
+    /* Ensure string is null-terminated within bounds */
+    const char *ptr = input;
+    for (size_t i = 0; i < max_len; i++) {
+        if (*ptr == '\0') {
+            return 1;  /* Found null terminator within bounds */
+        }
+        ptr++;
+    }
+    
+    LOG("Security: String not properly terminated within %zu chars\n", max_len);
+    return 0;
+}
+
 static IARM_Result_t getSerializedData_(void *arg)
 {
 
     IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
     IARM_Bus_MFRLib_GetSerializedData_Param_t *param = (IARM_Bus_MFRLib_GetSerializedData_Param_t *)arg;
     mfrError_t err = mfrERR_NONE;
-    mfrSerializedData_t data;
+    mfrSerializedData_t data = {0};  /* Initialize struct to zero */
     errno_t safec_rc = -1;
-    int i;
+    int i = 0;  /* Initialize to prevent UNINIT usage */
+    
+    /* Validate input parameter to prevent null pointer dereference */
+    if (param == NULL) {
+        LOG("Security: NULL parameter passed to getSerializedData_\n");
+        return IARM_RESULT_INVALID_PARAM;
+    }
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
@@ -113,6 +203,20 @@ static IARM_Result_t getSerializedData_(void *arg)
     }
     if(mfrERR_NONE == err)
     {
+        /* Validate data buffer to prevent null pointer dereference */
+        if (data.buf == NULL) {
+            LOG("Security: NULL buffer returned from mfrGetSerializedData\n");
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        if (data.bufLen == 0 || data.bufLen > sizeof(param->buffer)) {
+            LOG("Security: Invalid buffer length %d from mfrGetSerializedData\n", data.bufLen);
+            if(data.freeBuf)
+            {
+                data.freeBuf(data.buf);
+            }
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);
     	if(safec_rc != EOK)
         {
@@ -144,29 +248,40 @@ static IARM_Result_t setSerializedData_(void *arg)
     return IARM_RESULT_INVALID_STATE;
 #else
     mfrError_t err = mfrERR_NONE;
-    mfrSerializedData_t data;
+    /* Remove confusing variable declaration - 'data' is unused */
  
     static mfrSerializedData_t func = 0;
   
-    if (func == 0) {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+    /* Thread-safe check for function pointer initialization */
+    pthread_mutex_lock(&mfr_dlopen_mutex);
+    if (func == 0) {        
+        void *dllib = secure_secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (mfrSerializedData_t) dlsym(dllib, "mfrSetSerializedData");
             if (func) {
                 LOG("mfrSetSerializedData(void) is defined and loaded\r\n");
+                /* Keep handle open while function is in use */
+                if (mfr_library_handle == NULL) {
+                    mfr_library_handle = dllib;
+                } else {
+                    /* Handle already tracked, can close this duplicate */
+                    dlclose(dllib);
+                }
             }
             else {
 		    LOG("mfrSetSerializedData(void) is not defined\r\n");
 		    dlclose(dllib);
+		    pthread_mutex_unlock(&mfr_dlopen_mutex);
 		    return IARM_RESULT_INVALID_STATE;
 	    }
-	    dlclose(dllib);
 	}
 	else {
 		LOG("Opening RDK_MFRLIB_NAME [%s] failed\r\n", RDK_MFRLIB_NAME);
+		pthread_mutex_unlock(&mfr_dlopen_mutex);
 		return IARM_RESULT_INVALID_STATE;
 	}
     }
+    pthread_mutex_unlock(&mfr_dlopen_mutex);
 
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
 
@@ -195,7 +310,7 @@ static IARM_Result_t deletePDRI_(void *arg)
 #else
     static mfrDeletePDRI_t func = 0;
     if (func == 0) {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (mfrDeletePDRI_t) dlsym(dllib, "mfrDeletePDRI");
             if (func) {
@@ -242,7 +357,7 @@ static IARM_Result_t scrubAllBanks_(void *arg)
 #else
     static mfrScrubAllBanks_t func = 0;
     if (func == 0) {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (mfrScrubAllBanks_t) dlsym(dllib, "mfrScrubAllBanks");
             if (func) {
@@ -289,7 +404,7 @@ static IARM_Result_t mfrWifiEraseAllData_(void *arg)
 #else
     static mfrWifiEraseAllData_t func = 0;
     if (func == 0) {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (mfrWifiEraseAllData_t) dlsym(dllib, "WIFI_EraseAllData");
             if (func) {
@@ -334,8 +449,40 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
     WIFI_DATA data;
     errno_t safec_rc = -1;
 
+    /* Validate input parameter to prevent null pointer dereference */
+    if (param == NULL) {
+        LOG("Security: NULL parameter passed to mfrWifiCredentials_\n");
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
+    /* Rate limiting for DoS prevention */
+    pthread_mutex_lock(&rate_limit_mutex);
+    time_t current_time = time(NULL);
+    if (current_time - last_wifi_request_time >= RATE_LIMIT_WINDOW) {
+        /* Reset counter for new time window */
+        wifi_request_count = 0;
+        last_wifi_request_time = current_time;
+    }
+    wifi_request_count++;
+    if (wifi_request_count > MAX_WIFI_REQUESTS_PER_SECOND) {
+        pthread_mutex_unlock(&rate_limit_mutex);
+        LOG("Security: Rate limit exceeded for wifi credentials requests\n");
+        return IARM_RESULT_INVALID_STATE;
+    }
+    pthread_mutex_unlock(&rate_limit_mutex);
+
     if (param->requestType == WIFI_SET_CREDENTIALS)
     {
+            /* Validate input strings to prevent buffer overflow */
+            if (!validate_string_input(param->wifiCredentials.cSSID, sizeof(data.cSSID))) {
+                LOG("Security: Invalid SSID input detected\n");
+                return IARM_RESULT_INVALID_PARAM;
+            }
+            if (!validate_string_input(param->wifiCredentials.cPassword, sizeof(data.cPassword))) {
+                LOG("Security: Invalid password input detected\n");
+                return IARM_RESULT_INVALID_PARAM;
+            }
+            
             safec_rc = strcpy_s(data.cSSID, sizeof(data.cSSID), param->wifiCredentials.cSSID);
             if(safec_rc != EOK)
             {
@@ -368,6 +515,16 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
 
         if(WIFI_API_RESULT_SUCCESS  == err)
         {
+            /* Validate output strings from WIFI_GetCredentials to prevent buffer overflow */
+            if (!validate_string_input(data.cSSID, sizeof(param->wifiCredentials.cSSID))) {
+                LOG("Security: Invalid SSID data from WIFI_GetCredentials\n");
+                return IARM_RESULT_INVALID_PARAM;
+            }
+            if (!validate_string_input(data.cPassword, sizeof(param->wifiCredentials.cPassword))) {
+                LOG("Security: Invalid password data from WIFI_GetCredentials\n");
+                return IARM_RESULT_INVALID_PARAM;
+            }
+            
             safec_rc = strcpy_s(param->wifiCredentials.cSSID, sizeof(param->wifiCredentials.cSSID), data.cSSID);
             if(safec_rc != EOK)
             {
@@ -438,27 +595,39 @@ static IARM_Result_t writeImage_(void *arg)
 
     static mfrWriteImage_ func = 0;
     LOG("In writeImage_\n");
-    if (func == 0) {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+    
+    /* Thread-safe check for function pointer initialization */
+    pthread_mutex_lock(&mfr_dlopen_mutex);
+    if (func == 0) {        
+        void *dllib = secure_secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (mfrWriteImage_) dlsym(dllib, "mfrWriteImage");
             if (func) {
                 LOG("mfrWriteImage is defined and loaded\r\n");
+                /* Keep handle open while function is in use */
+                if (mfr_library_handle == NULL) {
+                    mfr_library_handle = dllib;
+                } else {
+                    /* Handle already tracked, can close this duplicate */
+                    dlclose(dllib);
+                }
             }
             else {
                 LOG("mfrWriteImage is not defined\r\n");
                 LOG("Exiting writeImage_\n");
 				dlclose(dllib);
+                pthread_mutex_unlock(&mfr_dlopen_mutex);
                 return IARM_RESULT_INVALID_STATE;
             }
-            dlclose(dllib);
         }
         else {
             LOG("Opening RDK_MFRLIB_NAME [%s] failed\r\n", RDK_MFRLIB_NAME);
             LOG("Exiting writeImage_\n");
+            pthread_mutex_unlock(&mfr_dlopen_mutex);
             return IARM_RESULT_INVALID_STATE;
         }
     }
+    pthread_mutex_unlock(&mfr_dlopen_mutex);
 
     if (func) {
 
@@ -506,7 +675,7 @@ static IARM_Result_t verifyImage_(void *arg)
 	static mfrVerifyImage func = 0;
 	LOG("In verifyImage_\n");
 	if (func == 0) {
-		void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+		void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
 		if (dllib) {
 			func = (mfrVerifyImage) dlsym(dllib, "mfrVerifyImage");
 			if (func) {
@@ -562,7 +731,7 @@ IARM_Result_t setBootloaderPattern_(void *arg)
     if (func == 0) {
         if(0 == symbol_lookup_complete) {
             symbol_lookup_complete = 1;
-            void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+            void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
             if (dllib) {
                 func = (mfrSetBootloaderPattern) dlsym(dllib, "mfrSetBootloaderPattern");
                 dlclose(dllib);
@@ -611,7 +780,7 @@ static IARM_Result_t getSecureTime_(void *arg)
 #else
     static getSecureTime_t func = 0;
     if (func == 0) {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (getSecureTime_t) dlsym(dllib, "mfrGetSecureTime");
             if (func) {
@@ -655,7 +824,7 @@ static IARM_Result_t setSecureTime_(void *arg)
 #else
     static setSecureTime_t func = 0;
     if (func == 0) {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (setSecureTime_t) dlsym(dllib, "mfrSetSecureTime");
             if (func) {
@@ -706,7 +875,7 @@ static IARM_Result_t mirrorImage(void *arg)
     static mfrMirrorImage func = 0;
     LOG("In mfrMirrorImage\n");
     if (func == 0) {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (mfrMirrorImage) dlsym(dllib, "mfrMirrorImage");
             if (func) {
@@ -758,7 +927,7 @@ static IARM_Result_t mfrSetBlSplashScreen_(void *arg)
 
     if (func == 0)
     {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib)
         {
             func = (mfrSetBlSplashScreen_t) dlsym(dllib, "mfrSetBlSplashScreen");
@@ -820,7 +989,7 @@ static IARM_Result_t mfrClearBlSplashScreen_(void *arg)
 
     if (func == 0)
     {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib)
         {
             func = (mfrClearBlSplashScreen_t) dlsym(dllib, "mfrClearBlSplashScreen");
@@ -868,7 +1037,7 @@ static IARM_Result_t getTemperature_(void *arg)
 
         if (func == 0)
         {
-            void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+            void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
             if (dllib)
             {
                 func = (mfrGetTemperature_t) dlsym(dllib, "mfrGetTemperature");
@@ -931,7 +1100,7 @@ static IARM_Result_t setTemperatureThresholds_(void *arg)
 
          if (func == 0)
          {
-              void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+              void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
               if (dllib)
               {
                 func = (mfrSetTempThresholds_t) dlsym(dllib, "mfrSetTempThresholds");
@@ -983,7 +1152,7 @@ static IARM_Result_t getTemperatureThresholds_(void *arg)
 
          if (func == 0)
          {
-                  void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+                  void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
                   if (dllib)
                   {
                  func = (mfrGetTempThresholds_t) dlsym(dllib, "mfrGetTempThresholds");
@@ -1037,7 +1206,7 @@ static IARM_Result_t searchCPUClockSpeeds_(void *arg)
 
        if (func == 0)
        {
-               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
                if (dllib)
                {
                        func = (mfrDetemineClockSpeeds_t) dlsym(dllib, "mfrDetemineClockSpeeds");
@@ -1096,7 +1265,7 @@ static IARM_Result_t setCPUClockSpeed_(void *arg)
 
        if (func == 0)
        {
-               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
                if (dllib)
                {
                        func = (mfrSetClockSpeed_t) dlsym(dllib, "mfrSetClockSpeed");
@@ -1151,7 +1320,7 @@ static IARM_Result_t getCPUClockSpeed_(void *arg)
 
        if (func == 0)
        {
-               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
                if (dllib)
                {
                        func = (mfrGetClockSpeed_t) dlsym(dllib, "mfrGetClockSpeed");
@@ -1432,7 +1601,7 @@ static IARM_Result_t setFSRflag_(void *arg)
 
     if (func == 0)
     {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib)
         {
             func = (mfrSetFSRflag_t) dlsym(dllib, "mfrSetFSRflag");
@@ -1501,7 +1670,7 @@ static IARM_Result_t getFSRflag_(void *arg)
 
     if (func == 0)
     {
-        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib)
         {
             func = (mfrGetFSRflag_t) dlsym(dllib, "mfrGetFSRflag");
@@ -1559,21 +1728,34 @@ static IARM_Result_t getFSRflag_(void *arg)
 
 IARM_Result_t MFRLib_Stop(void)
 {
+    /* Signal main loop to terminate */
+    mfr_loop_running = 0;
+    
     if(is_connected)
     {
 	IARM_Bus_Disconnect();
 	IARM_Bus_Term();
     }
+    
+    /* Cleanup dynamic library resources */
+    pthread_mutex_lock(&mfr_dlopen_mutex);
+    if (mfr_library_handle != NULL) {
+        dlclose(mfr_library_handle);
+        mfr_library_handle = NULL;
+    }
+    pthread_mutex_unlock(&mfr_dlopen_mutex);
+    
     return IARM_RESULT_SUCCESS;
 }
 
 IARM_Result_t MFRLib_Loop()
 {
-    while(1)
+    while(mfr_loop_running)
     {
         LOG("I-ARM MFR Lib: HeartBeat ping.\r\n");
         sleep(300);
     }
+    LOG("I-ARM MFR Lib: Loop terminated gracefully.\r\n");
     return IARM_RESULT_SUCCESS;
 }
 

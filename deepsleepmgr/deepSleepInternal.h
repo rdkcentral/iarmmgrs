@@ -34,14 +34,14 @@ IARM_Result_t DeepSleepMgr_Start(int argc, char *argv[]);
 IARM_Result_t DeepSleepMgr_Loop();
 IARM_Result_t DeepSleepMgr_Stop(void);
 
-#endif
-
 /**
  * @brief Structure which holds the Deep sleep manager timeout.
  */
 typedef struct _IARM_Bus_DeepSleepMgr_SetDeepSleepTimer_Param_t {
 	unsigned int timeout;        /*!< Timeout for deep sleep in seconds*/
 } IARM_Bus_DeepSleepMgr_SetDeepSleepTimer_Param_t;
+
+#endif
 
 
 /** @} */

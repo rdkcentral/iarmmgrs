@@ -191,7 +191,7 @@ bool ux_controller::set_bootloader_pattern_fault_tolerant(mfrBlPattern_t pattern
     return ret;
 }
 
-ux_controller::ux_controller(unsigned int in_id, const std::string &in_name, deviceType_t in_deviceType) : id(in_id), name(in_name), deviceType(in_deviceType)
+ux_controller::ux_controller(unsigned int in_id, const std::string &in_name, deviceType_t in_deviceType) : id(in_id), name(in_name), deviceType(in_deviceType), mutex(), invalidateAsyncBootloaderPattern(false), firstPowerTransitionComplete(false)
 {
     INT_DEBUG("%s: initializing for profile id %d, name %s\n", __func__, id, name.c_str());
     initialize_safe_defaults();

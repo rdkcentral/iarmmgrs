@@ -64,44 +64,52 @@
 extern int b_rdk_logger_enabled;
 
 
-#define LOG_DEBUG(FORMAT, ...);       if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define LOG_DEBUG(FORMAT, ...) do { \
+    if(b_rdk_logger_enabled) {\
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
+    }\
+    else\
+    {\
+        printf(FORMAT, __VA_ARGS__);\
+    }\
+} while(0)
 
-#define LOG_ERROR(FORMAT, ...);       if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define LOG_ERROR(FORMAT, ...) do { \
+    if(b_rdk_logger_enabled) {\
+        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
+    }\
+    else\
+    {\
+        printf(FORMAT, __VA_ARGS__);\
+    }\
+} while(0)
 
-#define LOG_INFO(FORMAT, ...);        if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_INFO, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define LOG_INFO(FORMAT, ...) do { \
+    if(b_rdk_logger_enabled) {\
+        RDK_LOG(RDK_LOG_INFO, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
+    }\
+    else\
+    {\
+        printf(FORMAT, __VA_ARGS__);\
+    }\
+} while(0)
 
-#define LOG_WARNING(FORMAT, ...);     if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_WARN, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define LOG_WARNING(FORMAT, ...) do { \
+    if(b_rdk_logger_enabled) {\
+        RDK_LOG(RDK_LOG_WARN, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
+    }\
+    else\
+    {\
+        printf(FORMAT, __VA_ARGS__);\
+    }\
+} while(0)
 
 #else
 
-#define INT_DEBUG(FORMAT, ...);        printf(FORMAT, ##__VA_ARGS__)
-#define INT_ERROR(FORMAT, ...);        printf(FORMAT, ##__VA_ARGS__)
-#define INT_INFO(FORMAT, ...);         printf(FORMAT, ##__VA_ARGS__)
-#define INT_WARNING(FORMAT, ...);      printf(FORMAT, ##__VA_ARGS__)
+#define INT_DEBUG(FORMAT, ...)        printf(FORMAT, ##__VA_ARGS__)
+#define INT_ERROR(FORMAT, ...)        printf(FORMAT, ##__VA_ARGS__)
+#define INT_INFO(FORMAT, ...)         printf(FORMAT, ##__VA_ARGS__)
+#define INT_WARNING(FORMAT, ...)      printf(FORMAT, ##__VA_ARGS__)
 
 #endif
 

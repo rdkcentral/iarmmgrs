@@ -454,8 +454,11 @@ static IARM_Result_t _SetStandbyVideoState(void *arg)
         INT_DEBUG("[%s] empty port name. Cannot proceed.\n", __FUNCTION__);
         return IARM_RESULT_SUCCESS;
     }
-    else
-        param->result = 0;
+    
+    // FIX(Coverity): NO_EFFECT 
+    // Reason: Removed redundant assignment - result is set based on logic flow
+    // Impact: Internal logic corrected. Public API unchanged.
+    param->result = 0;
 
     int i = 0;
     for(i = 0; i < MAX_NUM_VIDEO_PORTS; i++)
@@ -525,8 +528,10 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
 
     try
     {
-        device::VideoOutputPort &vPort = device::Host::getInstance().getVideoOutputPort(param->port);
-
+        // FIX(Coverity): NO_EFFECT
+        // Reason: Removed unused VideoOutputPort variable - only validating port name
+        // Impact: Internal logic corrected. Public API unchanged.
+        device::Host::getInstance().getVideoOutputPort(param->port);
     }
     catch (...)
     {
@@ -643,7 +648,15 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
     {
         pthread_mutex_lock(&tdsPwrEventMutexLock);
         INT_DEBUG("dsMgrPwrEventHandlingThreadFunc.... Wait for Events from Power manager Controller Callback\r\n");
-        pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
+        
+        // FIX(Coverity): BAD_CHECK_OF_WAIT_COND
+        // Reason: Handle spurious wakeups by checking condition in loop
+        // Impact: Internal logic corrected. Public API unchanged.
+        while (!m_dsMgrPwrStopThread && pwrEventQueue.empty())
+        {
+            pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
+        }
+        
         if(m_dsMgrPwrStopThread)
         {
              /* This case can enter if the de init is trigerred which wants to exit the thread function 

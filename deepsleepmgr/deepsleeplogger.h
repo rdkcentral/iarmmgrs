@@ -43,13 +43,15 @@ extern int b_rdk_logger_enabled;
 
 
 #define LOG(...)              INT_LOG(__VA_ARGS__, "")
-#define INT_LOG(FORMAT, ...)     if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.DEEPSLEEPMGR", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define INT_LOG(FORMAT, ...)  do { \
+    if(b_rdk_logger_enabled) { \
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.DEEPSLEEPMGR", FORMAT , __VA_ARGS__); \
+    } \
+    else \
+    { \
+        printf(FORMAT, __VA_ARGS__); \
+    } \
+} while(0)
 
 
 #else
