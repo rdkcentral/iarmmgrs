@@ -340,6 +340,7 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool req
  * @param[out]  isConfigurationSkippedPtr Pointer to a boolean that will be set to true if the configuration was skipped.
  *
  * @return IARM_RESULT_SUCCESS on success,
+ *         IARM_RESULT_INVALID_PARAM if isConfigurationSkippedPtr is nullptr,
  *         IARM_RESULT_INVALID_STATE if an error or exception occurs,
  *         or another appropriate IARM_Result_t error code.
  */
@@ -533,14 +534,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         IARM_Result_t retCode = configureAudioPort(aPort, false, &isOperationSkipped);
                         if (IARM_RESULT_SUCCESS == retCode)
                         {
-                            if (isOperationSkipped)
-                            {
-                                INT_INFO("[%s] Disabling AudioPort[%s] skipped for powerState [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
-                            }
-                            else
-                            {
-                                INT_INFO("[%s] AudioPort[%s] disabled for powerState [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
-                            }
+                            INT_INFO("[%s] AudioPort[%s] disabled for powerState [%d] \r\n", __FUNCTION__, aPort.getName().c_str(), powerState);
                         }
                         else
                         {
