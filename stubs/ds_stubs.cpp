@@ -66,13 +66,10 @@ namespace device{
 		return ports.at(0);
 	}
 
-	AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) {
-		// Initialize and validate constructor parameters to fix UNINIT_CTOR
-		int local_type = (type >= 0) ? type : 0;
-		int local_index = (index >= 0) ? index : 0;  
-		int local_id = (id >= 0) ? id : 0;
-		// Store parameters (stub implementation)
-		(void)local_type; (void)local_index; (void)local_id; // Suppress unused warnings
+	AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) 
+		: _type((type >= 0) ? type : 0), _index((index >= 0) ? index : 0), _id((id >= 0) ? id : 0), _enabled(false), _muted(false), _stereoAuto(false) {
+		// Initialize member variables in initializer list to prevent UNINIT_CTOR issues
+		// Additional initialization can be done here if needed
 	}
 
 	AudioOutputPort::~AudioOutputPort() {
@@ -82,7 +79,7 @@ namespace device{
 	// Reason: libds.so expects these symbols but they're not defined
 	// Impact: Fixes undefined reference linker errors
 	VideoOutputPort::VideoOutputPort(const int type, const int index, const int id, int audioPortId, const std::string &resolution) 
-		: _type(type), _index(index), _id(id), _aPortId(audioPortId), _displayConnected(false) {
+		: _type(type), _index(index), _id(id), _aPortId(audioPortId), _displayConnected(false), _contentProtected(false), _enabled(false), _muted(false), _active(false) {
 		// Initialize member variables in initializer list to prevent UNINIT_CTOR issues
 		// Additional initialization can be done here if needed
 		(void)resolution; // Suppress unused parameter warning for resolution
@@ -156,7 +153,8 @@ namespace device{
 	void Manager::DeInitialize() {
 	}
 
-	SleepMode::SleepMode(int id) {
+	SleepMode::SleepMode(int id) : _id(id) {
+		// Initialize member variables in initializer list to prevent UNINIT_CTOR issues
 	}
 
 	SleepMode::~SleepMode() {

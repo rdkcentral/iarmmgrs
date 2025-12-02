@@ -82,7 +82,9 @@ int main()
 	retCode = IARM_Bus_Connect();
 	if (IARM_RESULT_SUCCESS != retCode) {
 		printf("Failed to connect to IARM Bus: %d\r\n", retCode);
-		IARM_Bus_Term();
+		if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+			printf("Warning: IARM_Bus_Term failed during error cleanup\n");
+		}
 		return 1;
 	}
 
