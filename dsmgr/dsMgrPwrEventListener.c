@@ -335,25 +335,25 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool req
  *
  * @param[in]  aPort         Reference to the AudioOutputPort object to configure.
  * @param[in]  requestEnable Boolean value indicating whether to enable (true) or disable (false) the port.
- * @param[out]  isConfigurationSkipped Pointer to a boolean that will be set to true if the configuration was skipped.
+ * @param[out]  isConfigurationSkippedPtr Pointer to a boolean that will be set to true if the configuration was skipped.
  *
  * @return IARM_RESULT_SUCCESS on success,
  *         IARM_RESULT_INVALID_STATE if an error or exception occurs,
  *         or another appropriate IARM_Result_t error code.
  */
-static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool requestEnable, bool* isConfigurationSkipped)
+static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool requestEnable, bool* isConfigurationSkippedPtr)
 {
     dsAudioGetHandleParam_t aHandleParam;
     dsAudioPortEnabledParam_t aPortEnableParam;
     IARM_Result_t aPortRetCode = IARM_RESULT_SUCCESS;
 
-    if (nullptr == isConfigurationSkipped)
+    if (nullptr == isConfigurationSkippedPtr)
     {
         return IARM_RESULT_INVALID_PARAM;
     }
 
     // Initialize output parameter with default value as false, indicating configuration is not skipped
-    *isConfigurationSkipped = false;
+    *isConfigurationSkippedPtr = false;
 
     try
     {
@@ -388,7 +388,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
                 else
                 {
                     INT_INFO("[%s] Audio PortName[%s] isEnablePersist[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), aPortEnableParam.enabled);
-                    *isConfigurationSkipped = !aPortEnableParam.enabled;
+                    *isConfigurationSkippedPtr = !aPortEnableParam.enabled;
                 }
             }
             else
@@ -400,7 +400,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
             if (IARM_RESULT_SUCCESS == aPortRetCode)
             {
                 // skip enabling the port if persistent state is disabled
-                if (*isConfigurationSkipped)
+                if (*isConfigurationSkippedPtr)
                 {
                     INT_INFO("[%s] Enable AudioPort[%s] skipped!!!\r\n", __FUNCTION__, aPort.getName().c_str());
                 }
