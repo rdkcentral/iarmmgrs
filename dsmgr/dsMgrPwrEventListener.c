@@ -283,11 +283,12 @@ static void _PwrEventHandler(const PowerController_PowerState_t currentState,
  */
 static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool requestEnable)
 {
-    dsVideoPortGetHandleParam_t vHandleParam;
-    dsVideoPortSetEnabledParam_t vPortEnableParam;
     IARM_Result_t vPortRetCode = IARM_RESULT_SUCCESS;
     try
     {
+        dsVideoPortGetHandleParam_t vHandleParam = { dsVIDEOPORT_TYPE_MAX, -1, 0 };
+        dsVideoPortSetEnabledParam_t vPortEnableParam = { 0, false, "" };
+
         dsVideoPortType_t videoPortType = static_cast<dsVideoPortType_t>(vPort.getType().getId());
         int index = vPort.getIndex();
         INT_INFO("[%s] VideoPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, vPort.getName().c_str(), videoPortType, index, requestEnable);
@@ -303,6 +304,7 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool req
         }
         else
         {
+            memset(&vPortEnableParam.portName, 0, sizeof(vPortEnableParam.portName));
             vPortEnableParam.enabled = requestEnable;
             vPortEnableParam.handle = vHandleParam.handle;
             snprintf(vPortEnableParam.portName, sizeof(vPortEnableParam.portName), "%s", vPort.getName().c_str());
@@ -343,8 +345,6 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool req
  */
 static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool requestEnable, bool* isConfigurationSkippedPtr)
 {
-    dsAudioGetHandleParam_t aHandleParam;
-    dsAudioPortEnabledParam_t aPortEnableParam;
     IARM_Result_t aPortRetCode = IARM_RESULT_SUCCESS;
 
     if (nullptr == isConfigurationSkippedPtr)
@@ -357,6 +357,9 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
 
     try
     {
+        dsAudioGetHandleParam_t aHandleParam = { dsAUDIOPORT_TYPE_MAX, -1, 0 };
+        dsAudioPortEnabledParam_t aPortEnableParam = { 0, false, "" };
+
         dsAudioPortType_t portType = static_cast<dsAudioPortType_t>(aPort.getType().getId());
         int index = aPort.getIndex();
         INT_INFO("[%s] AudioPort[%s] Type[%d] Index[%d] Enabled[%d]\r\n", __FUNCTION__, aPort.getName().c_str(), portType, index, requestEnable);
@@ -372,6 +375,7 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
         }
         else
         {
+            memset(&aPortEnableParam.portName, 0, sizeof(aPortEnableParam.portName));
             aPortEnableParam.handle = aHandleParam.handle;
             snprintf(aPortEnableParam.portName, sizeof(aPortEnableParam.portName), "%s", aPort.getName().c_str());
 
