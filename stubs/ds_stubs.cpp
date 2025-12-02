@@ -84,16 +84,14 @@ namespace device{
         return t;
     }
 
-    VideoOutputPortType::VideoOutputPortType(const int id) : _id(id) {
+    VideoOutputPortType::VideoOutputPortType(const int id) {
+        (void)id;
         _dtcpSupported = false;
         _hdcpSupported = false;
         _dynamic = false;
         _restrictedResolution = 0;
     }
 
-    int VideoOutputPortType::getId() const {
-        return _id;
-    }
     VideoOutputPortType::~VideoOutputPortType() {}
 
     AudioOutputPortType::AudioOutputPortType(int id) {
@@ -102,9 +100,6 @@ namespace device{
 
     AudioOutputPortType::~AudioOutputPortType() {}
 
-    int AudioOutputPortType::getId() const {
-        return 0;
-    }
     SleepMode Host::getPreferredSleepMode() {
         return SleepMode::getInstance(dsHOST_SLEEP_MODE_LIGHT);
     }
