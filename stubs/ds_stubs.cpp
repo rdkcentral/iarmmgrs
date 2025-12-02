@@ -82,7 +82,7 @@ namespace device{
 	// Reason: libds.so expects these symbols but they're not defined
 	// Impact: Fixes undefined reference linker errors
 	VideoOutputPort::VideoOutputPort(const int type, const int index, const int id, int audioPortId, const std::string &resolution) 
-		: _type(type), _index(index), _id(id), _aPortId(audioPortId) {
+		: _type(type), _index(index), _id(id), _aPortId(audioPortId), _displayConnected(false) {
 		// Initialize member variables in initializer list to prevent UNINIT_CTOR issues
 		// Additional initialization can be done here if needed
 		(void)resolution; // Suppress unused parameter warning for resolution

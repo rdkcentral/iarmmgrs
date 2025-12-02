@@ -74,8 +74,17 @@ int main()
 	signal(SIGTERM, signal_handler);
 
 	printf("Client Entering %d\r\n", getpid());
-	IARM_Bus_Init("Sys Client");
-	IARM_Bus_Connect();
+	retCode = IARM_Bus_Init("Sys Client");
+	if (IARM_RESULT_SUCCESS != retCode) {
+		printf("Failed to initialize IARM Bus: %d\r\n", retCode);
+		return 1;
+	}
+	retCode = IARM_Bus_Connect();
+	if (IARM_RESULT_SUCCESS != retCode) {
+		printf("Failed to connect to IARM Bus: %d\r\n", retCode);
+		IARM_Bus_Term();
+		return 1;
+	}
 
     IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME,IARM_BUS_SYSMGR_EVENT_XUPNP_DATA_UPDATE,_evtHandler);
 
