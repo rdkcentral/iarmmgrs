@@ -162,7 +162,7 @@ void initPwrEventListner()
         INT_ERROR("IARM_Bus_RegisterCall Failed for IARM_BUS_DSMGR_API_SetRebootConfig, Error:[%d]\r\n", rc);
     }
     /*  Start a new thread and wait until connection established 
-     * if connection is eastablished, proceed with fetching and Getting values from Power control and initialize*/
+     * if connection is established, proceed with fetching and Getting values from Power control and initialize*/
      INT_INFO("DSMgr PowerController_Connect setup in a Thread\r\n");
      dsMgrPwrCtrlEstablishConnection();
 }
@@ -859,7 +859,7 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
         pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
         if(m_dsMgrPwrStopThread)
         {
-             /* This case can enter if the de init is trigerred which wants to exit the thread function 
+             /* This case can enter if the de init is triggered which wants to exit the thread function 
                   and unlock happens after the end of while loop, it will not process any events for this case*/
             INT_DEBUG("[%s:%d]:dsMgrPwrEventHandlingThreadFunc Exiting due to m_dsMgrPwrStopThread true \n", __FUNCTION__, __LINE__);
             pthread_mutex_unlock(&tdsPwrEventMutexLock);
