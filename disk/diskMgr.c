@@ -74,7 +74,9 @@ IARM_Result_t DISKMgr_Start()
     rc = IARM_Bus_Connect();
     if (rc != IARM_RESULT_SUCCESS) {
         LOG("ERROR: IARM_Bus_Connect failed with error code %d\n", rc);
-        IARM_Bus_Term();  /* Cleanup on failure */
+        if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+            LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
+        }
         return rc;
     }
 
@@ -82,8 +84,12 @@ IARM_Result_t DISKMgr_Start()
     rc = IARM_Bus_RegisterEvent(IARM_BUS_DISKMGR_EVENT_MAX);
     if (rc != IARM_RESULT_SUCCESS) {
         LOG("ERROR: IARM_Bus_RegisterEvent failed with error code %d\n", rc);
-        IARM_Bus_Disconnect();  /* Cleanup on failure */
-        IARM_Bus_Term();
+        if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+            LOG("Warning: IARM_Bus_Disconnect failed during error cleanup\n");
+        }
+        if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+            LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
+        }
         return rc;
     }
 
@@ -126,8 +132,12 @@ IARM_Result_t DISKMgr_Stop(void)
     g_running = false;
     
     /* Clean up IARM connections */
-    IARM_Bus_Disconnect();
-    IARM_Bus_Term();
+    if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+        LOG("Warning: IARM_Bus_Disconnect failed during DISKMgr_Stop cleanup\n");
+    }
+    if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+        LOG("Warning: IARM_Bus_Term failed during DISKMgr_Stop cleanup\n");
+    }
     
     LOG("Disk Manager: Stopped successfully\n");
     return IARM_RESULT_SUCCESS;

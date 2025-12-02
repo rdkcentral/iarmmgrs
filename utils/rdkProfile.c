@@ -81,15 +81,9 @@ profile_t searchRdkProfile(void) {
         return PROFILE_INVALID;
     }
     
-    /* Security validation: Check file access before opening */
-    if (access(devPropPath, R_OK) != 0) {
-        INT_ERROR("[%s]: Cannot access device properties file safely\n", __FUNCTION__);
-        return PROFILE_INVALID;
-    }
-
     file = fopen(devPropPath, "r");
     if (file == NULL) {
-        INT_ERROR("[%s]: File not found or access denied.\n", __FUNCTION__);
+        INT_ERROR("[%s]: Cannot access device properties file or file not found\n", __FUNCTION__);
         return PROFILE_INVALID;
     }
 

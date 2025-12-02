@@ -209,7 +209,7 @@ static IARM_Result_t getSerializedData_(void *arg)
             return IARM_RESULT_INVALID_PARAM;
         }
         if (data.bufLen == 0 || data.bufLen > sizeof(param->buffer)) {
-            LOG("Security: Invalid buffer length %d from mfrGetSerializedData\n", data.bufLen);
+            LOG("Security: Invalid buffer length %lu from mfrGetSerializedData\n", data.bufLen);
             if(data.freeBuf)
             {
                 data.freeBuf(data.buf);
@@ -1579,9 +1579,13 @@ IARM_Result_t MFRLib_Start(void)
     {
         if(is_connected)
         {
-            IARM_Bus_Disconnect();
+            if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+                LOG("Warning: IARM_Bus_Disconnect failed during error cleanup\n");
+            }
         }
-        IARM_Bus_Term();
+        if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+            LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
+        }
     }
 
     return err;
@@ -1733,8 +1737,12 @@ IARM_Result_t MFRLib_Stop(void)
     
     if(is_connected)
     {
-	IARM_Bus_Disconnect();
-	IARM_Bus_Term();
+	if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+		LOG("Warning: IARM_Bus_Disconnect failed during MFRLib_Stop cleanup\n");
+	}
+	if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+		LOG("Warning: IARM_Bus_Term failed during MFRLib_Stop cleanup\n");
+	}
     }
     
     /* Cleanup dynamic library resources */

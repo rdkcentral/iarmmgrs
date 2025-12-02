@@ -353,6 +353,7 @@ static gboolean heartbeatMsg(gpointer data)
 IARM_Result_t DSMgr_Stop()
 {
     IARM_Result_t iarmStatus = IARM_RESULT_SUCCESS;
+    dsMgr_thread_exit_flag = true;
     if(dsMgr_Gloop)
     {
         g_main_loop_quit(dsMgr_Gloop);
@@ -1009,15 +1010,11 @@ static void* _DSMgrResnThreadFunc(void *arg)
 
 		/*Wait for the Event*/
 		pthread_mutex_lock(&tdsMutexLock);
-		if (!dsMgr_thread_exit_flag) {
+		while (!dsMgr_thread_exit_flag && edisplayEventStatus == dsDISPLAY_EVENT_MAX) {
 			pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
 		}
 		edisplayEventStatusLocal = edisplayEventStatus;
 		pthread_mutex_unlock(&tdsMutexLock);
-		
-		if (dsMgr_thread_exit_flag) {
-			break;
-		}
 		INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",
 			__FUNCTION__, (edisplayEventStatusLocal == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"),iTuneReady);
 

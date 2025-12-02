@@ -649,12 +649,18 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
         pthread_mutex_lock(&tdsPwrEventMutexLock);
         INT_DEBUG("dsMgrPwrEventHandlingThreadFunc.... Wait for Events from Power manager Controller Callback\r\n");
         
-        // FIX(Coverity): BAD_CHECK_OF_WAIT_COND
-        // Reason: Handle spurious wakeups by checking condition in loop
-        // Impact: Internal logic corrected. Public API unchanged.
-        while (!m_dsMgrPwrStopThread && pwrEventQueue.empty())
+        // Check queue status with proper locking to fix MISSING_LOCK issue
+        pthread_mutex_lock(&tdsPwrEventQueueMutexLock);
+        bool queueEmpty = pwrEventQueue.empty();
+        pthread_mutex_unlock(&tdsPwrEventQueueMutexLock);
+        
+        while (!m_dsMgrPwrStopThread && queueEmpty)
         {
             pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
+            // Re-check queue status after waking up
+            pthread_mutex_lock(&tdsPwrEventQueueMutexLock);
+            queueEmpty = pwrEventQueue.empty();
+            pthread_mutex_unlock(&tdsPwrEventQueueMutexLock);
         }
         
         if(m_dsMgrPwrStopThread)

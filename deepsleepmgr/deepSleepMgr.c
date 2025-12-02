@@ -390,8 +390,12 @@ IARM_Result_t DeepSleepMgr_Stop(void)
 
     IARM_Bus_UnRegisterEventHandler(IARM_BUS_PWRMGR_NAME,IARM_BUS_PWRMGR_EVENT_MODECHANGED);
     IARM_Bus_UnRegisterEventHandler(IARM_BUS_PWRMGR_NAME,IARM_BUS_PWRMGR_EVENT_DEEPSLEEP_TIMEOUT);
-    IARM_Bus_Disconnect();
-    IARM_Bus_Term();
+    if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+        LOG("Warning: IARM_Bus_Disconnect failed during DeepSleepMgr_Stop cleanup\n");
+    }
+    if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+        LOG("Warning: IARM_Bus_Term failed during DeepSleepMgr_Stop cleanup\n");
+    }
     PLAT_DS_TERM();
 
     return IARM_RESULT_SUCCESS;

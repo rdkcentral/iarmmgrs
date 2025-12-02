@@ -81,14 +81,11 @@ namespace device{
 	// FIX(Linker Error): Add missing VideoOutputPort constructor and destructor
 	// Reason: libds.so expects these symbols but they're not defined
 	// Impact: Fixes undefined reference linker errors
-	VideoOutputPort::VideoOutputPort(const int type, const int index, const int id, int audioPortId, const std::string &resolution) {
-		// Initialize all parameters to prevent UNINIT_CTOR issues
-		int local_type = (type >= 0) ? type : 0;
-		int local_index = (index >= 0) ? index : 0;  
-		int local_id = (id >= 0) ? id : 0;
-		int local_audioPortId = (audioPortId >= 0) ? audioPortId : 0;
-		// Store parameters (stub implementation)
-		(void)local_type; (void)local_index; (void)local_id; (void)local_audioPortId; (void)resolution;
+	VideoOutputPort::VideoOutputPort(const int type, const int index, const int id, int audioPortId, const std::string &resolution) 
+		: _type(type), _index(index), _id(id), _aPortId(audioPortId) {
+		// Initialize member variables in initializer list to prevent UNINIT_CTOR issues
+		// Additional initialization can be done here if needed
+		(void)resolution; // Suppress unused parameter warning for resolution
 	}
 
 	VideoOutputPort::~VideoOutputPort() {

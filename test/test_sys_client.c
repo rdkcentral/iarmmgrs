@@ -96,8 +96,12 @@ int main()
 	}
 	
 	/* Cleanup code is now reachable - fixes resource leak */
-	IARM_Bus_Disconnect();
-	IARM_Bus_Term();
+	if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+		printf("Warning: IARM_Bus_Disconnect failed during cleanup\n");
+	}
+	if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+		printf("Warning: IARM_Bus_Term failed during cleanup\n");
+	}
 	printf("Sys Client Exiting\r\n");
 	
 	return 0; /* Proper return statement */
