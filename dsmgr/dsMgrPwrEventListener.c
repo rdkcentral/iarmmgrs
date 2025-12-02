@@ -335,7 +335,7 @@ static IARM_Result_t configureVideoPort(device::VideoOutputPort& vPort, bool req
  *
  * @param[in]  aPort         Reference to the AudioOutputPort object to configure.
  * @param[in]  requestEnable Boolean value indicating whether to enable (true) or disable (false) the port.
- * @param[in]  isConfigurationSkipped Pointer to a boolean that will be set to true if the configuration was skipped.
+ * @param[out]  isConfigurationSkipped Pointer to a boolean that will be set to true if the configuration was skipped.
  *
  * @return IARM_RESULT_SUCCESS on success,
  *         IARM_RESULT_INVALID_STATE if an error or exception occurs,
@@ -351,6 +351,9 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
     {
         return IARM_RESULT_INVALID_PARAM;
     }
+
+    // Initialize output parameter with default value as false, indicating configuration is not skipped
+    *isConfigurationSkipped = false;
 
     try
     {
@@ -369,7 +372,6 @@ static IARM_Result_t configureAudioPort(device::AudioOutputPort& aPort, bool req
         }
         else
         {
-            *isConfigurationSkipped = false;
             aPortEnableParam.handle = aHandleParam.handle;
             snprintf(aPortEnableParam.portName, sizeof(aPortEnableParam.portName), "%s", aPort.getName().c_str());
 
