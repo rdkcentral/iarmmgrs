@@ -38,9 +38,6 @@ extern "C"
 #endif
 #include <stdio.h>
 #include <stdlib.h>
-#include <unistd.h>
-#include <sys/wait.h>
-#include <ftw.h>
 #ifdef __cplusplus
 }
 #endif
@@ -53,7 +50,6 @@ extern "C"
 #include <assert.h>
 #include <iostream>
 #include <fstream>
-#include <memory>
 #include <mutex>
 #include <list>
 #include  <sys/stat.h>
@@ -120,132 +116,6 @@ typedef struct updateInProgress_t
 
 map<int, updateInProgress_t *> *updatesInProgress = new map<int, updateInProgress_t *>();
 bool running = true;
-
-// Secure file operation functions to replace unsafe system calls
-namespace SecureFileOps {
-
-// Helper function for path validation
-bool isValidPath(const std::string& path) {
-    // Check for directory traversal patterns
-    if (path.find("..") != std::string::npos) {
-        INT_LOG("dumMgr: Invalid path - contains directory traversal: %s\n", path.c_str());
-        return false;
-    }
-    
-    // Check for command injection characters
-    if (path.find(';') != std::string::npos || 
-        path.find('|') != std::string::npos ||
-        path.find('&') != std::string::npos ||
-        path.find('`') != std::string::npos ||
-        path.find('$') != std::string::npos) {
-        INT_LOG("dumMgr: Invalid path - contains injection characters: %s\n", path.c_str());
-        return false;
-    }
-    
-    return true;
-}
-
-// Callback function for nftw to remove files/directories
-int removeCallback(const char *fpath, const struct stat *sb, int typeflag, struct FTW *ftwbuf) {
-    int rv = remove(fpath);
-    if (rv) {
-        INT_LOG("dumMgr: Failed to remove %s: %s\n", fpath, strerror(errno));
-    }
-    return rv;
-}
-
-// Secure directory removal
-bool secureRemoveDirectory(const std::string& dirPath) {
-    if (!isValidPath(dirPath)) {
-        return false;
-    }
-    
-    // Check if path exists and is within allowed area
-    if (dirPath.find("/tmp/") != 0 && dirPath.find(tempFilePath) != 0) {
-        INT_LOG("dumMgr: Directory removal not allowed outside temp area: %s\n", dirPath.c_str());
-        return false;
-    }
-    
-    // Use nftw to recursively remove directory
-    if (nftw(dirPath.c_str(), removeCallback, 64, FTW_DEPTH | FTW_PHYS) != 0) {
-        INT_LOG("dumMgr: Failed to remove directory %s: %s\n", dirPath.c_str(), strerror(errno));
-        return false;
-    }
-    
-    return true;
-}
-
-// Secure directory creation
-bool secureCreateDirectory(const std::string& dirPath) {
-    if (!isValidPath(dirPath)) {
-        return false;
-    }
-    
-    // Create directory with proper permissions
-    if (mkdir(dirPath.c_str(), 0755) != 0) {
-        if (errno != EEXIST) {
-            INT_LOG("dumMgr: Failed to create directory %s: %s\n", dirPath.c_str(), strerror(errno));
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-// Secure tar extraction
-bool secureTarExtract(const std::string& tarPath, const std::string& extractPath) {
-    if (!isValidPath(tarPath) || !isValidPath(extractPath)) {
-        return false;
-    }
-    
-    // Verify tar file exists and is readable
-    struct stat st;
-    if (stat(tarPath.c_str(), &st) != 0) {
-        INT_LOG("dumMgr: Tar file does not exist: %s\n", tarPath.c_str());
-        return false;
-    }
-    
-    // Verify extract path is within allowed area  
-    if (extractPath.find("/tmp/") != 0 && extractPath.find(tempFilePath) != 0) {
-        INT_LOG("dumMgr: Extraction not allowed outside temp area: %s\n", extractPath.c_str());
-        return false;
-    }
-    
-    // Fork and exec tar to safely extract
-    pid_t pid = fork();
-    if (pid == -1) {
-        INT_LOG("dumMgr: Fork failed for tar extraction\n");
-        return false;
-    } else if (pid == 0) {
-        // Child process - exec tar
-        char* argv[] = {
-            (char*)"/bin/tar",
-            (char*)"-xzpf",
-            (char*)tarPath.c_str(),
-            (char*)"-C",
-            (char*)extractPath.c_str(),
-            NULL
-        };
-        execv("/bin/tar", argv);
-        _exit(127); // exec failed
-    } else {
-        // Parent process - wait for completion
-        int status;
-        if (waitpid(pid, &status, 0) == -1) {
-            INT_LOG("dumMgr: waitpid failed for tar extraction\n");
-            return false;
-        }
-        
-        if (WEXITSTATUS(status) != 0) {
-            INT_LOG("dumMgr: Tar extraction failed with exit code %d\n", WEXITSTATUS(status));
-            return false;
-        }
-    }
-    
-    return true;
-}
-
-} // namespace SecureFileOps
 
 #ifdef RDK_LOGGER_ENABLED
 
@@ -726,18 +596,26 @@ void processDeviceFile(string filePath, string deviceName)
 {
 	INT_LOG("dumMgr:processing Device File:%s\n", filePath.c_str());
 	
-	// Use secure file operations instead of unsafe system calls
-	if (!SecureFileOps::secureRemoveDirectory(tempFilePath)) {
-		INT_LOG("dumMgr: Failed to remove temp directory: %s\n", tempFilePath.c_str());
+	// Remove temp directory
+	string cmd = "rm -rf " + tempFilePath;
+	int result = system(cmd.c_str());
+	if (result != 0) {
+		INT_LOG("dumMgr: Failed to remove temp directory (exit code: %d)\n", result);
 	}
 	
-	if (!SecureFileOps::secureCreateDirectory(tempFilePath)) {
-		INT_LOG("dumMgr: Failed to create temp directory: %s\n", tempFilePath.c_str());
+	// Create temp directory
+	cmd = "mkdir " + tempFilePath;
+	result = system(cmd.c_str());
+	if (result != 0) {
+		INT_LOG("dumMgr: Failed to create temp directory (exit code: %d)\n", result);
 		return;
 	}
 	
-	if (!SecureFileOps::secureTarExtract(filePath, tempFilePath)) {
-		INT_LOG("dumMgr: Failed to extract tar file: %s\n", filePath.c_str());
+	// Extract tar file
+	cmd = "tar -xzpf " + filePath + " -C " + tempFilePath;
+	result = system(cmd.c_str());
+	if (result != 0) {
+		INT_LOG("dumMgr: Failed to extract tar file (exit code: %d)\n", result);
 		return;
 	}
 	vector<string> *myfiles = getdir(tempFilePath);

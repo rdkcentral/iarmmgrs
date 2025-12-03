@@ -176,7 +176,7 @@ IARM_Result_t SYSMgr_Loop()
     while(1)
     {
         LOG("I-ARM Sys Mgr: HeartBeat ping.\r\n");
-        sleep(2);
+        sleep(300);
     }
     return IARM_RESULT_SUCCESS;
 }

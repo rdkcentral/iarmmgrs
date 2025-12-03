@@ -28,12 +28,9 @@
 
 #include <stdio.h>
 #include <memory.h>
-#include <string.h>
 #include <dlfcn.h>
 #include <unistd.h>
 #include <errno.h>
-#include <pthread.h>
-#include <time.h>
 
 #include "mfrMgrInternal.h"
 #include "mfrMgr.h"
@@ -112,69 +109,14 @@ static pthread_mutex_t rate_limit_mutex = PTHREAD_MUTEX_INITIALIZER;
 #define MAX_WIFI_REQUESTS_PER_SECOND 5
 #define RATE_LIMIT_WINDOW 1
 
-/**
- * @brief Validates that a library path is secure
- * @param libpath The library path to validate
- * @return 1 if valid, 0 if invalid
- */
-static int validate_library_path(const char *libpath)
-{
-    if (!libpath) return 0;
-    
-    /* Ensure path doesn't contain dangerous characters */
-    if (strstr(libpath, "..") || strstr(libpath, "//") || 
-        strchr(libpath, ';') || strchr(libpath, '|') || 
-        strchr(libpath, '&') || strchr(libpath, '$')) {
-        LOG("Security: Invalid characters in library path: %s\n", libpath);
-        return 0;
-    }
-    
-    /* Ensure path is reasonable length to prevent buffer attacks */
-    if (strlen(libpath) > 256) {
-        LOG("Security: Library path too long: %zu chars\n", strlen(libpath));
-        return 0;
-    }
-    
-    return 1;
-}
+static int is_connected = 0;
 
-/**
- * @brief Secure wrapper for dlopen with path validation
- * @param filename Library path to open
- * @param flags dlopen flags  
- * @return Handle to library or NULL if validation fails
- */
-static void* secure_dlopen(const char *filename, int flags)
-{
-    if (!validate_library_path(filename)) {
-        LOG("Security: dlopen blocked for unsafe path: %s\n", filename);
-        return NULL;
-    }
-    return dlopen(filename, flags);
-}
+static char writeImageCbModule[MAX_BUF] = "";
+static mfrUpgradeStatusNotify_t notifyStruct;
 
-/**
- * @brief Validates input string for buffer overflow prevention
- * @param input String to validate (may not be null-terminated)
- * @param max_len Maximum allowed length
- * @return 1 if valid, 0 if invalid
- */
-static int validate_string_input(const char *input, size_t max_len)
-{
-    if (!input) return 0;
-    
-    /* Ensure string is null-terminated within bounds */
-    const char *ptr = input;
-    for (size_t i = 0; i < max_len; i++) {
-        if (*ptr == '\0') {
-            return 1;  /* Found null terminator within bounds */
-        }
-        ptr++;
-    }
-    
-    LOG("Security: String not properly terminated within %zu chars\n", max_len);
-    return 0;
-}
+static mfrUpgradeStatus_t lastStatus;
+
+static profile_t profileType = PROFILE_INVALID;
 
 static IARM_Result_t getSerializedData_(void *arg)
 {
@@ -182,15 +124,9 @@ static IARM_Result_t getSerializedData_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
     IARM_Bus_MFRLib_GetSerializedData_Param_t *param = (IARM_Bus_MFRLib_GetSerializedData_Param_t *)arg;
     mfrError_t err = mfrERR_NONE;
-    mfrSerializedData_t data = {0};  /* Initialize struct to zero */
+    mfrSerializedData_t data;
     errno_t safec_rc = -1;
-    int i = 0;  /* Initialize to prevent UNINIT usage */
-    
-    /* Validate input parameter to prevent null pointer dereference */
-    if (param == NULL) {
-        LOG("Security: NULL parameter passed to getSerializedData_\n");
-        return IARM_RESULT_INVALID_PARAM;
-    }
+    int i;
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
@@ -203,20 +139,6 @@ static IARM_Result_t getSerializedData_(void *arg)
     }
     if(mfrERR_NONE == err)
     {
-        /* Validate data buffer to prevent null pointer dereference */
-        if (data.buf == NULL) {
-            LOG("Security: NULL buffer returned from mfrGetSerializedData\n");
-            return IARM_RESULT_INVALID_PARAM;
-        }
-        if (data.bufLen == 0 || data.bufLen > sizeof(param->buffer)) {
-            LOG("Security: Invalid buffer length %lu from mfrGetSerializedData\n", data.bufLen);
-            if(data.freeBuf)
-            {
-                data.freeBuf(data.buf);
-            }
-            return IARM_RESULT_INVALID_PARAM;
-        }
-        
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);
     	if(safec_rc != EOK)
         {

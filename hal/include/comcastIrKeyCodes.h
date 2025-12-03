@@ -17,6 +17,8 @@
  * limitations under the License.
 */
 
+//@todo : Need to rename this file name to some generic name. ir_manager_keympaps.h
+
 /**
  * @addtogroup HPK HPK
  * @{
@@ -74,8 +76,8 @@ extern "C" {
  * - V:        Version
  * - PIP:      Picture in picture
  * - WPS:      Wi-Fi Protected Setup
- * - DMC:      Digital Media Controller (for activate/deactivate/query operations)
- * - OTR:      One Touch Record (for start/stop recording operations)
+ * - DMC:      @todo what is DMC. 
+ * - OTR:      @todo what is OTR.
  * 
  * @par Implementation Notes
  * -# None
@@ -85,64 +87,64 @@ extern "C" {
 /*-------------------------------------------------------------------
    Defines/Macros
 
-   All definitions are prefixed with IR_ for namespace isolation.
+   //@todo : All the definitions should be prefixed with IR_. Will do it in the next phase
 -------------------------------------------------------------------*/
-///< Represents the mask for delay and repeat.
-#define IR_DELAY_REPEAT_MASK                  0x00000001 
-///< Represents the mask for the language selection.
-#define IR_LANGUAGE_MASK                      0x00000010
-///< Represents the mask for the missed key timeout.
-#define IR_MISSED_KEY_TIMEOUT_MASK            0x00000100
-///< Represents the mask for enabling key repeat.
-#define IR_REPEAT_KEY_ENABLED_MASK            0x00001000
-///< Represents the mask for the key repeat frequency.
-#define IR_REPEAT_FREQUENCY_MASK              0x00010000
-///< Represents the mask for reporting modifiers.
-#define IR_REPORT_MODIFIERS_MASK              0x00100000
-///< Represents the mask for the number of devices.
-#define IR_NUM_OF_DEVICES_MASK                0x01000000
+///< Represents the mask for delay and repeat. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define DELAY_REPEAT_MASK                     0x00000001 
+///< Represents the mask for the language selection. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define LANGUAGE_MASK                         0x00000010
+///< Represents the mask for the missed key timeout. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define MISSED_KEY_TIMEOUT_MASK               0x00000100
+///< Represents the mask for enabling key repeat. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define REPEAT_KEY_ENABLED_MASK               0x00001000
+///< Represents the mask for the key repeat frequency. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define REPEAT_FREQUENCY_MASK                 0x00010000
+///< Represents the mask for reporting modifiers. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define REPORT_MODIFIERS_MASK                 0x00100000
+///< Represents the mask for the number of devices. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define NUM_OF_DEVICES_MASK                   0x01000000
 
-///< Represents the key down event.
-#define IR_KET_KEYDOWN		                  0x00008000UL
-///< Represents the key up event.
-#define IR_KET_KEYUP		                  0x00008100UL
-///< Represents the key repeat event.
-#define IR_KET_KEYREPEAT	                  0x00008200UL 
+///< Represents the key down event. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KET_KEYDOWN 		                      0x00008000UL
+///< Represents the key up event. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KET_KEYUP   		                      0x00008100UL
+///< Represents the key repeat event. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KET_KEYREPEAT		                   0x00008200UL 
 
 /* Numeric keys (common in Remote and Key Board) */
 /* Combination of Key + device type (HID_DEVICES) is unique */
-///< Represents the key "0".
-#define IR_KED_DIGIT0		                  0x00000030UL
-///< Represents the key "1".
-#define IR_KED_DIGIT1		                  0x00000031UL
-///< Represents the key "2".
-#define IR_KED_DIGIT2		                  0x00000032UL
-///< Represents the key "3".
-#define IR_KED_DIGIT3		                  0x00000033UL
-///< Represents the key "4".
-#define IR_KED_DIGIT4		                  0x00000034UL
-///< Represents the key "5".
-#define IR_KED_DIGIT5		                  0x00000035UL
-///< Represents the key "6".
-#define IR_KED_DIGIT6		                  0x00000036UL
-///< Represents the key "7".
-#define IR_KED_DIGIT7		                  0x00000037UL
-///< Represents the key "8".
-#define IR_KED_DIGIT8		                  0x00000038UL
-///< Represents the key "9".
-#define IR_KED_DIGIT9		                  0x00000039UL
-///< Represents the key period (decimal point).
-#define IR_KED_PERIOD		                  0x00000040UL
+///< Represents the key "0". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT0		                      0x00000030UL
+///< Represents the key "1". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT1		                      0x00000031UL
+///< Represents the key "2". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT2		                      0x00000032UL
+///< Represents the key "3". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT3		                      0x00000033UL
+///< Represents the key "4". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT4		                      0x00000034UL
+///< Represents the key "5". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT5		                      0x00000035UL
+///< Represents the key "6". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT6		                      0x00000036UL
+///< Represents the key "7". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT7		                      0x00000037UL
+///< Represents the key "8". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT8		                      0x00000038UL
+///< Represents the key "9". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DIGIT9		                      0x00000039UL
+///< Represents the key period (decimal point). @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_PERIOD		                      0x00000040UL
 
-///< Represents the key for discrete power on.
-#define IR_KED_DISCRETE_POWER_ON              0x00000050UL
-///< Represents the key for discrete power standby.
-#define IR_KED_DISCRETE_POWER_STANDBY         0x00000051UL
+///< Represents the key for discrete power on. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DISCRETE_POWER_ON                 0x00000050UL
+///< Represents the key for discrete power standby. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_DISCRETE_POWER_STANDBY            0x00000051UL
 
-///< Represents the key for search.
-#define IR_KED_SEARCH		                  0x000000CFUL
-///< Represents the key for setup.
-#define IR_KED_SETUP		                  0x00000052UL
+///< Represents the key for search. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_SEARCH			                   0x000000CFUL
+///< Represents the key for setup. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_SETUP			                      0x00000052UL
 
 ///< Represents the key for closed captioning. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
 #define KED_CLOSED_CAPTIONING                 0x00000060UL
@@ -158,9 +160,46 @@ extern "C" {
 #define KED_DESCRIPTIVE_AUDIO                 0x00000065UL
 ///< Represents the key for volume optimization. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
 #define KED_VOLUME_OPTIMIZE                   0x00000066UL
+///< Represents the key XR2V3. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+///< @todo how KED_XR2V3 is used?? Is it key or protocol. Seems like XR is platform specific, 
+///< if so need to remove form generic header. time being keep it in generic it self
+//< @todo platform specific key will be deprecated in the next phase.
+#define KED_XR2V3                             0x00000067UL 
+///< Represents the key XR5V2. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+//< @todo platform specific key will be deprecated in the next phase
+#define KED_XR5V2                             0x00000068UL
+///< Represents the key XR11V1. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+//< @todo platform specific key will be deprecated in the next phase
+#define KED_XR11V1                            0x00000069UL
+///< Represents the key XR11V2. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+//< @todo platform specific key will be deprecated in the next phase
+#define KED_XR11V2                            0x0000006AUL
+///< Represents the key XR13. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+//< @todo platform specific key will be deprecated in the next phase
+#define KED_XR13                              0x0000006BUL
+///< Represents the key XR11 notify. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+//< @todo platform specific key will be deprecated in the next phase
+#define KED_XR11_NOTIFY                       0x0000006CUL
+
+///< Represents the key XR15V1 notify. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+//< @todo platform specific key will be deprecated in the next phase
+#define KED_XR15V1_NOTIFY                     0x00000070UL
+///< Represents the key XR15V1 select. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+//< @todo platform specific key will be deprecated in the next phase
+#define KED_XR15V1_SELECT                     0x00000071UL
+///< Represents the key XR15V1 push-to-talk. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+//< @todo platform specific key will be deprecated in the next phase
+#define KED_XR15V1_PUSH_TO_TALK               0x00000072UL
 
 ///< Represents the key for screen bind notify. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
 #define KED_SCREEN_BIND_NOTIFY                0x00000073UL
+
+///< Represents the key XR16V1 notify. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_XR16V1_NOTIFY                     0x00000074UL
+///< Represents the key XR16V1 select. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_XR16V1_SELECT                     0x00000075UL
+///< Represents the key XR16V1 push-to-talk. Platform specific key code. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_XR16V1_PUSH_TO_TALK               0x00000076UL
 
 ///< Represents the key for RF power. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
 #define KED_RF_POWER	                         0x0000007FUL
@@ -212,6 +251,14 @@ extern "C" {
 #define KED_KEYC	  	                         0x00000094UL
 ///< Represents the key "D". @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
 #define KED_KEYD	  	                         0x0000009FUL	
+///< Represents the key for the red circle (Key C). @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_KEY_RED_CIRCLE                    KED_KEYC  //@todo platform specific key will be depricated in the next phase.
+///< Represents the key for the green diamond (Key D). @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_KEY_GREEN_DIAMOND                 KED_KEYD  //@todo platform specific key will be depricated in the next phase.
+///< Represents the key for the blue square (Key B). @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_KEY_BLUE_SQUARE                   KED_KEYB  //@todo platform specific key will be depricated in the next phase.
+///< Represents the key for the yellow triangle (Key A). @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
+#define KED_KEY_YELLOW_TRIANGLE               KED_KEYA  //@todo platform specific key will be depricated in the next phase.
 ///< Represents the key for the last channel. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
 #define KED_LAST	  	                         0x00000095UL
 ///< Represents the key for favorite. @todo : All the definitions should be prefixed with IR_. Will do it in the next phase
