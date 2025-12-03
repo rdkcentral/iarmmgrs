@@ -73,193 +73,6 @@ static IARM_Result_t _GetLastWakeupKeyCode(void *arg);
 static gboolean heartbeatMsg(gpointer data);
 static gboolean deep_sleep_delay_timer_fn(gpointer data);
 
-/* Secure system command wrapper to prevent injection attacks */
-static int secure_system_command(char * const argv[]) {
-    if (!argv || !argv[0]) {
-        LOG("Error: Invalid command arguments\n");
-        return -1;
-    }
-    
-    pid_t pid = fork();
-    if (pid == -1) {
-        LOG("Error: fork() failed\n");
-        return -1;
-    } else if (pid == 0) {
-        /* Child process */
-        execv(argv[0], argv);
-        _exit(127); /* exec failed */
-    } else {
-        /* Parent process */
-        int status;
-        if (waitpid(pid, &status, 0) == -1) {
-            LOG("Error: waitpid() failed\n");
-            return -1;
-        }
-        return WEXITSTATUS(status);
-    }
-}
-
-static int secure_file_write(const char* filename, const char* content) {
-    if (!filename || !content) {
-        LOG("Error: Invalid file write parameters\n");
-        return -1;
-    }
-    
-    int fd = open(filename, O_WRONLY | O_CREAT | O_TRUNC, 0644);
-    if (fd == -1) {
-        LOG("Error: Cannot open file %s for writing\n", filename);
-        return -1;
-    }
-    
-    ssize_t bytes_written = write(fd, content, strlen(content));
-    close(fd);
-    
-    if (bytes_written == -1) {
-        LOG("Error: Failed to write to file %s\n", filename);
-        return -1;
-    }
-    
-    return 0;
-}
-
-static int secure_service_control(const char* action, const char* service) {
-    if (!action || !service) {
-        LOG("Error: Invalid service control parameters\n");
-        return -1;
-    }
-    
-    /* Validate action to prevent injection */
-    if (strcmp(action, "start") != 0 && strcmp(action, "stop") != 0 && strcmp(action, "restart") != 0) {
-        LOG("Error: Invalid service action: %s\n", action);
-        return -1;
-    }
-    
-    /* Validate service name to prevent injection */
-    if (strstr(service, "..") || strchr(service, '/') || strchr(service, ';') || strchr(service, '|')) {
-        LOG("Error: Invalid service name: %s\n", service);
-        return -1;
-    }
-    
-    char *argv[] = {"/bin/systemctl", (char*)action, (char*)service, NULL};
-    return secure_system_command(argv);
-}
-
-static void secure_sleep(unsigned int seconds) {
-    if (seconds > 60) {  /* Sanity check */
-        LOG("Warning: Sleep duration capped to 60 seconds\n");
-        seconds = 60;
-    }
-    sleep(seconds);
-}
-
-static void secure_log_message(const char* message) {
-    if (!message) {
-        LOG("Error: Invalid log message\n");
-        return;
-    }
-    
-    /* Get current timestamp securely */
-    time_t now;
-    struct tm *timeinfo;
-    char timestamp[64];
-    
-    time(&now);
-    timeinfo = localtime(&now);
-    strftime(timestamp, sizeof(timestamp), "%Y-%m-%d %H:%M:%S", timeinfo);
-    
-    /* Create the log entry */
-    char log_entry[512];
-    snprintf(log_entry, sizeof(log_entry), "%s %s\n", timestamp, message);
-    
-    /* Write to log file securely */
-    int fd = open("/opt/logs/receiver.log", O_WRONLY | O_CREAT | O_APPEND, 0644);
-    if (fd != -1) {
-        write(fd, log_entry, strlen(log_entry));
-        close(fd);
-    } else {
-        LOG("Error: Cannot write to receiver.log\n");
-    }
-}
-
-/* Thread-safe accessors for shared state variables */
-static void set_deep_sleep_status(DeepSleepStatus_t status) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    IsDeviceInDeepSleep = status;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-}
-
-static DeepSleepStatus_t get_deep_sleep_status(void) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    DeepSleepStatus_t status = IsDeviceInDeepSleep;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-    return status;
-}
-
-static void set_deep_sleep_delay_timeout(uint32_t timeout) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    deep_sleep_delay_timeout = timeout;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-}
-
-static uint32_t get_deep_sleep_delay_timeout(void) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    uint32_t timeout = deep_sleep_delay_timeout;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-    return timeout;
-}
-
-static void set_deep_sleep_wakeup_timer(uint32_t timer) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    deep_sleep_wakeup_timer = timer;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-}
-
-static uint32_t get_deep_sleep_wakeup_timer(void) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    uint32_t timer = deep_sleep_wakeup_timer;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-    return timer;
-}
-
-static void set_nw_standby_mode(bool mode) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    nwStandbyMode_gs = mode;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-}
-
-static bool get_nw_standby_mode(void) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    bool mode = nwStandbyMode_gs;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-    return mode;
-}
-
-static void set_lxc_restart_flag(gboolean flag) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    isLxcRestart = flag;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-}
-
-static gboolean get_lxc_restart_flag(void) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    gboolean flag = isLxcRestart;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-    return flag;
-}
-
-static void set_dsleep_delay_event_src(guint src) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    dsleep_delay_event_src = src;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-}
-
-static guint get_dsleep_delay_event_src(void) {
-    pthread_mutex_lock(&deep_sleep_mutex);
-    guint src = dsleep_delay_event_src;
-    pthread_mutex_unlock(&deep_sleep_mutex);
-    return src;
-}
-
 /* Variables for Deep Sleep */
 static pthread_mutex_t deep_sleep_mutex = PTHREAD_MUTEX_INITIALIZER;
 static uint32_t deep_sleep_delay_timeout = 0; 
@@ -421,16 +234,18 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
             {
 #if !defined (_DISABLE_SCHD_REBOOT_AT_DEEPSLEEP)
                 /*Scheduled maintanace reboot is disabled*/
-                if (secure_file_write("/opt/.rebootFlag", "0") != 0) {
-                    LOG("Error: Failed to write reboot flag\n");
+                int result = system("echo 0 > /opt/.rebootFlag");
+                if (result != 0) {
+                    LOG("Error: Failed to write reboot flag (exit code: %d)\n", result);
                 }
-                secure_log_message("------------- Reboot timer expired while in Deep Sleep ---------------");
-                
-                char *reboot_argv[] = {"/rebootNow.sh", "-s", "DeepSleepMgr", "-o", 
-                    "Rebooting the box due to reboot timer expired while in Deep Sleep...", NULL};
-                secure_sleep(5);
-                if (secure_system_command(reboot_argv) != 0) {
-                    LOG("Error: Failed to execute reboot command\n");
+                result = system(" echo `/bin/timestamp` ------------- Reboot timer expired while in Deep Sleep --------------- >> /opt/logs/receiver.log");
+                if (result != 0) {
+                    LOG("Error: Failed to write log message (exit code: %d)\n", result);
+                }
+                sleep(5);
+                result = system("/rebootNow.sh -s DeepSleepMgr -o 'Rebooting the box due to reboot timer expired while in Deep Sleep...'");
+                if (result != 0) {
+                    LOG("Error: Failed to execute reboot command (exit code: %d)\n", result);
                 }
 #endif /*End of _DISABLE_SCHD_REBOOT_AT_DEEPSLEEP*/
             }
@@ -447,11 +262,14 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                     /*Here we are changing the DeesSleep State assuming that the api would succeed.
                     This is because, once the deep sleep api is called, the CPU would be idle.*/ 
                     /*Call Deep Sleep API*/ 
-                    set_deep_sleep_wakeup_timer(param->data.state.deep_sleep_timeout);
+                    pthread_mutex_lock(&deep_sleep_mutex);
+                    deep_sleep_wakeup_timer = param->data.state.deep_sleep_timeout;
+                    IsDeviceInDeepSleep = DeepSleepStatus_InProgress;
+                    pthread_mutex_unlock(&deep_sleep_mutex);
+                    
                     FILE *fpST = NULL;
                     uint32_t SleepTimeInSec = 0;
                     struct stat buf;
-                    set_deep_sleep_status(DeepSleepStatus_InProgress);
                     /* Read the Delay Sleep Time  */
                     fpST = fopen("/tmp/deepSleepTimer","r");
                     if (NULL != fpST)
@@ -463,8 +281,10 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                         }
                         else
                         {
-                            set_deep_sleep_delay_timeout(SleepTimeInSec);
-                            __TIMESTAMP();LOG(" /tmp/ override Deep Sleep Time is %d \r\n",get_deep_sleep_delay_timeout());
+                            pthread_mutex_lock(&deep_sleep_mutex);
+                            deep_sleep_delay_timeout = SleepTimeInSec;
+                            pthread_mutex_unlock(&deep_sleep_mutex);
+                            __TIMESTAMP();LOG(" /tmp/ override Deep Sleep Time is %d \r\n",SleepTimeInSec);
                         }
                         if (fclose(fpST) != 0) {
                             LOG("Warning: Failed to close deepSleepTimer file\n");
@@ -474,39 +294,51 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
 
                     uint32_t tmp_deep_sleep_wakeup_timer = read_tmp_integer_conf("/tmp/deepSleepTimerVal");
                     if (tmp_deep_sleep_wakeup_timer){
-                        set_deep_sleep_wakeup_timer(tmp_deep_sleep_wakeup_timer);
-                        __TIMESTAMP();LOG(" /tmp/ override Deep Sleep wakeup time value is %d \r\n", get_deep_sleep_wakeup_timer());;
+                        pthread_mutex_lock(&deep_sleep_mutex);
+                        deep_sleep_wakeup_timer = tmp_deep_sleep_wakeup_timer;
+                        pthread_mutex_unlock(&deep_sleep_mutex);
+                        __TIMESTAMP();LOG(" /tmp/ override Deep Sleep wakeup time value is %d \r\n", tmp_deep_sleep_wakeup_timer);
                     }
 
-                    LOG("Deep Sleep wakeup time value is %d Secs.. \r\n",get_deep_sleep_wakeup_timer());
-                    uint32_t current_delay_timeout = get_deep_sleep_delay_timeout();
+                    pthread_mutex_lock(&deep_sleep_mutex);
+                    uint32_t current_delay_timeout = deep_sleep_delay_timeout;
+                    uint32_t current_wakeup_timer = deep_sleep_wakeup_timer;
+                    pthread_mutex_unlock(&deep_sleep_mutex);
+                    
+                    LOG("Deep Sleep wakeup time value is %d Secs.. \r\n",current_wakeup_timer);
                     if (current_delay_timeout) {
                         /* start a Deep sleep timer thread */
                          LOG("Schedule Deep SLeep After %d Sec.. \r\n",current_delay_timeout);
                          if (deepSleepMgr_Loop != NULL) {
                              guint new_src = g_timeout_add_seconds ((guint) current_delay_timeout,deep_sleep_delay_timer_fn,deepSleepMgr_Loop); 
-                             set_dsleep_delay_event_src(new_src);
+                             pthread_mutex_lock(&deep_sleep_mutex);
+                             dsleep_delay_event_src = new_src;
+                             pthread_mutex_unlock(&deep_sleep_mutex);
                          } else {
                              LOG("ERROR: deepSleepMgr_Loop is NULL, cannot schedule deep sleep timer\n");
                          }
                     }
                     else{
                         LOG("Enter to Deep sleep Mode..stop Receiver with sleep 2 before DS \r\n");
-                        secure_sleep(2);
+                        sleep(2);
                         if ((stat("/lib/systemd/system/lxc.service", &buf) == 0) && (stat("/opt/lxc_service_disabled",&buf) !=0))
                         {
                             LOG("stopping lxc service\r\n");
-                            if (secure_service_control("stop", "lxc.service") != 0) {
-                                LOG("Error: Failed to stop lxc.service\n");
+                            int result = system("systemctl stop lxc.service");
+                            if (result != 0) {
+                                LOG("Error: Failed to stop lxc.service (exit code: %d)\n", result);
+                            } else {
+                                pthread_mutex_lock(&deep_sleep_mutex);
+                                isLxcRestart = 1;
+                                pthread_mutex_unlock(&deep_sleep_mutex);
                             }
-                            set_lxc_restart_flag(1);
                         }
                         else
                         {
 			   LOG("Update the Deepsleep marker to splunk.\n");
-			   char *alert_argv[] = {"/bin/sh", "/lib/rdk/alertSystem.sh", "deepSleepMgrMain", "SYST_INFO_devicetoDS", NULL};
-			   if (secure_system_command(alert_argv) != 0) {
-			       LOG("Error: Failed to execute alert system command\n");
+			   int result = system("sh /lib/rdk/alertSystem.sh deepSleepMgrMain SYST_INFO_devicetoDS");
+			   if (result != 0) {
+			       LOG("Error: Failed to execute alert system command (exit code: %d)\n", result);
 			   }
                         }
 #ifdef ENABLE_DEEPSLEEP_FPLED_HANDLING
@@ -526,17 +358,22 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                             time_t current_time = time(NULL);
                             if (difftime(current_time, start_time) > MAX_TIMEOUT_SECONDS) {
                                 LOG("ERROR: Deep sleep retry timeout exceeded (%d seconds)\n", MAX_TIMEOUT_SECONDS);
-                                set_deep_sleep_status(DeepSleepStatus_Failed);
+                                pthread_mutex_lock(&deep_sleep_mutex);
+                                IsDeviceInDeepSleep = DeepSleepStatus_Failed;
+                                pthread_mutex_unlock(&deep_sleep_mutex);
                                 break;
                             }
                             
                             LOG("Device entering Deep sleep Mode.. (retry %d/%d)\r\n", retryCount + 1, MAX_RETRIES);
                             userWakeup = 0;
-                            set_nw_standby_mode(param->data.state.nwStandbyMode);
+                            pthread_mutex_lock(&deep_sleep_mutex);
+                            nwStandbyMode_gs = param->data.state.nwStandbyMode;
+                            bool current_nw_mode = nwStandbyMode_gs;
+                            pthread_mutex_unlock(&deep_sleep_mutex);
                             LOG("\nCalling PLAT_DS_SetDeepSleep with nwStandbyMode: %s\n",
-                               get_nw_standby_mode()?("Enabled"):("Disabled"));
+                               current_nw_mode?("Enabled"):("Disabled"));
                             LOG("Device entered to Deep sleep Mode.. \r\n");
-                            status = PLAT_DS_SetDeepSleep(get_deep_sleep_wakeup_timer(),&userWakeup, get_nw_standby_mode());
+                            status = PLAT_DS_SetDeepSleep(current_wakeup_timer,&userWakeup, current_nw_mode);
 
                             LOG("Device resumed from Deep sleep Mode.status :%d  \r\n",status);
 
@@ -545,12 +382,14 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                                 /* Exponential backoff delay before retry */
                                 unsigned int delay = 2 + (retryCount * 2);  /* 2, 4, 6, 8, 10 seconds */
                                 LOG("Deep sleep failed, waiting %d seconds before retry %d\n", delay, retryCount + 1);
-                                secure_sleep(delay);
+                                sleep(delay);
                                 retryCount++;
                                 if(retryCount >= MAX_RETRIES)
                                 {
                                     LOG("ERROR: Device failed to enter into Deep sleep Mode after %d retries, generate key event to transition to light sleep.. \r\n", MAX_RETRIES);
-                                    set_deep_sleep_status(DeepSleepStatus_Failed);
+                                    pthread_mutex_lock(&deep_sleep_mutex);
+                                    IsDeviceInDeepSleep = DeepSleepStatus_Failed;
+                                    pthread_mutex_unlock(&deep_sleep_mutex);
                                     IARM_Bus_IRMgr_EventData_t eventData;
                                     eventData.data.irkey.keyType = KET_KEYDOWN;
                                     eventData.data.irkey.keyCode = KED_DEEPSLEEP_WAKEUP;
@@ -565,7 +404,9 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                             }
                             else
                             {
-                                set_deep_sleep_status(DeepSleepStatus_Completed);
+                                pthread_mutex_lock(&deep_sleep_mutex);
+                                IsDeviceInDeepSleep = DeepSleepStatus_Completed;
+                                pthread_mutex_unlock(&deep_sleep_mutex);
                                 break;
                             }
                         }
@@ -630,26 +471,41 @@ static IARM_Result_t _DeepSleepWakeup(void *arg)
         PLAT_DS_DeepSleepWakeup();
 
         /* Remove the Event source  */
-        guint current_event_src = get_dsleep_delay_event_src();
+        pthread_mutex_lock(&deep_sleep_mutex);
+        guint current_event_src = dsleep_delay_event_src;
+        pthread_mutex_unlock(&deep_sleep_mutex);
+        
         if(current_event_src)
         {
             g_source_remove(current_event_src);
-            set_dsleep_delay_event_src(0);
+            pthread_mutex_lock(&deep_sleep_mutex);
+            dsleep_delay_event_src = 0;
+            pthread_mutex_unlock(&deep_sleep_mutex);
         }
 
-        if(get_deep_sleep_status())
+        pthread_mutex_lock(&deep_sleep_mutex);
+        bool deep_sleep_status = (IsDeviceInDeepSleep != DeepSleepStatus_NotStarted);
+        bool lxc_restart = isLxcRestart;
+        pthread_mutex_unlock(&deep_sleep_mutex);
+        
+        if(deep_sleep_status)
         {
             /*Restart Moca service when exit from Deep Sleep*/
-            if (get_lxc_restart_flag())
+            if (lxc_restart)
             {
                 LOG("Restarting Lxc Service After Waking up from Deep Sleep\r\n");
-                if (secure_service_control("restart", "lxc.service") != 0) {
-                    LOG("Error: Failed to restart lxc.service\n");
+                int result = system("systemctl restart lxc.service");
+                if (result != 0) {
+                    LOG("Error: Failed to restart lxc.service (exit code: %d)\n", result);
                 }
-                set_lxc_restart_flag(0);
+                pthread_mutex_lock(&deep_sleep_mutex);
+                isLxcRestart = 0;
+                pthread_mutex_unlock(&deep_sleep_mutex);
             }
         }
-        set_deep_sleep_status(DeepSleepStatus_NotStarted);
+        pthread_mutex_lock(&deep_sleep_mutex);
+        IsDeviceInDeepSleep = DeepSleepStatus_NotStarted;
+        pthread_mutex_unlock(&deep_sleep_mutex);
     
         LOG("Device woke up from Deep sleep Mode.. \r\n");
     }
