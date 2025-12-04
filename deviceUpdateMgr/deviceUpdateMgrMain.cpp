@@ -129,7 +129,7 @@ void logCallback(const char *buff)
 #endif
 int main(int argc, char *argv[])
 {
-	const char* debugConfigFile = NULL;
+	const char* debugConfigFile __attribute__((unused)) = NULL;
 	int itr = 0;
 
 	while (itr < argc)
@@ -628,7 +628,7 @@ void processDeviceFile(string filePath, string deviceName)
 		{
 			string filename = *itr;
 	//		LOG("dumMgr:found file:%s\n", filename.c_str());
-			int idx = filename.rfind('.');
+			size_t idx = filename.rfind('.');
 			if (idx == string::npos)
 			{
 				continue;
@@ -673,7 +673,7 @@ string getXMLTagText(string xml, string tag)
 {
 
 //TODO currently this assume no spaces or tabs in the tag brackets. and no leading trailing spaces in text content
-	int idx = xml.find("<" + tag);
+	size_t idx = xml.find("<" + tag);
 	if (idx == string::npos)
 	{
 		INT_LOG("dumMgr:tag <%s> not found in xml file: aborting\n", tag.c_str());
@@ -1035,6 +1035,7 @@ void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *
 				INT_LOG("I-ARM: IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS invalid updateSessionID  Got id:%d\n",
 						eventData->updateSessionID);
 			}
+			}); // end withUpdateInProgress lambda
 		}
 			break;
 		case IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS:
@@ -1097,7 +1098,6 @@ void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *
 void sendDownLoadInit(int id)
 {
 	_IARM_Bus_DeviceUpdate_DownloadInitiate_t eventData;
-	updateInProgress_t *uip = getUpdateInProgress(id);
 
 	memset(&eventData, 0, sizeof(eventData));
 	eventData.updateSessionID = id;
@@ -1121,7 +1121,6 @@ void sendDownLoadInit(int id)
 void sendLoadInit(int id)
 {
 	_IARM_Bus_DeviceUpdate_LoadInitiate_t eventData;
-	updateInProgress_t *uip = getUpdateInProgress(id);
 
 	memset(&eventData, 0, sizeof(eventData));
 	eventData.updateSessionID = id;
