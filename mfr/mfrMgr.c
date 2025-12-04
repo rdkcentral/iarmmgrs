@@ -505,7 +505,7 @@ static IARM_Result_t verifyImage_(void *arg)
 	static mfrVerifyImage func = 0;
 	LOG("In verifyImage_\n");
 	if (func == 0) {
-		void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+		void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
 		if (dllib) {
 			func = (mfrVerifyImage) dlsym(dllib, "mfrVerifyImage");
 			if (func) {
@@ -561,7 +561,7 @@ IARM_Result_t setBootloaderPattern_(void *arg)
     if (func == 0) {
         if(0 == symbol_lookup_complete) {
             symbol_lookup_complete = 1;
-            void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+            void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
             if (dllib) {
                 func = (mfrSetBootloaderPattern) dlsym(dllib, "mfrSetBootloaderPattern");
                 dlclose(dllib);
@@ -610,7 +610,7 @@ static IARM_Result_t getSecureTime_(void *arg)
 #else
     static getSecureTime_t func = 0;
     if (func == 0) {
-        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (getSecureTime_t) dlsym(dllib, "mfrGetSecureTime");
             if (func) {
@@ -654,7 +654,7 @@ static IARM_Result_t setSecureTime_(void *arg)
 #else
     static setSecureTime_t func = 0;
     if (func == 0) {
-        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (setSecureTime_t) dlsym(dllib, "mfrSetSecureTime");
             if (func) {
@@ -705,7 +705,7 @@ static IARM_Result_t mirrorImage(void *arg)
     static mfrMirrorImage func = 0;
     LOG("In mfrMirrorImage\n");
     if (func == 0) {
-        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
             func = (mfrMirrorImage) dlsym(dllib, "mfrMirrorImage");
             if (func) {
@@ -757,7 +757,7 @@ static IARM_Result_t mfrSetBlSplashScreen_(void *arg)
 
     if (func == 0)
     {
-        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib)
         {
             func = (mfrSetBlSplashScreen_t) dlsym(dllib, "mfrSetBlSplashScreen");
@@ -819,7 +819,7 @@ static IARM_Result_t mfrClearBlSplashScreen_(void *arg)
 
     if (func == 0)
     {
-        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib)
         {
             func = (mfrClearBlSplashScreen_t) dlsym(dllib, "mfrClearBlSplashScreen");
@@ -867,7 +867,7 @@ static IARM_Result_t getTemperature_(void *arg)
 
         if (func == 0)
         {
-            void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+            void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
             if (dllib)
             {
                 func = (mfrGetTemperature_t) dlsym(dllib, "mfrGetTemperature");
@@ -930,7 +930,7 @@ static IARM_Result_t setTemperatureThresholds_(void *arg)
 
          if (func == 0)
          {
-              void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+              void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
               if (dllib)
               {
                 func = (mfrSetTempThresholds_t) dlsym(dllib, "mfrSetTempThresholds");
@@ -982,7 +982,7 @@ static IARM_Result_t getTemperatureThresholds_(void *arg)
 
          if (func == 0)
          {
-                  void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+                  void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
                   if (dllib)
                   {
                  func = (mfrGetTempThresholds_t) dlsym(dllib, "mfrGetTempThresholds");
@@ -1036,7 +1036,7 @@ static IARM_Result_t searchCPUClockSpeeds_(void *arg)
 
        if (func == 0)
        {
-               void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
                if (dllib)
                {
                        func = (mfrDetemineClockSpeeds_t) dlsym(dllib, "mfrDetemineClockSpeeds");
@@ -1095,7 +1095,7 @@ static IARM_Result_t setCPUClockSpeed_(void *arg)
 
        if (func == 0)
        {
-               void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
                if (dllib)
                {
                        func = (mfrSetClockSpeed_t) dlsym(dllib, "mfrSetClockSpeed");
@@ -1150,7 +1150,7 @@ static IARM_Result_t getCPUClockSpeed_(void *arg)
 
        if (func == 0)
        {
-               void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+               void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
                if (dllib)
                {
                        func = (mfrGetClockSpeed_t) dlsym(dllib, "mfrGetClockSpeed");
@@ -1435,7 +1435,7 @@ static IARM_Result_t setFSRflag_(void *arg)
 
     if (func == 0)
     {
-        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib)
         {
             func = (mfrSetFSRflag_t) dlsym(dllib, "mfrSetFSRflag");
@@ -1504,7 +1504,7 @@ static IARM_Result_t getFSRflag_(void *arg)
 
     if (func == 0)
     {
-        void *dllib = secure_dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+        void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib)
         {
             func = (mfrGetFSRflag_t) dlsym(dllib, "mfrGetFSRflag");
