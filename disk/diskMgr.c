@@ -106,11 +106,7 @@ IARM_Result_t DISKMgr_Loop()
     {
         LOG("I-ARM Disk Mgr: HeartBeat ping.\r\n");
         
-        /* Fix critical issue: sleep takes seconds, not milliseconds
-         * sleep(2000) would sleep for 2000 seconds (33+ minutes!)
-         * Change to sleep(2) for 2-second delay as intended
-         */
-        sleep(2);
+        sleep(300);
         
         /* Check if we need to shutdown gracefully */
         if (!g_running) {
