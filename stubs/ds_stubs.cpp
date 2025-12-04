@@ -1,4 +1,7 @@
 #include "host.hpp"
+#include "iarm/IarmImpl.hpp"
+#include "videoOutputPortType.hpp"
+#include "audioOutputPortType.hpp"
 #include "manager.hpp"
 #include "dsRpc.h"
 #include "sleepMode.hpp"
@@ -6,92 +9,136 @@
 using namespace std;
 
 namespace device{
-	Host::Host() {
+    Host::Host() {
 
-	}
+    }
 
-	Host::~Host() {
+    Host::~Host() {
 
-	} 
+    }
 
-	Host& Host::getInstance() {
-		static Host instance; // instance is in thread-safe now.
-		return instance;
-	}
+    IarmImpl::~IarmImpl() {}
 
-	List<VideoOutputPort> Host::getVideoOutputPorts() {
-		return device::List<device::VideoOutputPort>();
-	}
+    Host& Host::getInstance() {
+        static Host instance; // instance is in thread-safe now.
+        return instance;
+    }
 
-	VideoOutputPort& Host::getVideoOutputPort(const std::string& name) {
-		return getVideoOutputPorts().at(0);
-	}
-	
-	VideoOutputPort & VideoOutputPort::getInstance(int id) {
-		return Host::getInstance().getVideoOutputPorts().at(0);
-	}
+    List<VideoOutputPort> Host::getVideoOutputPorts() {
+        return device::List<device::VideoOutputPort>();
+    }
 
-	AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) {
-	}
+    VideoOutputPort& Host::getVideoOutputPort(const std::string& name) {
+        return getVideoOutputPorts().at(0);
+    }
 
-	AudioOutputPort::~AudioOutputPort() {
-	}
+    VideoOutputPort & VideoOutputPort::getInstance(int id) {
+        return Host::getInstance().getVideoOutputPorts().at(0);
+    }
 
-	List<AudioOutputPort> Host::getAudioOutputPorts() {
-		return device::List<device::AudioOutputPort>();
-	}
+    VideoOutputPort::~VideoOutputPort() {}
 
-	AudioOutputPort& Host::getAudioOutputPort(const std::string& name) {
-		return getAudioOutputPorts().at(0);
-	}
+    const VideoOutputPortType &VideoOutputPort::getType() const {
+        static VideoOutputPortType t(0);
+        return t;
+    }
 
-	AudioOutputPort& Host::getAudioOutputPort(int id) {
-		return getAudioOutputPorts().at(0);
-	}
-	
-	AudioOutputPort & AudioOutputPort::getInstance(int id) {
-		return Host::getInstance().getAudioOutputPorts().at(0);
-	}
+    VideoOutputPort::Display::Display(VideoOutputPort &vPort) :
+                                                            _productCode(0), _serialNumber(0),
+                                                            _manufacturerYear(0), _manufacturerWeek(0),
+                                                            _hdmiDeviceType(true), _isSurroundCapable(false),
+                                                            _isDeviceRepeater(false), _aspectRatio(0),
+                                                            _physicalAddressA(1), _physicalAddressB(0),
+                                                            _physicalAddressC(0), _physicalAddressD(0),
+                                                            _handle(-1)
+    {
 
-	SleepMode Host::getPreferredSleepMode() {
-		return SleepMode::getInstance(dsHOST_SLEEP_MODE_LIGHT);
-	}
+    }
 
-	void VideoOutputPort::enable() {
-	}
+    VideoOutputPort::Display::~Display() {}
 
-	void VideoOutputPort::disable() {
-	}
+    AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) {
+    }
 
-	void AudioOutputPort::enable() {
-	}
+    AudioOutputPort::~AudioOutputPort() {
+    }
 
-	void AudioOutputPort::disable() {
-	}
+    List<AudioOutputPort> Host::getAudioOutputPorts() {
+        return device::List<device::AudioOutputPort>();
+    }
 
-	bool AudioOutputPort::getEnablePersist () const {
-		return true;
-	}
+    AudioOutputPort& Host::getAudioOutputPort(const std::string& name) {
+        return getAudioOutputPorts().at(0);
+    }
 
-	void Manager::load() {
-	}
+    AudioOutputPort& Host::getAudioOutputPort(int id) {
+        return getAudioOutputPorts().at(0);
+    }
+    
+    AudioOutputPort & AudioOutputPort::getInstance(int id) {
+        return Host::getInstance().getAudioOutputPorts().at(0);
+    }
 
-	void Manager::DeInitialize() {
-	}
+    const AudioOutputPortType &AudioOutputPort::getType() const {
+        static AudioOutputPortType t(0);
+        return t;
+    }
 
-	SleepMode::SleepMode(int id) {
-	}
+    VideoOutputPortType::VideoOutputPortType(const int id) {
+        (void)id;
+        _dtcpSupported = false;
+        _hdcpSupported = false;
+        _dynamic = false;
+        _restrictedResolution = 0;
+    }
 
-	SleepMode::~SleepMode() {
-	}
+    VideoOutputPortType::~VideoOutputPortType() {}
 
-	SleepMode & SleepMode::getInstance(int id) {
-		static SleepMode instance(id);
-		return instance;
-	}
+    AudioOutputPortType::AudioOutputPortType(int id) {
+        (void)id;
+    }
 
-	List<SleepMode> SleepMode::getSleepModes() {
-		List<SleepMode> sleepModes;
-		return sleepModes;
-	}
+    AudioOutputPortType::~AudioOutputPortType() {}
+
+    SleepMode Host::getPreferredSleepMode() {
+        return SleepMode::getInstance(dsHOST_SLEEP_MODE_LIGHT);
+    }
+
+    void VideoOutputPort::enable() {
+    }
+
+    void VideoOutputPort::disable() {
+    }
+
+    void AudioOutputPort::enable() {
+    }
+
+    void AudioOutputPort::disable() {
+    }
+
+    bool AudioOutputPort::getEnablePersist () const {
+        return true;
+    }
+
+    void Manager::load() {
+    }
+
+    void Manager::DeInitialize() {
+    }
+
+    SleepMode::SleepMode(int id) {
+    }
+
+    SleepMode::~SleepMode() {
+    }
+
+    SleepMode & SleepMode::getInstance(int id) {
+        static SleepMode instance(id);
+        return instance;
+    }
+
+    List<SleepMode> SleepMode::getSleepModes() {
+        List<SleepMode> sleepModes;
+        return sleepModes;
+    }
 }
