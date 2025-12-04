@@ -2,9 +2,9 @@ name: Build Component in Native Environment
 
 on:
   push:
-    branches: [ main, 'sprint/**', 'release/**', develop, 'support/**', ]
+    branches: [ main, 'sprint/**', 'release/**', develop, 'support/**' ]
   pull_request:
-    branches: [ main, 'sprint/**', 'release/**', topic/*, feature/RDK*, develop, 'support/**', ]
+    branches: [ main, 'sprint/**', 'release/**', topic/*, feature/RDK*, develop, 'support/**' ]
 
 jobs:
   build-entservices-on-pr:
