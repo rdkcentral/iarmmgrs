@@ -1,173 +1,144 @@
 #include "host.hpp"
+#include "iarm/IarmImpl.hpp"
+#include "videoOutputPortType.hpp"
+#include "audioOutputPortType.hpp"
 #include "manager.hpp"
 #include "dsRpc.h"
 #include "sleepMode.hpp"
-#include <mutex>
-
-// FIX(Build Error): Provide forward declaration/stub for IarmImpl to fix incomplete type error  
-// Reason: unique_ptr destructor requires complete type definition
-// Impact: Fixes compilation error for incomplete type IarmImpl
-namespace device {
-    class IarmImpl {
-    public:
-        virtual ~IarmImpl() = default;
-        // Stub implementation for compilation
-    };
-}
 
 using namespace std;
 
 namespace device{
-	Host::Host() {
+    Host::Host() {
 
-	}
+    }
 
-	Host::~Host() {
+    Host::~Host() {
 
-	} 
+    }
 
-	Host& Host::getInstance() {
-		// Thread-safe singleton implementation
-		static std::mutex instance_mutex;
-		static Host* instance = nullptr;
-		
-		std::lock_guard<std::mutex> lock(instance_mutex);
-		if (instance == nullptr) {
-			instance = new Host();
-		}
-		return *instance;
-	}
+    IarmImpl::~IarmImpl() {}
 
-	List<VideoOutputPort> Host::getVideoOutputPorts() {
-		return device::List<device::VideoOutputPort>();
-	}
+    Host& Host::getInstance() {
+        static Host instance; // instance is in thread-safe now.
+        return instance;
+    }
 
-	VideoOutputPort& Host::getVideoOutputPort(const std::string& name) {
-		auto ports = getVideoOutputPorts();
-		if (ports.size() == 0) {
-			// FIX(Build Error): Provide required constructor parameters for VideoOutputPort
-			// Reason: VideoOutputPort requires 5 parameters (type, index, id, audioPortId, resolution)
-			// Impact: Fixes compilation error. Stub implementation with safe defaults.
-			static VideoOutputPort stub_instance(0, 0, 0, 0, "720p");
-			return stub_instance;
-		}
-		return ports.at(0);
-	}
-	
-	VideoOutputPort & VideoOutputPort::getInstance(int id) {
-		auto ports = Host::getInstance().getVideoOutputPorts();
-		if (ports.size() == 0) {
-			// FIX(Build Error): Provide required constructor parameters for VideoOutputPort
-			// Reason: VideoOutputPort requires 5 parameters (type, index, id, audioPortId, resolution)
-			// Impact: Fixes compilation error. Stub implementation with safe defaults.
-			static VideoOutputPort stub_instance(0, 0, id, 0, "720p");
-			return stub_instance;
-		}
-		return ports.at(0);
-	}
+    List<VideoOutputPort> Host::getVideoOutputPorts() {
+        return device::List<device::VideoOutputPort>();
+    }
 
-	AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) 
-		: _type((type >= 0) ? type : 0), _index((index >= 0) ? index : 0), _id((id >= 0) ? id : 0) {
-		// Initialize member variables in initializer list to prevent UNINIT_CTOR issues
-		// Additional initialization can be done here if needed
-	}
+    VideoOutputPort& Host::getVideoOutputPort(const std::string& name) {
+        return getVideoOutputPorts().at(0);
+    }
 
-	AudioOutputPort::~AudioOutputPort() {
-	}
-	
-	// FIX(Linker Error): Add missing VideoOutputPort constructor and destructor
-	// Reason: libds.so expects these symbols but they're not defined
-	// Impact: Fixes undefined reference linker errors
-	VideoOutputPort::VideoOutputPort(const int type, const int index, const int id, int audioPortId, const std::string &resolution) 
-		: _type(type), _index(index), _id(id), _aPortId(audioPortId), _displayConnected(false), _contentProtected(false), _enabled(false), _handle(0) {
-		// Initialize member variables in initializer list to prevent UNINIT_CTOR issues
-		// Additional initialization can be done here if needed
-		(void)resolution; // Suppress unused parameter warning for resolution
-	}
+    VideoOutputPort & VideoOutputPort::getInstance(int id) {
+        return Host::getInstance().getVideoOutputPorts().at(0);
+    }
 
-	VideoOutputPort::~VideoOutputPort() {
-		// Stub destructor implementation
-	}
-	
-	// FIX(Linker Error): Add missing VideoOutputPort::Display nested class implementation
-	// Reason: libds.so expects Display destructor and vtable but they're not defined
-	// Impact: Fixes undefined reference linker errors for Display nested class
-	VideoOutputPort::Display::~Display() {
-		// Stub destructor for nested Display class
-	}
+    VideoOutputPort::~VideoOutputPort() {}
 
-	List<AudioOutputPort> Host::getAudioOutputPorts() {
-		return device::List<device::AudioOutputPort>();
-	}
+    const VideoOutputPortType &VideoOutputPort::getType() const {
+        static VideoOutputPortType t(0);
+        return t;
+    }
 
-	AudioOutputPort& Host::getAudioOutputPort(const std::string& name) {
-		auto ports = getAudioOutputPorts();
-		if (ports.size() == 0) {
-			static AudioOutputPort stub_instance(0, 0, 0);
-			return stub_instance;
-		}
-		return ports.at(0);
-	}
+    VideoOutputPort::Display::Display(VideoOutputPort &vPort) :
+                                                            _productCode(0), _serialNumber(0),
+                                                            _manufacturerYear(0), _manufacturerWeek(0),
+                                                            _hdmiDeviceType(true), _isSurroundCapable(false),
+                                                            _isDeviceRepeater(false), _aspectRatio(0),
+                                                            _physicalAddressA(1), _physicalAddressB(0),
+                                                            _physicalAddressC(0), _physicalAddressD(0),
+                                                            _handle(-1)
+    {
 
-	AudioOutputPort& Host::getAudioOutputPort(int id) {
-		auto ports = getAudioOutputPorts();
-		if (ports.size() == 0) {
-			static AudioOutputPort stub_instance(0, 0, 0);
-			return stub_instance;
-		}
-		return ports.at(0);
-	}
-	
-	AudioOutputPort & AudioOutputPort::getInstance(int id) {
-		auto ports = Host::getInstance().getAudioOutputPorts();
-		if (ports.size() == 0) {
-			static AudioOutputPort stub_instance(0, 0, 0);
-			return stub_instance;
-		}
-		return ports.at(0);
-	}
+    }
 
-	SleepMode Host::getPreferredSleepMode() {
-		return SleepMode::getInstance(dsHOST_SLEEP_MODE_LIGHT);
-	}
+    VideoOutputPort::Display::~Display() {}
 
-	void VideoOutputPort::enable() {
-	}
+    AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) {
+    }
 
-	void VideoOutputPort::disable() {
-	}
+    AudioOutputPort::~AudioOutputPort() {
+    }
 
-	void AudioOutputPort::enable() {
-	}
+    List<AudioOutputPort> Host::getAudioOutputPorts() {
+        return device::List<device::AudioOutputPort>();
+    }
 
-	void AudioOutputPort::disable() {
-	}
+    AudioOutputPort& Host::getAudioOutputPort(const std::string& name) {
+        return getAudioOutputPorts().at(0);
+    }
 
-	bool AudioOutputPort::getEnablePersist () const {
-		return true;
-	}
+    AudioOutputPort& Host::getAudioOutputPort(int id) {
+        return getAudioOutputPorts().at(0);
+    }
+    
+    AudioOutputPort & AudioOutputPort::getInstance(int id) {
+        return Host::getInstance().getAudioOutputPorts().at(0);
+    }
 
-	void Manager::load() {
-	}
+    const AudioOutputPortType &AudioOutputPort::getType() const {
+        static AudioOutputPortType t(0);
+        return t;
+    }
 
-	void Manager::DeInitialize() {
-	}
+    VideoOutputPortType::VideoOutputPortType(const int id) {
+        (void)id;
+        _dtcpSupported = false;
+        _hdcpSupported = false;
+        _dynamic = false;
+        _restrictedResolution = 0;
+    }
 
-	SleepMode::SleepMode(int id) {
-		// Initialize member variables to prevent UNINIT_CTOR issues
-		(void)id; // Suppress unused parameter warning if no member to initialize
-	}
+    VideoOutputPortType::~VideoOutputPortType() {}
 
-	SleepMode::~SleepMode() {
-	}
+    AudioOutputPortType::AudioOutputPortType(int id) {
+        (void)id;
+    }
 
-	SleepMode & SleepMode::getInstance(int id) {
-		static SleepMode instance(id);
-		return instance;
-	}
+    AudioOutputPortType::~AudioOutputPortType() {}
 
-	List<SleepMode> SleepMode::getSleepModes() {
-		List<SleepMode> sleepModes;
-		return sleepModes;
-	}
+    SleepMode Host::getPreferredSleepMode() {
+        return SleepMode::getInstance(dsHOST_SLEEP_MODE_LIGHT);
+    }
+
+    void VideoOutputPort::enable() {
+    }
+
+    void VideoOutputPort::disable() {
+    }
+
+    void AudioOutputPort::enable() {
+    }
+
+    void AudioOutputPort::disable() {
+    }
+
+    bool AudioOutputPort::getEnablePersist () const {
+        return true;
+    }
+
+    void Manager::load() {
+    }
+
+    void Manager::DeInitialize() {
+    }
+
+    SleepMode::SleepMode(int id) {
+    }
+
+    SleepMode::~SleepMode() {
+    }
+
+    SleepMode & SleepMode::getInstance(int id) {
+        static SleepMode instance(id);
+        return instance;
+    }
+
+    List<SleepMode> SleepMode::getSleepModes() {
+        List<SleepMode> sleepModes;
+        return sleepModes;
+    }
 }
