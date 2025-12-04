@@ -39,6 +39,6 @@ AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11
 bin_PROGRAMS = dsMgrMain
 
 dsMgrMain_SOURCES = dsMgr.c  dsMgrInternal.h dsMgrMain.c
-dsMgrMain_SOURCES += dsMgrPwrEventListener.c dsMgrPwrEventListener.h dsMgrProductTraitsHandler.cpp dsMgrProductTraitsHandler.h dsMgrHelper.cpp
+dsMgrMain_SOURCES += dsMgrPwrEventListener.c dsMgrPwrEventListener.h dsMgrProductTraitsHandler.cpp dsMgrProductTraitsHandler.h
 dsMgrMain_LDADD = -L=/usr/lib -lds -ldshalsrv -lds-hal -ldshalcli  -lrfcapi
 
