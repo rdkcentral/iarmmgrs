@@ -105,6 +105,10 @@ IARM_Result_t _dsEnableAudioPort(void *arg)
     return IARM_RESULT_SUCCESS;
 }
 
+IARM_Result_t _dsEnableVideoPort(void *arg)
+{
+    return IARM_RESULT_SUCCESS;
+}
 
 extern "C" {
 IARM_Result_t dsMgr_init()
