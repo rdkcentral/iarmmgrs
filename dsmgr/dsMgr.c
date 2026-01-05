@@ -155,12 +155,16 @@ static void setupPlatformConfig()
     for(int i=0; i<n; i++)
     {
         if((strstr(resList[i],"576p") !=NULL) && !IsEUPlatform) //include 576p for EU only
-	    continue;
-
-	if (count < RES_MAX_COUNT) {
-		snprintf(fallBackResolutionList[count], RES_MAX_LEN, "%s", resList[i]);
-		count++;
-	}
+        {
+            continue;
+        }
+	    if (count < RES_MAX_COUNT) {
+	    	snprintf(fallBackResolutionList[count], RES_MAX_LEN, "%s", resList[i]);
+	    	count++;
+	    }
+        else {
+            break;
+        }
     }
 }
 
