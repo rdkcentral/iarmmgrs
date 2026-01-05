@@ -122,6 +122,9 @@
 #define IARM_BUS_MFRLIB_API_MirrorImage                        "mfrMirrorImage"
 #define IARM_BUS_MFRLIB_API_SetBlSplashScreen       "mfrSetBlSplashScreen"      /*!< Method to flash the BL_OSD splash screen */
 #define IARM_BUS_MFRLIB_API_ClearBlSplashScreen     "mfrClearBlSplashScreen"    /*!< Method to clear and use the default BL_OSD splash screen */
+#define IARM_BUS_MFRLIB_API_SetConfigData       "mfr_setConfigData"   /*!< Method to set the BL Run time config data */
+#define IARM_BUS_MFRLIB_API_GetConfigData       "mfr_getConfigData"   /*!< Method to get the BL Run time config data */
+
 /*! Data size management need to be improved */
 #define MAX_SERIALIZED_BUF 2048
 #define MAX_BUF 255
@@ -198,6 +201,10 @@ typedef struct _IARM_Bus_MFRLib_SetBLPattern_Param_t{
 typedef struct _IARM_Bus_MFRLib_SetBLSplashScreen_Param{
 	char path[MAX_BUF];
 } IARM_Bus_MFRLib_SetBLSplashScreen_Param_t;
+
+typedef struct _IARM_Bus_MFRLib_Platformblockdata_Param_t{
+	unsigned int blocklist;
+}IARM_Bus_MFRLib_Platformblockdata_Param_t;
 
 typedef unsigned long IARM_Bus_MFRLib_SecureTime_Param;  /* UTC time in seconds used as parameter for apis set/get Secure Time*/
 
