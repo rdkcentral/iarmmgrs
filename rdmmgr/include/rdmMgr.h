@@ -72,7 +72,7 @@ extern "C"
 
 /* Buffer size definitions - designed to accommodate modern versioning schemes */
 #define RDM_PKG_NAME_MAX_SIZE							128
-#define RDM_PKG_VERSION_MAX_SIZE						64  /* Increased to support semantic versioning (e.g., 1.2.3-beta.1+build.123) */
+#define RDM_PKG_VERSION_MAX_SIZE						8
 #define RDM_PKG_INST_PATH_MAX_SIZE						256
 
 /*! Published Events from rdm manager  */

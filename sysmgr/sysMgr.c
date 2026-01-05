@@ -229,9 +229,6 @@ static IARM_Result_t _SetHDCPProfile(void *arg)
     IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *param = (IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *)arg;
     int new_profile = param->HdcpProfile;
     
-    // FIX(Manual Analysis): TOCTOU vulnerability
-    // Reason: Add file locking to prevent race condition between check and file operations
-    // Impact: Eliminates TOCTOU attack vector. Public API unchanged.
     static pthread_mutex_t hdcp_file_mutex = PTHREAD_MUTEX_INITIALIZER;
     
     pthread_mutex_lock(&hdcp_file_mutex);
@@ -518,9 +515,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_ECM_MAC:
 				systemStates.ecm_mac.error = error;
-				// FIX(Manual Analysis): Buffer Overflow
-				// Reason: Replace unsafe strncpy with proper bounds checking and null termination
-				// Impact: Prevents buffer overflow attacks. Public API unchanged.
+
 				if (payload != NULL) {
 					size_t payload_len = strlen(payload);
 					size_t max_copy = sizeof(systemStates.ecm_mac.payload) - 1;

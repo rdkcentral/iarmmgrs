@@ -112,9 +112,7 @@ IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal
 
 static bool IsEUPlatform = false;
 
-// FIX(Coverity): STACK_USE
-// Reason: Moved large array to static storage to reduce stack usage in _SetResolution
-// Impact: Internal storage optimization. Public API unchanged.
+
 static char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
 
 static bool isEUPlatform()

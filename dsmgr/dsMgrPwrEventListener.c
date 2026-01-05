@@ -668,9 +668,6 @@ static IARM_Result_t _SetStandbyVideoState(void *arg)
         return IARM_RESULT_SUCCESS;
     }
     
-    // FIX(Coverity): NO_EFFECT 
-    // Reason: Removed redundant assignment - result is set based on logic flow
-    // Impact: Internal logic corrected. Public API unchanged.
     param->result = 0;
 
     int i = 0;
@@ -741,9 +738,6 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
 
     try
     {
-        // FIX(Coverity): NO_EFFECT
-        // Reason: Removed unused VideoOutputPort variable - only validating port name
-        // Impact: Internal logic corrected. Public API unchanged.
         device::Host::getInstance().getVideoOutputPort(param->port);
     }
     catch (...)

@@ -95,9 +95,6 @@ int read_tmp_integer_conf(const char* file_name) {
         return ret;
     }
 
-    // FIX(TOCTOU): Remove separate access check to eliminate race condition
-    // Reason: Avoid time-of-check-time-of-use race by attempting fopen directly
-    // Impact: Eliminates security vulnerability. Public API unchanged.
     file = fopen(file_name, "r");
     if (file != NULL) {
             // Check fscanf return value for exactly 1 successful conversion
