@@ -552,27 +552,28 @@ static int _SetVideoPortResolution()
 	int iCount = 0;
 	
 
-	INT_DEBUG("%s:Enter \r\n",__FUNCTION__);
+	INT_INFO("%s:%d: Enter \r\n",__FUNCTION__,__LINE__);
 	 
-        _hdmihandle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);	
+    _hdmihandle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);	
 	if(_hdmihandle != NULL)
-	{		
-
+	{
 		usleep(100*1000);	//wait for 100 milli seconds
 
 
 		/* 	
-			* Check for HDMI DDC Line  when HDMI is connected.
+		* Check for HDMI DDC Line  when HDMI is connected.
 		*/
-                connected = isHDMIConnected();
+        INT_INFO("%s:%d: Before isHDMIConnected \r\n",__FUNCTION__,__LINE__);
+        connected = isHDMIConnected();
+        INT_INFO("%s:%d: After isHDMIConnected : connected=%d iInitResnFlag=%d iResnCount=%d\r\n",__FUNCTION__,__LINE__,connected,iInitResnFlag,iResnCount);
 		if(iInitResnFlag && connected)
 		{
-
 			#ifdef _INIT_RESN_SETTINGS  	
 				/*Wait for iResnCount*/
 				while(iCount < iResnCount)
 				{
 					sleep(1);	//wait for 1 sec
+                    INT_INFO("%s:%d: Checking HDMI DDC Line Status : Attempt %d \r\n",__FUNCTION__,__LINE__,iCount+1);
 					if (dsGetHDMIDDCLineStatus())
 					{
 						break;
@@ -582,12 +583,13 @@ static int _SetVideoPortResolution()
 				}
 			#endif
 		}
-		
+		INT_INFO("%s:%d: After DDC Line check : connected=%d \r\n",__FUNCTION__,__LINE__,connected);
 		/*Set HDMI Resolution if Connected else COomponent or Composite Resolution */	
 		if(connected){
 
-			INT_INFO("Setting HDMI resolution.......... \r\n");
+			INT_INFO("%s:%d: Before Setting HDMI Resolution.......... \r\n",__FUNCTION__,__LINE__);
 			_SetResolution(&_hdmihandle,dsVIDEOPORT_TYPE_HDMI);
+            INT_INFO("%s:%d: After Setting HDMI Resolution.......... \r\n",__FUNCTION__,__LINE__);
 		}
 		else {
 			_comphandle = getVideoPortHandle(dsVIDEOPORT_TYPE_COMPONENT);
@@ -601,36 +603,35 @@ static int _SetVideoPortResolution()
 			{
 			    INT_INFO("%s: NULL Handle for component\r\n",__FUNCTION__);
 
-                            intptr_t _compositehandle = getVideoPortHandle(dsVIDEOPORT_TYPE_BB);
+                intptr_t _compositehandle = getVideoPortHandle(dsVIDEOPORT_TYPE_BB);
 
-                            if (NULL != _compositehandle)
-                            {
-                                INT_INFO("Setting BB Composite Resolution.......... \r\n");
-                                _SetResolution(&_compositehandle,dsVIDEOPORT_TYPE_BB);
-                            }
-                            else
-                            {
-                                 INT_INFO("%s: NULL Handle for Composite \r\n",__FUNCTION__);
-                                 intptr_t _rfhandle = getVideoPortHandle(dsVIDEOPORT_TYPE_RF);
-                                 if (NULL != _rfhandle)
-                                 {
-                                     INT_INFO("Setting RF Resolution.......... \r\n");
-                                     _SetResolution(&_rfhandle,dsVIDEOPORT_TYPE_RF);
-                                 }
-                                 else
-                                 {
-                                     INT_INFO("%s: NULL Handle for RF \r\n",__FUNCTION__);
-                                 }
-                            }
+                if (NULL != _compositehandle)
+                {
+                    INT_INFO("Setting BB Composite Resolution.......... \r\n");
+                    _SetResolution(&_compositehandle,dsVIDEOPORT_TYPE_BB);
+                }
+                else
+                {
+                        INT_INFO("%s: NULL Handle for Composite \r\n",__FUNCTION__);
+                        intptr_t _rfhandle = getVideoPortHandle(dsVIDEOPORT_TYPE_RF);
+                        if (NULL != _rfhandle)
+                        {
+                            INT_INFO("Setting RF Resolution.......... \r\n");
+                            _SetResolution(&_rfhandle,dsVIDEOPORT_TYPE_RF);
+                        }
+                        else
+                        {
+                            INT_INFO("%s: NULL Handle for RF \r\n",__FUNCTION__);
+                        }
+                }
 			}
-		
 		}
 	}
 	else
 	{
 		INT_INFO("%s: NULL Handle for HDMI \r\n",__FUNCTION__);
 	}
-	INT_INFO("%s:Exit \r\n",__FUNCTION__);
+	INT_INFO("%s:%d: Exit \r\n",__FUNCTION__,__LINE__);
 	return 0;
 }
 
@@ -753,27 +754,33 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	Getparam.handle = _handle;
 	Getparam.toPersist = true;
 	_dsGetResolution(&Getparam);
-	dsVideoPortResolution_t *presolution = &Getparam.resolution;	
-	INT_DEBUG("Got User Persisted Resolution - %s..\r\n",presolution->name);
-
+	dsVideoPortResolution_t *presolution = &Getparam.resolution;
+    INT_INFO("%s:%d: Got User Persisted Resolution - %s PortType=%d\r\n",__FUNCTION__,__LINE__,presolution->name,PortType);
 		
 	if (PortType == dsVIDEOPORT_TYPE_HDMI)	{
+        INT_INFO("%s:%d: Before Get Display Handle \r\n",__FUNCTION__,__LINE__);
 		/*Get The Display Handle */
 		dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
+        INT_INFO("%s:%d: After Get Display Handle : displayHandle=0x%lx \r\n",__FUNCTION__,__LINE__,_displayHandle);
 		if (_displayHandle)
 		{
+            INT_INFO("%s:%d: HDMI Display Handle is Valid\r\n",__FUNCTION__,__LINE__);
 			/* Get the EDID Display Handle */
 			 memset(&Edidparam,0,sizeof(Edidparam));
-    			Edidparam.handle = _displayHandle;
+    		Edidparam.handle = _displayHandle;
+            INT_INFO("%s:%d: Before _dsGetEDID \r\n",__FUNCTION__,__LINE__);
 			_dsGetEDID(&Edidparam);
+            INT_INFO("%s:%d: After _dsGetEDID \r\n",__FUNCTION__,__LINE__);
 			rc = memcpy_s(&edidData,sizeof(edidData), &Edidparam.edid, sizeof(Edidparam.edid));
 			if(rc!=EOK)
 			{
 				ERR_CHK(rc);
 			}
+            INT_INFO("%s:%d: Before dumpHdmiEdidInfo \r\n",__FUNCTION__,__LINE__);
 			dumpHdmiEdidInfo(&edidData);
+            INT_INFO("%s:%d: After dumpHdmiEdidInfo \r\n",__FUNCTION__,__LINE__);
 			numResolutions = edidData.numOfSupportedResolution;
-			INT_INFO("numResolutions is %d \r\n",numResolutions);
+			INT_INFO("%s:%d: numResolutions is %d \r\n",__FUNCTION__,__LINE__,numResolutions);
 			
 			/*  If HDMI is connected and Low power Mode. 
 				The TV might not Transmit the EDID information 
@@ -792,6 +799,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				* Check if Persisted Resolution matches with 
 				* TV Resolution  list	
 			*/
+            INT_INFO("%s:%d: Check if Persisted Resolution matches with TV Resolution list \r\n",__FUNCTION__,__LINE__);
 			for (i = 0; i < numResolutions; i++)
 			{
 				setResn = &(edidData.suppResolutionList[i]);
@@ -804,58 +812,77 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					break;
 				}
 			}
+            INT_INFO("%s:%d: IsValidResolution after checking Persisted Resolution : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 
 			//SECONDARY VIC Settings only for EU platforms
 			/* Check if alternate freq or secondary resolution supported by the TV*/
 			/* if resolution with 50Hz not supported check for same resolution with 60Hz*/
 			/* Other FPS like 30, 25, 24 not used to avoid any judders */
-                        if (false == IsValidResolution && IsEUPlatform)
-                        {
+            if (false == IsValidResolution && IsEUPlatform)
+            {
 				char secResn[RES_MAX_LEN];
+                INT_INFO("%s:%d: Check for Secondary Resolution for EU platform \r\n",__FUNCTION__,__LINE__);
 				// get secondary resolution based on presolution
 				if(getSecondaryResolution(presolution->name,secResn))
 				{
+                    INT_INFO("%s:%d: Secondary Resolution is %s \r\n",__FUNCTION__,__LINE__,secResn);
+                    INT_INFO("%s:%d: Check if Secondary Resolution is supported by TV and Platform \r\n",__FUNCTION__,__LINE__);
 					if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,secResn,&resIndex))
 					{
+                        INT_INFO("%s:%d: Secondary Resolution is supported by TV and Platform \r\n",__FUNCTION__,__LINE__);
 						setResn = &(edidData.suppResolutionList[resIndex]);
 						INT_INFO("Breaking..Got Secondary Resolution - %s..\r\n",setResn->name);
                                                 IsValidResolution = true;
                                                 Setparam.forceCompatible = true;
 					}
 				}
+                INT_INFO("%s:%d: IsValidResolution after checking Secondary Resolution : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 			}
+
+            INT_INFO("%s:%d: IsValidResolution before Fallback check : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 			/* Fallback to next best resolution*/
 			if(false == IsValidResolution)
 			{
 				int index =0;
 				char baseResn[RES_MAX_LEN], fbResn[RES_MAX_LEN];
+                INT_INFO("%s:%d: Before parseResolution \r\n",__FUNCTION__,__LINE__);
 				parseResolution(presolution->name,baseResn);
+                INT_INFO("%s:%d: After parseResolution : baseResn=%s \r\n",__FUNCTION__,__LINE__,baseResn);
 				int fNumResolutions = sizeof(fallBackResolutionList)/sizeof(fallBackResolutionList[0]);
+                INT_INFO("%s:%d: fNumResolutions is %d \r\n",__FUNCTION__,__LINE__,fNumResolutions);
 				for(i=0; i<fNumResolutions; i++)
 				{
 					if(strcmp(fallBackResolutionList[i],baseResn)==0){
 						index =i;
+                        INT_INFO("%s:%d: Found baseResn in fallBackResolutionList at index %d \r\n",__FUNCTION__,__LINE__,index);
 						break;
 					}
 				}
+                INT_INFO("%s:%d: Start checking next best resolutions from index %d \r\n",__FUNCTION__,__LINE__,index+1);
 				for(i=index+1;i<fNumResolutions;i++)
 				{
+                    INT_INFO("%s:%d: Checking fallBackResolutionList[%d] : %s EUPlatform:[%d]\r\n",__FUNCTION__,__LINE__,i,fallBackResolutionList[i],IsEUPlatform);
 					if(IsEUPlatform){
+                        INT_INFO("%s:%d: Getting EU fallback resolution \r\n",__FUNCTION__,__LINE__);
 					    getFallBackResolution(fallBackResolutionList[i],fbResn,1); //EU fps
-				            INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
+				        INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
 					    if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
 					    {
-						IsValidResolution = true;
+						    IsValidResolution = true;
 					    }
+                        INT_INFO("%s:%d: IsValidResolution after EU fallback check : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 					}
-				        if(!IsValidResolution)
+                    INT_INFO("%s:%d: Getting Default fallback resolution \r\n",__FUNCTION__,__LINE__);
+				    if(!IsValidResolution)
 					{
+                        INT_INFO("%s:%d: Getting Default fallback resolution \r\n",__FUNCTION__,__LINE__);
 						getFallBackResolution(fallBackResolutionList[i],fbResn,0); //default fps
-				                INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
+				        INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
 						if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
 						{
 							IsValidResolution = true;
 						}
+                        INT_INFO("%s:%d: IsValidResolution after Default fallback check : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 					}
 					if(IsValidResolution)
 					{
@@ -865,6 +892,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					}
 				}
 			}
+            INT_INFO("%s:%d: IsValidResolution after Fallback check : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 
 			/* 
 				* The Persisted Resolution Does not matches with TV and Platform 
@@ -876,6 +904,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				/* Check if the Default platform resolution is supported by Platfrom resolution List i.e 720p */
 				dsVideoPortResolution_t *defaultResn; 
 				defaultResn = &kResolutions[kDefaultResIndex];
+                INT_INFO("%s:%d: Check if Default Platform Resolution %s is supported by TV Resolution list \r\n",__FUNCTION__,__LINE__,defaultResn->name);
 				for (i = 0; i < numResolutions; i++)
 				{
 					setResn = &(edidData.suppResolutionList[i]);
@@ -887,10 +916,12 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 						break;
 					}
 				}
+                INT_INFO("%s:%d: IsValidResolution after Default Platform Resolution check : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 			}
 
 			if (false == IsValidResolution)
 			{
+                INT_INFO("%s:%d: Default Platform Resolution not supported by TV Resolution list \r\n",__FUNCTION__,__LINE__);
 				/*Take 480p as resolution if both above cases fail */
                 for (i = 0; i < numResolutions; i++)
                 {
@@ -902,10 +933,12 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 						break;
 	               	}
 				}
+                INT_INFO("%s:%d: IsValidResolution after Default to 480p Resolution check : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 			}
 
 			if (false == IsValidResolution)
 			{
+                INT_INFO("%s:%d: Boot with the Resolution Supported by TV and Platform \r\n",__FUNCTION__,__LINE__);
 				/* Boot with  the Resolution Supported by TV and Platform*/
                 for (i = 0; i < numResolutions; i++)
                 {
@@ -922,13 +955,16 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 		                }    
 		            }
 				}
+                INT_INFO("%s:%d: IsValidResolution after Boot with TV Supported Resolution check : %d \r\n",__FUNCTION__,__LINE__,IsValidResolution);
 			}
 		}
 	}
 	else if (PortType == dsVIDEOPORT_TYPE_COMPONENT || PortType == dsVIDEOPORT_TYPE_BB || PortType == dsVIDEOPORT_TYPE_RF)
 	{
+        INT_INFO("%s:%d: Component/Composite/ RF Port[%d] Resolution Setting \r\n",__FUNCTION__,__LINE__,PortType);
 		/* Set the Component / Composite  Resolution */	
 		numResolutions = dsUTL_DIM(kResolutions);
+        INT_INFO("%s:%d: numResolutions is %d \r\n",__FUNCTION__,__LINE__,numResolutions);
     	for (i = 0; i < numResolutions; i++)
     	{
     		setResn = &kResolutions[i];
@@ -939,12 +975,13 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
         		break;
     		}
     	}
+        INT_INFO("%s:%d: IsValidResolution for Component/Composite/ RF Port[%d] : %d \r\n",__FUNCTION__,__LINE__,PortType,IsValidResolution);
 	}
-		/*  If the Persisted Resolution settings does not matches with Platform Resolution - 
-			Force Default on Component/Composite 
-			This is to keep upward compatible and if we intend to 
-			remove any resolution from Dynamic Resolution List
-		*/
+    /*  If the Persisted Resolution settings does not matches with Platform Resolution - 
+        Force Default on Component/Composite 
+        This is to keep upward compatible and if we intend to 
+        remove any resolution from Dynamic Resolution List
+    */
 	if(false == IsValidResolution)
 	{
 		setResn = &kResolutions[kDefaultResIndex];
@@ -957,7 +994,9 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	/* If 4K support is disabled and last known resolution is 4K, default to 720p (aka default resolution) */
 	dsForceDisable4KParam_t res_4K_override;
 	memset(&res_4K_override, 0, sizeof(res_4K_override));
+    INT_INFO("%s:%d: Check for 4K Disable Override \r\n",__FUNCTION__,__LINE__);
 	_dsGetForceDisable4K((void *) &res_4K_override);
+    INT_INFO("%s:%d: 4K Disable Override status : %d \r\n",__FUNCTION__,__LINE__,res_4K_override.disable);
 	if(true == res_4K_override.disable)
 	{
 		if(0 == strncmp(presolution->name, "2160", 4))
@@ -975,11 +1014,15 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 		{
 			INT_INFO("Init Platform Resolution - %s..\r\n",setResn->name);
 			_dsInitResolution(&Setparam);
+            INT_INFO("%s:%d: Exit after _dsInitResolution \r\n",__FUNCTION__,__LINE__);
 			return 0 ;
 		}
 	#endif
 
+    INT_INFO("%s:%d: Before _dsSetResolution to set Resolution - %s..\r\n",__FUNCTION__,__LINE__,setResn->name);
 	_dsSetResolution(&Setparam);
+    INT_INFO("%s:%d: After _dsSetResolution \r\n",__FUNCTION__,__LINE__);
+    INT_INFO("%s:%d: Exit \r\n",__FUNCTION__,__LINE__);
 	return 0 ;
 }
 
