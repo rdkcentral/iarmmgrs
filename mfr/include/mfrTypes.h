@@ -643,6 +643,24 @@ mfrError_t mfrSetFSRflag(uint16_t *newFsrFlag);
 */
 mfrError_t mfrGetFSRflag(uint16_t *newFsrFlag);
 
+/**
+* @brief API to set the blocklist data from BL runtime data block of emmc
+*
+* @param [in] params : unsigned integer of blocklist value
+*
+* @return Error Code:  Return mfrERR_NONE if operation is successful, mfrERR_GENERAL if it fails
+*/
+mfrError_t mfr_setConfigData(unsigned int blocklist);
+
+/**
+* @brief API to get the blocklist data from BL runtime data block of emmc
+*
+* @param [in] params : unsigned integer pointer to carry the blocklist value
+*
+* @return Error Code:  Return mfrERR_NONE if operation is successful, mfrERR_GENERAL if it fails
+*/
+mfrError_t mfr_getConfigData(unsigned int *blocklist);
+
 #endif
 
 /** @} */ // End of PLAT_MFR_DATA
