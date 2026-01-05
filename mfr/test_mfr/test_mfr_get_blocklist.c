@@ -35,5 +35,6 @@ int main()
 	IARM_Bus_Disconnect();
 	IARM_Bus_Term();
 	printf("Tool-mfrGetConfig  Exiting\r\n");
+	return 0;
 }
 

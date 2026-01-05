@@ -1230,9 +1230,9 @@ IARM_Result_t setConfigData_(void *arg)
 
     IARM_Result_t retCode = IARM_RESULT_SUCCESS;
     mfrError_t err = mfrERR_NONE;
-    IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_bocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
 
-    err = func(bl_rt_bocklist->blocklist);
+    err = func(&bl_rt_blocklist->blocklist);
     if(mfrERR_NONE != err)
     {
         LOG("Calling mfr_setConfigData returned error 0x%x\n", err);
@@ -1248,7 +1248,7 @@ IARM_Result_t setConfigData_(void *arg)
 
 IARM_Result_t getConfigData_(void *arg)
 {
-    typedef mfrError_t (*mfr_getConfigData)(IARM_Bus_MFRLib_Platformblockdata_Param_t*);
+    typedef mfrError_t (*mfr_getConfigData)(unsigned int *);
 #ifndef RDK_MFRLIB_NAME
     LOG("Please define RDK_MFRLIB_NAME. Cannot resolve mfrgetConfigData without it.\n");
     return IARM_RESULT_INVALID_STATE;
@@ -1276,18 +1276,18 @@ IARM_Result_t getConfigData_(void *arg)
 
     IARM_Result_t retCode = IARM_RESULT_SUCCESS;
     mfrError_t err = mfrERR_NONE;
-    IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_bocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
     IARM_Bus_MFRLib_Platformblockdata_Param_t bl = {0} ;
 
-    err = func(&bl);
+    err = func(&bl.blocklist);
     if(mfrERR_NONE != err)
     {
         LOG("Calling mfr_getConfigData returned error 0x%x\n", err);
         retCode = IARM_RESULT_INVALID_PARAM;
     }
     else {
-        memcpy(bl_rt_bocklist, &bl ,sizeof(IARM_Bus_MFRLib_Platformblockdata_Param_t));
-        LOG(" BL runtime blocklist value is 0x%x\n",(unsigned int) bl_rt_bocklist->blocklist);
+        memcpy(bl_rt_blocklist, &bl ,sizeof(IARM_Bus_MFRLib_Platformblockdata_Param_t));
+        LOG(" BL runtime blocklist value is 0x%x\n",(unsigned int) bl_rt_blocklist->blocklist);
 	// handle the blocklist version set
     }
 
