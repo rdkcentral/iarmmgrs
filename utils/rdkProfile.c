@@ -124,14 +124,14 @@ profile_t searchRdkProfile(void) {
         }
         
         rdkProfile++; // Move past the '=' character
-        
-        /* Final bounds check after pointer arithmetic */
-        if (rdkProfile >= line + sizeof(line)) {
-            INT_ERROR("[%s]: Pointer arithmetic exceeded buffer bounds\n", __FUNCTION__);
-            fclose(file);
-            return PROFILE_INVALID;
-        }
-        
+
+        /* At this point, rdkProfile is guaranteed to point within 'line':
+         * - 'line' is a NUL-terminated buffer read via fgets.
+         * - 'rdkProfile' was obtained via strstr(line, RDK_PROFILE).
+         * - We validated 'remaining_len' before advancing the pointer.
+         * Therefore, an additional bounds check against 'line + sizeof(line)'
+         * would be redundant and unreachable, and has been removed.
+         */
         /* Safe string comparison with validated pointers */
         if(0 == strncmp(rdkProfile, PROFILE_STR_TV, strlen(PROFILE_STR_TV)))
         {
