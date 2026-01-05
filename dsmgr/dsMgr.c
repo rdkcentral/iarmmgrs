@@ -88,6 +88,7 @@ static dsDisplayEvent_t edisplayEventStatus = dsDISPLAY_EVENT_MAX;
 static pthread_t edsHDMIHPDThreadID; // HDMI HPD - HDMI Hot Plug detect events
 static pthread_mutex_t tdsMutexLock;
 static pthread_cond_t  tdsMutexCond;
+static volatile bool dsMgr_thread_exit_flag = false;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
@@ -110,7 +111,9 @@ IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal
 #define EU_INTERLACED_FPS   "25"
 
 static bool IsEUPlatform = false;
-char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
+
+
+static char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
 
 static bool isEUPlatform()
 {
@@ -150,10 +153,16 @@ static void setupPlatformConfig()
     for(int i=0; i<n; i++)
     {
         if((strstr(resList[i],"576p") !=NULL) && !IsEUPlatform) //include 576p for EU only
-	    continue;
-
-	snprintf(fallBackResolutionList[count],RES_MAX_LEN,"%s",resList[i]);
-        count++;
+        {
+            continue;
+        }
+	    if (count < RES_MAX_COUNT) {
+	    	snprintf(fallBackResolutionList[count], RES_MAX_LEN, "%s", resList[i]);
+	    	count++;
+	    }
+        else {
+            break;
+        }
     }
 }
 
@@ -289,7 +298,7 @@ IARM_Result_t DSMgr_Start()
 	fDSCtrptr = fopen("/opt/ddcDelay","r");
 	if (NULL != fDSCtrptr)
 	{
-		if(0 > fscanf(fDSCtrptr,"%d",&iResnCount))
+		if(1 != fscanf(fDSCtrptr,"%d",&iResnCount))
 		{
 			INT_ERROR("Error: fscanf on ddcDelay failed");
 		}
@@ -346,6 +355,7 @@ static gboolean heartbeatMsg(gpointer data)
 IARM_Result_t DSMgr_Stop()
 {
     IARM_Result_t iarmStatus = IARM_RESULT_SUCCESS;
+    dsMgr_thread_exit_flag = true;
     if(dsMgr_Gloop)
     {
         g_main_loop_quit(dsMgr_Gloop);
@@ -996,13 +1006,15 @@ static void* _DSMgrResnThreadFunc(void *arg)
 {
 	dsDisplayEvent_t edisplayEventStatusLocal = dsDISPLAY_EVENT_MAX;
 	/* Loop */
-	while (1)
+	while (!dsMgr_thread_exit_flag)
 	{
 		INT_INFO ("_DSMgrResnThreadFunc... wait for for HDMI or Tune Ready Events \r\n");
 
 		/*Wait for the Event*/
 		pthread_mutex_lock(&tdsMutexLock);
-		pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
+		while (!dsMgr_thread_exit_flag && edisplayEventStatus == dsDISPLAY_EVENT_MAX) {
+			pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
+		}
 		edisplayEventStatusLocal = edisplayEventStatus;
 		pthread_mutex_unlock(&tdsMutexLock);
 		INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",

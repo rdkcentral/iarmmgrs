@@ -48,12 +48,14 @@
 #endif
 
 #define UNLOCK_AND_RETURN_IF_ERROR(call) \
-    retStatus = (call); \
-    if (IARM_RESULT_SUCCESS != retStatus) { \
-        pthread_mutex_unlock(&tMutexLock); \
-        LOG("IARM call failed, error: %d\n", retStatus); \
-        return retStatus; \
-    }
+    do { \
+        retStatus = (call); \
+        if (IARM_RESULT_SUCCESS != retStatus) { \
+            LOG("IARM call failed, error: %d\n", retStatus); \
+            pthread_mutex_unlock(&tMutexLock); \
+            return retStatus; \
+        } \
+    } while(0)
 
 static pthread_mutex_t tMutexLock = PTHREAD_MUTEX_INITIALIZER;
 static IARM_Bus_SYSMgr_GetSystemStates_Param_t systemStates;
@@ -87,6 +89,7 @@ IARM_Result_t SYSMgr_Start()
     pthread_mutex_lock(&tMutexLock);
     if (!initialized) {
         LOG("I-ARM Sys Mgr: %d\r\n", __LINE__);
+        memset(&systemStates, 0, sizeof(systemStates));
         UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Init(IARM_BUS_SYSMGR_NAME));
         UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_Connect());
         UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterEvent(IARM_BUS_SYSMGR_EVENT_MAX));
@@ -173,7 +176,7 @@ IARM_Result_t SYSMgr_Loop()
     while(1)
     {
         LOG("I-ARM Sys Mgr: HeartBeat ping.\r\n");
-        sleep(2000);
+        sleep(300);
     }
     return IARM_RESULT_SUCCESS;
 }
@@ -225,14 +228,19 @@ static IARM_Result_t _SetHDCPProfile(void *arg)
     IARM_Result_t retStatus = IARM_RESULT_INVALID_STATE;
     IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *param = (IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t *)arg;
     int new_profile = param->HdcpProfile;
-
-    if ((CheckHdcpProfile() != new_profile) && (new_profile == 0 || new_profile == 1)) {
+    
+    static pthread_mutex_t hdcp_file_mutex = PTHREAD_MUTEX_INITIALIZER;
+    
+    pthread_mutex_lock(&hdcp_file_mutex);
+    
+    int current_profile = CheckHdcpProfile();
+    if ((current_profile != new_profile) && (new_profile == 0 || new_profile == 1)) {
         int fd = -1;
         if (new_profile == 0) {
             unlink(profile_1_filename);
         }
         else {
-            fd = open(profile_1_filename, O_WRONLY|O_CREAT, 0666);
+            fd = open(profile_1_filename, O_WRONLY|O_CREAT, 0644);
             if (fd >= 0) {
                 close(fd);
             }
@@ -245,7 +253,10 @@ static IARM_Result_t _SetHDCPProfile(void *arg)
 			__TIMESTAMP(); printf("<<<<<<< Send HDCP Profile UPdate Event is %d>>>>>>>>",eventData.data.hdcpProfileData.hdcpProfile);
 			retStatus = IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_HDCP_PROFILE_UPDATE,(void *)&eventData,sizeof(eventData));
 		}
+        retStatus = IARM_RESULT_SUCCESS;
     }
+    
+    pthread_mutex_unlock(&hdcp_file_mutex);
     return retStatus;
 }
 
@@ -332,7 +343,6 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 					{
 						ERR_CHK(rc);
 					}
-					memcpy( systemStates.channel_map.payload, payload, sizeof( systemStates.channel_map.payload ) );
 				systemStates.channel_map.payload[ sizeof( systemStates.channel_map.payload ) - 1] = 0;
 				LOG( "Got  IARM_BUS_SYSMGR_SYSSTATE_CHANNELMAP ID = %s", systemStates.channel_map.payload );				
 				break;
@@ -364,9 +374,14 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 			case IARM_BUS_SYSMGR_SYSSTATE_DAC_INIT_TIMESTAMP :
 				systemStates.dac_init_timestamp.state = state;
 				systemStates.dac_init_timestamp.error = error;
-				strncpy(systemStates.dac_init_timestamp.payload,payload,strlen(payload));
-				systemStates.dac_init_timestamp.payload[strlen(payload)]='\0';
-				printf("systemStates.dac_init_timestamp.payload=%s\n",systemStates.dac_init_timestamp.payload);
+				if (payload != NULL) {
+					size_t payload_len = strlen(payload);
+					size_t max_copy = sizeof(systemStates.dac_init_timestamp.payload) - 1;
+					size_t copy_len = (payload_len < max_copy) ? payload_len : max_copy;
+					strncpy(systemStates.dac_init_timestamp.payload, payload, copy_len);
+					systemStates.dac_init_timestamp.payload[copy_len] = '\0';
+					printf("systemStates.dac_init_timestamp.payload=%s\n",systemStates.dac_init_timestamp.payload);
+				}
 				break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_CARD_CISCO_STATUS :
 				systemStates.card_cisco_status.state = state;
@@ -489,37 +504,52 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_CABLE_CARD_SERIAL_NO:
 				systemStates.card_serial_no.error =error;
-				strncpy(systemStates.card_serial_no.payload,payload,strlen(payload));
-				systemStates.card_serial_no.payload[strlen(payload)]='\0';
-				printf("systemStates.card.serial.no.payload=%s\n",systemStates.card_serial_no.payload);
+				if (payload != NULL) {
+					size_t payload_len = strlen(payload);
+					size_t max_copy = sizeof(systemStates.card_serial_no.payload) - 1;
+					size_t copy_len = (payload_len < max_copy) ? payload_len : max_copy;
+					strncpy(systemStates.card_serial_no.payload, payload, copy_len);
+					systemStates.card_serial_no.payload[copy_len] = '\0';
+					printf("systemStates.card.serial.no.payload=%s\n",systemStates.card_serial_no.payload);
+				}
 				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_ECM_MAC:
-				systemStates.ecm_mac.error =error;
-				strncpy(systemStates.ecm_mac.payload,payload,strlen(payload));
-				systemStates.ecm_mac.payload[strlen(payload)]='\0';
-				printf("systemStates.ecm.mac.payload=%s\n",systemStates.ecm_mac.payload);
+				systemStates.ecm_mac.error = error;
+
+				if (payload != NULL) {
+					size_t payload_len = strlen(payload);
+					size_t max_copy = sizeof(systemStates.ecm_mac.payload) - 1;
+					size_t copy_len = (payload_len < max_copy) ? payload_len : max_copy;
+					strncpy(systemStates.ecm_mac.payload, payload, copy_len);
+					systemStates.ecm_mac.payload[copy_len] = '\0';
+					printf("systemStates.ecm.mac.payload=%s\n", systemStates.ecm_mac.payload);
+				}
 				break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_DAC_ID :
 				systemStates.dac_id.state = state;
 				systemStates.dac_id.error = error;
-				assert ( ( sizeof(systemStates.dac_id.payload) -1 ) > strlen(payload) );
+				if (payload != NULL) {
+					assert ( ( sizeof(systemStates.dac_id.payload) -1 ) > strlen(payload) );
 					rc = strcpy_s( systemStates.dac_id.payload,sizeof(systemStates.dac_id.payload), payload );
 					if(rc!=EOK)
 					{
 						ERR_CHK(rc);
 					}
-				LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_DAC_ID = %s\n", systemStates.dac_id.payload );
+					LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_DAC_ID = %s\n", systemStates.dac_id.payload );
+				}
 				break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_PLANT_ID :
 				systemStates.plant_id.state = state;
 				systemStates.plant_id.error = error;
-				assert ( ( sizeof(systemStates.plant_id.payload) -1 ) > strlen(payload) );
+				if (payload != NULL) {
+					assert ( ( sizeof(systemStates.plant_id.payload) -1 ) > strlen(payload) );
 					rc = strcpy_s( systemStates.plant_id.payload,sizeof(systemStates.plant_id.payload), payload );
 					if(rc!=EOK)
 					{
 						ERR_CHK(rc);
 					}
-				LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_PLANT_ID = %s\n", systemStates.plant_id.payload );
+					LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_PLANT_ID = %s\n", systemStates.plant_id.payload );
+				}
 				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_STB_SERIAL_NO:
 			  systemStates.stb_serial_no.error =error;

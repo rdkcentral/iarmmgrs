@@ -50,6 +50,7 @@ extern "C"
 #include <assert.h>
 #include <iostream>
 #include <fstream>
+#include <mutex>
 #include <list>
 #include  <sys/stat.h>
 #include <dirent.h>
@@ -58,6 +59,7 @@ extern "C"
 #include <string>
 #include <iostream>
 #include <utils.h>
+#include <memory>
 
 #include "safec_lib.h"
 
@@ -67,7 +69,9 @@ extern "C"
 #include "secure_wrapper.h"
 #endif
 bool loadConfig();
-pthread_mutex_t tMutexLock;
+// Use C++ mutexes with RAII for safer locking
+std::mutex tMutexLock;
+std::mutex mapMutex;
 IARM_Result_t AcceptUpdate(void *arg);
 void sendDownLoadInit(int id);
 void sendLoadInit(int id);
@@ -98,7 +102,7 @@ int loadBeforeHour=4;
 int delayTillAnnounceTimeMin=10; // default is announce after 10 min;
 int announceCounter=10; // counter for wait seconds
 bool oneAnnouncePerRun=false;
-static pthread_mutex_t mapMutex;
+// mapMutex moved above to declaration section
 }
 
 typedef struct updateInProgress_t
@@ -125,7 +129,7 @@ void logCallback(const char *buff)
 #endif
 int main(int argc, char *argv[])
 {
-	const char* debugConfigFile = NULL;
+	const char* debugConfigFile __attribute__((unused)) = NULL;
 	int itr = 0;
 
 	while (itr < argc)
@@ -179,113 +183,83 @@ IARM_Result_t deviceUpdateStart()
 
 	INT_LOG("Entering [%s] - [%s] - disabling io redirect buf\n", __FUNCTION__, IARM_BUS_DEVICE_UPDATE_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
-	int ret = pthread_mutex_init(&mapMutex, NULL);
-	if(ret != 0) {
-		INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
-		return IARM_RESULT_INVALID_STATE;
-	}
-	pthread_mutex_lock(&mapMutex);
-	if (!initialized)
+	
+	// Use RAII lock guard to automatically handle mutex lifecycle
 	{
-		IARM_Result_t rc;
+		std::lock_guard<std::mutex> mapLock(mapMutex);
+		
+		if (!initialized)
+		{
+			IARM_Result_t rc;
+			
+			// Use nested scope for tMutexLock to avoid hierarchy issues
+			{
+				std::lock_guard<std::mutex> tLock(tMutexLock);
+				
+				rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
+				INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
+				if (IARM_RESULT_SUCCESS != rc) {
+					INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
+					return rc;
+				}
 
-		int retval = pthread_mutex_init(&tMutexLock, NULL);
-                if(retval != 0) {
-                	INT_LOG(" pthread_mutex_init Error case: %d\n", __LINE__);
-                        pthread_mutex_unlock(&mapMutex);
-                        pthread_mutex_destroy(&mapMutex);
-                        return IARM_RESULT_INVALID_STATE;
-                }
-		pthread_mutex_lock(&tMutexLock);
-		rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
-		INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
-		if (IARM_RESULT_SUCCESS != rc) {
-			INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			pthread_mutex_unlock(&tMutexLock);
-			return rc;
-		}
+				rc = IARM_Bus_Connect();
+				INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
+				if (IARM_RESULT_SUCCESS != rc) {
+					INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
+					return rc;
+				}
+			} // tMutexLock automatically unlocked here
 
-		rc = IARM_Bus_Connect();
-		INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
-		if (IARM_RESULT_SUCCESS != rc) {
-			INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			pthread_mutex_unlock(&tMutexLock);
-			return rc;
-		}
+			rc = IARM_Bus_RegisterEvent(IARM_BUS_DEVICE_UPDATE_EVENT_MAX);
+			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n", rc);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent IARM_BUS_DEVICE_UPDATE_EVENT_MAX failed: %d\n", rc);
+				return rc;
+			}
 
-		rc = IARM_Bus_RegisterEvent(IARM_BUS_DEVICE_UPDATE_EVENT_MAX);
-		INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n", rc);
-		if (IARM_RESULT_SUCCESS != rc) {
-			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent IARM_BUS_DEVICE_UPDATE_EVENT_MAX failed: %d\n", rc);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			pthread_mutex_unlock(&tMutexLock);
-			return rc;
-		}
+			rc = IARM_Bus_RegisterCall( IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate, AcceptUpdate); /* RPC Method Implementation*/
+			INT_LOG("dumMgr:I-ARM IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate Mgr: %d\n", rc);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterCall IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate failed: %d\n", rc);
+				return rc;
+			}
 
-		rc = IARM_Bus_RegisterCall( IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate, AcceptUpdate); /* RPC Method Implementation*/
-		INT_LOG("dumMgr:I-ARM IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate Mgr: %d\n", rc);
-		if (IARM_RESULT_SUCCESS != rc) {
-			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterCall IARM_BUS_DEVICE_UPDATE_API_AcceptUpdate failed: %d\n", rc);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			pthread_mutex_unlock(&tMutexLock);
-			return rc;
-		}
+			rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
+					_deviceUpdateEventHandler);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD failed: %d\n", rc);
+				return rc;
+			}
+			rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
+					_deviceUpdateEventHandler);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS returned: %d\n", rc);
+				return rc;
+			}
+			rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS,
+					_deviceUpdateEventHandler);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS returned: %d\n", rc);
+				return rc;
+			}
+			rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_ERROR,
+					_deviceUpdateEventHandler);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_ERROR returned: %d\n", rc);
+				return rc;
+			}
 
-		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
-				_deviceUpdateEventHandler);
-		if (IARM_RESULT_SUCCESS != rc) {
-			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD failed: %d\n", rc);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			pthread_mutex_unlock(&tMutexLock);
-			return rc;
+			initialized = 1;
+			status = IARM_RESULT_SUCCESS;
 		}
-		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
-				_deviceUpdateEventHandler);
-		if (IARM_RESULT_SUCCESS != rc) {
-			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS returned: %d\n", rc);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			pthread_mutex_unlock(&tMutexLock);
-			return rc;
+		else
+		{
+			__TIMESTAMP();
+			INT_LOG("dumMgr: I-ARM Device Update Mgr Error case: %d\n", __LINE__);
+			status = IARM_RESULT_INVALID_STATE;
 		}
-		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS,
-				_deviceUpdateEventHandler);
-		if (IARM_RESULT_SUCCESS != rc) {
-			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS returned: %d\n", rc);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			pthread_mutex_unlock(&tMutexLock);
-			return rc;
-		}
-		rc = IARM_Bus_RegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_ERROR,
-				_deviceUpdateEventHandler);
-		if (IARM_RESULT_SUCCESS != rc) {
-			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEventHandler IARM_BUS_DEVICE_UPDATE_EVENT_ERROR returned: %d\n", rc);
-			pthread_mutex_unlock(&mapMutex);
-			pthread_mutex_destroy(&mapMutex);
-			pthread_mutex_unlock(&tMutexLock);
-			return rc;
-		}
-
-		initialized = 1;
-
-		pthread_mutex_unlock(&tMutexLock);
-		status = IARM_RESULT_SUCCESS;
-	}
-	else
-	{
-		__TIMESTAMP();
-		INT_LOG("dumMgr: I-ARM Device Update Mgr Error case: %d\n", __LINE__);
-		status = IARM_RESULT_INVALID_STATE;
-	}
-	pthread_mutex_unlock(&mapMutex);
+	} // mapMutex automatically unlocked here
 	return status;
 }
 
@@ -330,13 +304,25 @@ bool loadConfig()
 		{
 			memset(buf,'\0', sizeof(buf));                 //CID:136517 - checked null argument
 			nread = fread(buf, 1, sizeof(buf) - 1, fp);
-			if (0 >= nread)
-			{
-				INT_LOG("dumMgr fread failed  \n");
-				break; // stop since fread is error.
+			
+			// Check for fread errors - fread returns 0 for both EOF and error
+			if (nread == 0) {
+				if (ferror(fp)) {
+					INT_LOG("dumMgr fread failed with error\n");
+					break; // stop since fread encountered an error
+				}
+				// If nread == 0 and no error, we've reached EOF naturally
+				break;
 			}
-			else
+			else if (nread > 0)
 			{
+				// Validate that nread doesn't exceed buffer bounds
+				if (nread > sizeof(buf) - 1) {
+					INT_LOG("dumMgr fread returned invalid size: %zu\n", nread);
+					break;
+				}
+				// Ensure null termination for the read data
+				buf[nread] = '\0';
 				confData.append(buf, nread);
 			}
 		}
@@ -610,26 +596,29 @@ void processDeviceFolder(string updatePath, string deviceName)
 void processDeviceFile(string filePath, string deviceName)
 {
 	INT_LOG("dumMgr:processing Device File:%s\n", filePath.c_str());
-	string cmd = "rm -rf ";
-	cmd += tempFilePath;
-#ifdef YOCTO_BUILD
-	v_secure_system(cmd.c_str());
-#else
-	system(cmd.c_str());
-#endif
-	cmd = "mkdir ";
-	cmd += tempFilePath;
-#ifdef YOCTO_BUILD
-        v_secure_system(cmd.c_str());
-#else
-        system(cmd.c_str());
-#endif
-	cmd = "tar -xzpf  " + filePath + " -C " + tempFilePath;
-#ifdef YOCTO_BUILD
-        v_secure_system(cmd.c_str());
-#else
-        system(cmd.c_str());
-#endif
+	
+	// Remove temp directory
+	string cmd = "rm -rf " + tempFilePath;
+	int result = system(cmd.c_str());
+	if (result != 0) {
+		INT_LOG("dumMgr: Failed to remove temp directory (exit code: %d)\n", result);
+	}
+	
+	// Create temp directory
+	cmd = "mkdir " + tempFilePath;
+	result = system(cmd.c_str());
+	if (result != 0) {
+		INT_LOG("dumMgr: Failed to create temp directory (exit code: %d)\n", result);
+		return;
+	}
+	
+	// Extract tar file
+	cmd = "tar -xzpf " + filePath + " -C " + tempFilePath;
+	result = system(cmd.c_str());
+	if (result != 0) {
+		INT_LOG("dumMgr: Failed to extract tar file (exit code: %d)\n", result);
+		return;
+	}
 	vector<string> *myfiles = getdir(tempFilePath);
 	vector<string>::iterator itr;
 	if(myfiles != NULL)
@@ -639,7 +628,7 @@ void processDeviceFile(string filePath, string deviceName)
 		{
 			string filename = *itr;
 	//		LOG("dumMgr:found file:%s\n", filename.c_str());
-			int idx = filename.rfind('.');
+			size_t idx = filename.rfind('.');
 			if (idx == string::npos)
 			{
 				continue;
@@ -684,7 +673,7 @@ string getXMLTagText(string xml, string tag)
 {
 
 //TODO currently this assume no spaces or tabs in the tag brackets. and no leading trailing spaces in text content
-	int idx = xml.find("<" + tag);
+	size_t idx = xml.find("<" + tag);
 	if (idx == string::npos)
 	{
 		INT_LOG("dumMgr:tag <%s> not found in xml file: aborting\n", tag.c_str());
@@ -714,15 +703,51 @@ bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData)
 		myfile.seekg(0, myfile.end);
 		int length = myfile.tellg();
 		myfile.seekg(0, myfile.beg);
-		char * buffer = new char[length + 1];
-		if(buffer == NULL)
-		{
+		
+		// Validate file length before allocation
+		if (length <= 0 || length > 10 * 1024 * 1024) { // Limit to 10MB
+			INT_LOG("dumMgr: Invalid file length: %d\n", length);
+			myfile.close();
 			return false;
 		}
-		myfile.read(buffer, length);
-		myfile.close();
-		fileContents = buffer;
-		delete[] buffer;
+		
+		// Use smart pointer for automatic memory management
+		try {
+			std::unique_ptr<char[]> buffer(new char[length + 1]);
+			if (!buffer) {
+				INT_LOG("dumMgr: Failed to allocate buffer of size %d\n", length + 1);
+				myfile.close();
+				return false;
+			}
+			
+			// Initialize buffer to ensure null termination
+			memset(buffer.get(), 0, length + 1);
+			
+			myfile.read(buffer.get(), length);
+			if (myfile.gcount() != length) {
+				INT_LOG("dumMgr: Failed to read complete file, expected %ld bytes, got %ld\n", 
+					static_cast<long>(length), static_cast<long>(myfile.gcount()));
+				myfile.close();
+				return false;
+			}
+			
+			myfile.close();
+			fileContents = buffer.get();
+		}
+		catch (const std::bad_alloc& e) {
+			INT_LOG("dumMgr: Memory allocation failed: %s\n", e.what());
+			myfile.close();
+			return false;
+		}
+		catch (const std::exception& e) {
+			INT_LOG("dumMgr: Exception during file processing: %s\n", e.what());
+			myfile.close();
+			return false;
+		}
+	}
+	else {
+		INT_LOG("dumMgr: Failed to open file: %s\n", filename.c_str());
+		return false;
 	}
 
 	string text = getXMLTagText(fileContents, "image:softwareVersion");
@@ -833,27 +858,28 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 
 
 		if(i>60){
-			pthread_mutex_lock(&mapMutex);
-			if (updatesInProgress->size() > 0)
 			{
-				__TIMESTAMP();
-				INT_LOG("deviceUpdateMgr - updates in progress:\n");
-				map<int, updateInProgress_t *>::iterator pos = updatesInProgress->begin();
-				while (pos != updatesInProgress->end())
+				std::lock_guard<std::mutex> lock(mapMutex);
+				if (updatesInProgress->size() > 0)
 				{
-					INT_LOG("     UpdateID:%d deviceID:%d percentDownload:%d Loaded:%d file:%s\n", pos->first,
-							pos->second->acceptParams->deviceID, pos->second->downloadPercent, pos->second->loadComplete,
-							pos->second->acceptParams->deviceImageFilePath);
-					if (pos->second->errorCode > 0)
+					__TIMESTAMP();
+					INT_LOG("deviceUpdateMgr - updates in progress:\n");
+					map<int, updateInProgress_t *>::iterator pos = updatesInProgress->begin();
+					while (pos != updatesInProgress->end())
 					{
-						INT_LOG("              ERROR on UpdateID:%d Type:%d Message:%s\n", pos->first, pos->second->errorCode,
-								pos->second->errorMsg.c_str());
+						INT_LOG("     UpdateID:%d deviceID:%d percentDownload:%d Loaded:%d file:%s\n", pos->first,
+								pos->second->acceptParams->deviceID, pos->second->downloadPercent, pos->second->loadComplete,
+								pos->second->acceptParams->deviceImageFilePath);
+						if (pos->second->errorCode > 0)
+						{
+							INT_LOG("              ERROR on UpdateID:%d Type:%d Message:%s\n", pos->first, pos->second->errorCode,
+									pos->second->errorMsg.c_str());
+						}
+						pos++;
 					}
-					pos++;
-				}
 
+				}
 			}
-			pthread_mutex_unlock(&mapMutex);
 			i=0;
 		}
 			fflush(stdout);
@@ -879,9 +905,10 @@ IARM_Result_t AcceptUpdate(void *arg)
 		}
 	updateInProgress_t *uip = new updateInProgress_t();
 	uip->acceptParams = updateParams;
-	pthread_mutex_lock(&mapMutex);
-	updatesInProgress->insert(pair<int, updateInProgress_t *>(param->updateSessionID, uip));
-	pthread_mutex_unlock(&mapMutex);
+	{
+		std::lock_guard<std::mutex> lock(mapMutex);
+		updatesInProgress->insert(pair<int, updateInProgress_t *>(param->updateSessionID, uip));
+	}
 
 	__TIMESTAMP();
 	INT_LOG("dumMgr:Accept Update return success\n");
@@ -892,18 +919,18 @@ IARM_Result_t deviceUpdateStop(void)
 {
 	if (initialized)
 	{
-		pthread_mutex_lock(&tMutexLock);
-		if (IARM_Bus_UnRegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD) != IARM_RESULT_SUCCESS) {
-			INT_LOG("%s:%d: IARM_Bus_UnRegisterEventHandler failed\n", __FUNCTION__, __LINE__);
+		{
+			std::lock_guard<std::mutex> lock(tMutexLock);
+			if (IARM_Bus_UnRegisterEventHandler(IARM_BUS_DEVICE_UPDATE_NAME, IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD) != IARM_RESULT_SUCCESS) {
+				INT_LOG("%s:%d: IARM_Bus_UnRegisterEventHandler failed\n", __FUNCTION__, __LINE__);
+			}
+			if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+				INT_LOG("%s:%d: IARM_Bus_Disconnect failed\n", __FUNCTION__, __LINE__);
+			}
+			if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+				INT_LOG("%s:%d: IARM_Bus_Term failed\n", __FUNCTION__, __LINE__);
+			}
 		}
-		if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
-			INT_LOG("%s:%d: IARM_Bus_Disconnect failed\n", __FUNCTION__, __LINE__);
-		}
-		if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
-			INT_LOG("%s:%d: IARM_Bus_Term failed\n", __FUNCTION__, __LINE__);
-		}
-		pthread_mutex_unlock(&tMutexLock);
-		pthread_mutex_destroy(&tMutexLock);
 		initialized = false;
 		return IARM_RESULT_SUCCESS;
 	}
@@ -922,15 +949,21 @@ typedef struct
 
 updateInProgress_t *getUpdateInProgress(int id)
 {
-	pthread_mutex_lock(&mapMutex);
-	updateInProgress_t *uip = nullptr;
+	// Note: Caller must hold mapMutex to prevent race conditions
+	// This function should only be called within a lock guard
 	auto it = updatesInProgress->find(id);
 	if (it != updatesInProgress->end()) {
-		uip = it->second;
+		return it->second;
 	}
-	pthread_mutex_unlock(&mapMutex);
-	return uip;
+	return nullptr;
+}
 
+// Thread-safe version with callback pattern to extend critical section
+template<typename Func>
+void withUpdateInProgress(int id, Func&& func) {
+	std::lock_guard<std::mutex> lock(mapMutex);
+	updateInProgress_t* uip = getUpdateInProgress(id);
+	func(uip);
 }
 
 void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
@@ -940,7 +973,7 @@ void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *
 	__TIMESTAMP();
 	if (strcmp(owner, IARM_BUS_DEVICE_UPDATE_NAME) == 0)
 	{
-		pthread_mutex_lock(&tMutexLock);
+		std::lock_guard<std::mutex> tLock(tMutexLock);
 
 		switch (eventId)
 		{
@@ -949,13 +982,12 @@ void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *
 			IARM_Bus_DeviceUpdate_ReadyToDownload_t *eventData = (IARM_Bus_DeviceUpdate_ReadyToDownload_t *) data;
 			INT_LOG("I-ARM: got event IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD\n");
 
-			updateInProgress_t *uip = getUpdateInProgress(eventData->updateSessionID);
-
-			if (uip != NULL)
-			{
-				INT_LOG("I-ARM: got valid updateSessionID  Details:\n");
-				INT_LOG("I-ARM: 			currentSWVersion:%s\n", eventData->deviceCurrentSWVersion);
-				INT_LOG("I-ARM: 			newSWVersion:%s\n", eventData->deviceNewSoftwareVersion);
+			withUpdateInProgress(eventData->updateSessionID, [&](updateInProgress_t *uip) {
+				if (uip != nullptr)
+				{
+					INT_LOG("I-ARM: got valid updateSessionID  Details:\n");
+					INT_LOG("I-ARM: 			currentSWVersion:%s\n", eventData->deviceCurrentSWVersion);
+					INT_LOG("I-ARM: 			newSWVersion:%s\n", eventData->deviceNewSoftwareVersion);
 				INT_LOG("I-ARM: 			deviceHWVersion:%s\n", eventData->deviceHWVersion);
 				INT_LOG("I-ARM: 			deviceBootloaderVersion:%s\n", eventData->deviceBootloaderVersion);
 				INT_LOG("I-ARM: 			deviceName:%s\n", eventData->deviceName);
@@ -968,25 +1000,24 @@ void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *
 				{
 					INT_LOG("I-ARM: 	Interactive Download is true so not sending download Init message\n");
 				}
-			}
-			else
-			{
-				INT_LOG("I-ARM: did not get valid updateSessionID  Got id:%d\n", eventData->updateSessionID);
-			}
-
+				}
+				else
+				{
+					INT_LOG("I-ARM: did not get valid updateSessionID  Got id:%d\n", eventData->updateSessionID);
+				}
+			}); // end withUpdateInProgress lambda
 		}
 			break;
 		case IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS:
 		{
 			IARM_Bus_DeviceUpdate_DownloadStatus_t *eventData = (IARM_Bus_DeviceUpdate_DownloadStatus_t *) data;
 			INT_LOG("I-ARM: got event IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS\n");
-			updateInProgress_t *uip = getUpdateInProgress(eventData->updateSessionID);
-
-			if (uip != NULL)
-			{
-				INT_LOG("I-ARM: 			percentComplete:%i\n", eventData->percentComplete);
-
-				uip->downloadPercent = eventData->percentComplete;
+			
+			withUpdateInProgress(eventData->updateSessionID, [&](updateInProgress_t *uip) {
+				if (uip != nullptr)
+				{
+					INT_LOG("I-ARM: 			percentComplete:%i\n", eventData->percentComplete);
+					uip->downloadPercent = eventData->percentComplete;
 				if(uip->downloadPercent>=100){
 					if(interactiveLoad==false){
 						sendLoadInit(eventData->updateSessionID);
@@ -1004,6 +1035,7 @@ void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *
 				INT_LOG("I-ARM: IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS invalid updateSessionID  Got id:%d\n",
 						eventData->updateSessionID);
 			}
+			}); // end withUpdateInProgress lambda
 		}
 			break;
 		case IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS:
@@ -1055,9 +1087,7 @@ void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *
 			INT_LOG("I-ARM: unknown event type \n");
 			break;
 		}
-
-		pthread_mutex_unlock(&tMutexLock);
-	}
+	} // tMutexLock automatically unlocked here
 	else
 	{
 		__TIMESTAMP();
@@ -1068,7 +1098,6 @@ void _deviceUpdateEventHandler(const char *owner, IARM_EventId_t eventId, void *
 void sendDownLoadInit(int id)
 {
 	_IARM_Bus_DeviceUpdate_DownloadInitiate_t eventData;
-	updateInProgress_t *uip = getUpdateInProgress(id);
 
 	memset(&eventData, 0, sizeof(eventData));
 	eventData.updateSessionID = id;
@@ -1092,7 +1121,6 @@ void sendDownLoadInit(int id)
 void sendLoadInit(int id)
 {
 	_IARM_Bus_DeviceUpdate_LoadInitiate_t eventData;
-	updateInProgress_t *uip = getUpdateInProgress(id);
 
 	memset(&eventData, 0, sizeof(eventData));
 	eventData.updateSessionID = id;

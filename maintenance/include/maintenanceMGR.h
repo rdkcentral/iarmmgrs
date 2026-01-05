@@ -18,11 +18,29 @@
  */
 
 
-#ifndef _IARM_BUS_MAINTENANCEMGR_H
-#define _IARM_BUS_MAINTENANCEMGR_H
+#ifndef IARMMGRS_MAINTENANCE_MGR_H
+#define IARMMGRS_MAINTENANCE_MGR_H
+
+/*
+ * @file maintenanceMGR.h
+ * @brief Maintenance Manager IARM Bus Interface Definitions
+ * 
+ * This is a header-only interface definition for IARM bus communication
+ * with maintenance manager services. It provides event types and data
+ * structures for inter-process communication but does not implement
+ * the actual maintenance logic.
+ * 
+ * The maintenance manager implementation is typically provided by:
+ * - RDK services (rdkservices/MaintenanceManager)
+ * - Platform-specific maintenance daemons
+ * - Third-party maintenance components
+ * 
+ * @note This header defines the communication interface only.
+ */
 
 #define IARM_BUS_MAINTENANCE_MGR_NAME       "MaintenanceMGR"
 
+/* Event types for maintenance manager communication via IARM bus */
 typedef enum {
     IARM_BUS_MAINTENANCEMGR_EVENT_UPDATE=0, /* Event status as data */
     IARM_BUS_DCM_NEW_START_TIME_EVENT,   /* Payload as Time */
@@ -52,17 +70,35 @@ typedef enum {
 
 #define MAX_TIME_LEN 32
 
-/* Event Data for holding the start time and module status */
+/*
+ * Security Note: When populating start_time buffer, always ensure:
+ * 1. Input validation: strlen(input) < MAX_TIME_LEN
+ * 2. Use safe string functions: strncpy() with proper null termination
+ * 3. Example safe usage:
+ *    strncpy(eventData.data.startTimeUpdate.start_time, input, MAX_TIME_LEN - 1);
+ *    eventData.data.startTimeUpdate.start_time[MAX_TIME_LEN - 1] = '\0';
+ */
+
+/*
+ * Event Data for holding the start time and module status
+ * 
+ * Memory Layout Notes:
+ * - Union ensures both structs share same memory space
+ * - Padding added to ensure consistent alignment across platforms
+ * - Total union size is MAX_TIME_LEN bytes (largest member)
+ */
 typedef struct {
     union{
         struct _DCM_DATA{
-            char start_time[MAX_TIME_LEN];
+            char start_time[MAX_TIME_LEN]; /* Buffer for time string - ensure bounds checking */
+            /* Implicit padding to MAX_TIME_LEN already provided by char array */
         }startTimeUpdate;
         struct _MAINT_STATUS_UPDATE{
             IARM_Maint_module_status_t status;
+            char _padding[MAX_TIME_LEN - sizeof(IARM_Maint_module_status_t)]; /* Explicit padding for alignment */
         }maintenance_module_status;
     } data;
 }IARM_Bus_MaintMGR_EventData_t;
 
 
-#endif
+#endif /* IARMMGRS_MAINTENANCE_MGR_H */

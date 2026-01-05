@@ -93,8 +93,8 @@
 **/
 
 
-#ifndef _IARM_PWRMGR_INTERNAL_
-#define _IARM_PWRMGR_INTERNAL_
+#ifndef _IARM_DISKMGR_INTERNAL_
+#define _IARM_DISKMGR_INTERNAL_
 #include "libIARM.h"
 #include <string.h>
 
@@ -105,13 +105,15 @@
 extern int b_rdk_logger_enabled;
 
 #define LOG(...)              INT_LOG(__VA_ARGS__, "")
-#define INT_LOG(FORMAT, ...)     if(b_rdk_logger_enabled) {\
-RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.DISKMGR", FORMAT , __VA_ARGS__);\
-}\
-else\
-{\
-printf(FORMAT, __VA_ARGS__);\
-}
+#define INT_LOG(FORMAT, ...)  do { \
+    if(b_rdk_logger_enabled) { \
+        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.DISKMGR", FORMAT , __VA_ARGS__); \
+    } \
+    else \
+    { \
+        printf(FORMAT, __VA_ARGS__); \
+    } \
+} while(0)
 
 #else
 

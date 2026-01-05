@@ -45,7 +45,7 @@ IARM_Result_t _SysModeChange(void *arg)
 
 int main()
 {
-	int x = 'y';
+	int x = 0; /* Initialize properly instead of 'y' */
 	IARM_Bus_CommonAPI_SysModeChange_Param_t sysModeParam;
 
 	printf("SysClient Entering %d\r\n", getpid());
@@ -63,7 +63,8 @@ int main()
 	}
 	printf("Enter 'x' to exit, 'e' to send EAS and 'w' to send warehouse and 'n' to send normal Sys mode changes\n");
 	
-	while(x != 'x') {
+	/* Fix logic error: read user input before entering switch */
+	while((x = getchar()) != 'x') {
 
 		switch(x)
 		{
@@ -75,6 +76,8 @@ int main()
                 			&sysModeParam,
                 			sizeof(sysModeParam)) != IARM_RESULT_SUCCESS) {
 					printf("Failed to send SysModeChange EAS\n");
+				} else {
+					currentMode = IARM_BUS_SYS_MODE_EAS;
 				}
 			break;
 			case 'w':
@@ -85,6 +88,8 @@ int main()
                 			&sysModeParam,
                 			sizeof(sysModeParam)) != IARM_RESULT_SUCCESS) {
 					printf("Failed to send SysModeChange Warehouse\n");
+				} else {
+					currentMode = IARM_BUS_SYS_MODE_WAREHOUSE;
 				}
 			break;
 			case 'n':
@@ -95,10 +100,17 @@ int main()
                 			&sysModeParam,
                 			sizeof(sysModeParam)) != IARM_RESULT_SUCCESS) {
 					printf("Failed to send SysModeChange Normal\n");
+				} else {
+					currentMode = IARM_BUS_SYS_MODE_NORMAL;
+				}
+			break;
+			default:
+				/* Handle invalid input */
+				if (x != '\n' && x != ' ' && x != '\t') {
+					printf("Invalid input '%c'. Enter 'e', 'w', 'n', or 'x'\n", x);
 				}
 			break;
 		}
-		x = getchar();
 	}
 	if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
 		printf("Failed to disconnect from IARM Bus\n");
@@ -107,6 +119,7 @@ int main()
 		printf("Failed to terminate IARM Bus\n");
 	}
 	printf("Client Exiting\r\n");
+	return 0; /* Add proper return statement */
 }
 
 

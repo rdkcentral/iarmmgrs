@@ -144,8 +144,6 @@ static IARM_Result_t setSerializedData_(void *arg)
     return IARM_RESULT_INVALID_STATE;
 #else
     mfrError_t err = mfrERR_NONE;
-    mfrSerializedData_t data;
- 
     static mfrSerializedData_t func = 0;
   
     if (func == 0) {
@@ -438,6 +436,7 @@ static IARM_Result_t writeImage_(void *arg)
 
     static mfrWriteImage_ func = 0;
     LOG("In writeImage_\n");
+    
     if (func == 0) {
         void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
@@ -1410,9 +1409,13 @@ IARM_Result_t MFRLib_Start(void)
     {
         if(is_connected)
         {
-            IARM_Bus_Disconnect();
+            if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+                LOG("Warning: IARM_Bus_Disconnect failed during error cleanup\n");
+            }
         }
-        IARM_Bus_Term();
+        if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+            LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
+        }
     }
 
     return err;

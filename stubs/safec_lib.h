@@ -69,8 +69,10 @@ typedef int errno_t;
 #define ESLEMAX          403       /* length exceeds RSIZE_MAX    */
 #define ESNOSPC          406       /* not enough space for s2     */
 
-#define strcpy_s(dst,max,src) (src != NULL)?((max > strlen(src))?EOK:ESLEMAX):ESNULLP; \
- if((src != NULL) && (max > strlen(src))) strcpy(dst,src);
+#define strcpy_s(dst,max,src) \
+ ((src != NULL && dst != NULL && max > 0) ? \
+  ((strlen(src) < max) ? \
+   (strcpy(dst,src), EOK) : ESLEMAX) : ESNULLP)
 
 #define strncpy_s(dst,max,src,len) (src != NULL)?((len <= max)?EOK:ESLEMAX):ESNULLP; \
  if((src != NULL) && (len <= max)) strncpy(dst,src,len);
@@ -84,8 +86,10 @@ typedef int errno_t;
 #define strncat_s(dst,max,src,len) (src != NULL)?((len <= max)?EOK:ESLEMAX):ESNULLP; \
  if((src != NULL) && (len <= max)) strncat(dst,src,len);
 
-#define memcpy_s(dst,max,src,len)  EOK; \
- memcpy(dst,src,len);
+#define memcpy_s(dst,max,src,len) \
+ ((src != NULL && dst != NULL && len <= max && len > 0) ? \
+  (memcpy(dst,src,len), EOK) : \
+  ((src == NULL || dst == NULL) ? ESNULLP : ESLEMAX))
 
 #ifndef STRCPY_S_NOCLOBBER
  #define STRCPY_S_NOCLOBBER(dst,max,src) (src != NULL)?((max > strlen(src))?EOK:ESLEMAX):ESNULLP; \
@@ -97,7 +101,9 @@ typedef int errno_t;
 
 #define strtok_s(dest, dmax, delim, ptr) strtok_r(dest, delim, ptr)
 
-#define sprintf_s( dst, max, fmt, ... ) (parseFormat(dst, max, fmt, ##__VA_ARGS__) == 0) ? -ESNULLP : sprintf( dst, fmt, ##__VA_ARGS__)
+#define sprintf_s( dst, max, fmt, ... ) \
+ ((dst != NULL && fmt != NULL && max > 0) ? \
+  ((snprintf(dst, max, fmt, ##__VA_ARGS__) >= 0) ? EOK : -ESLEMAX) : -ESNULLP)
 
 #define STRCPY_S(dest,size,source)                      \
 	{ \
