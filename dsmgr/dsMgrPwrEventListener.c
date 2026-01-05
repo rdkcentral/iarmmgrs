@@ -667,8 +667,8 @@ static IARM_Result_t _SetStandbyVideoState(void *arg)
         INT_DEBUG("[%s] empty port name. Cannot proceed.\n", __FUNCTION__);
         return IARM_RESULT_SUCCESS;
     }
-    else
-        param->result = 0;
+    
+    param->result = 0;
 
     int i = 0;
     for(i = 0; i < MAX_NUM_VIDEO_PORTS; i++)
@@ -738,8 +738,7 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
 
     try
     {
-        device::VideoOutputPort &vPort = device::Host::getInstance().getVideoOutputPort(param->port);
-
+        device::Host::getInstance().getVideoOutputPort(param->port);
     }
     catch (...)
     {
@@ -856,7 +855,21 @@ static void* dsMgrPwrEventHandlingThreadFunc(void *arg)
     {
         pthread_mutex_lock(&tdsPwrEventMutexLock);
         INT_DEBUG("dsMgrPwrEventHandlingThreadFunc.... Wait for Events from Power manager Controller Callback\r\n");
-        pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
+        
+        // Check queue status with proper locking to fix MISSING_LOCK issue
+        pthread_mutex_lock(&tdsPwrEventQueueMutexLock);
+        bool queueEmpty = pwrEventQueue.empty();
+        pthread_mutex_unlock(&tdsPwrEventQueueMutexLock);
+        
+        while (!m_dsMgrPwrStopThread && queueEmpty)
+        {
+            pthread_cond_wait(&tdsPwrEventMutexCond, &tdsPwrEventMutexLock);
+            // Re-check queue status after waking up
+            pthread_mutex_lock(&tdsPwrEventQueueMutexLock);
+            queueEmpty = pwrEventQueue.empty();
+            pthread_mutex_unlock(&tdsPwrEventQueueMutexLock);
+        }
+        
         if(m_dsMgrPwrStopThread)
         {
              /* This case can enter if the de init is triggered which wants to exit the thread function 

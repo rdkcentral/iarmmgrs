@@ -52,10 +52,10 @@ int main(int argc, char *argv[])
 
         while (itr < argc)
         {
-                if(strcmp(argv[itr],"--debugconfig")==0)
+                if(itr < argc && strcmp(argv[itr],"--debugconfig")==0)
                 {
                         itr++;
-                        if (itr < argc)
+                        if (itr < argc && argv[itr] != NULL)
                         {
                                 debugConfigFile = argv[itr];
                         }

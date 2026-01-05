@@ -57,7 +57,8 @@ bool _folderExists(string folderName)
 	struct stat buffer;
 	if (stat(folderName.c_str(), &buffer) == 0)
 	{
-		if (buffer.st_mode & __S_IFDIR != 0)
+		// Fix operator precedence: & has lower precedence than !=
+		if ((buffer.st_mode & __S_IFDIR) != 0)
 		{
 			return true;
 		}

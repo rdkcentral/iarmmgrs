@@ -49,6 +49,7 @@ int main(int argc, char *argv[])
 {
     const char* debugConfigFile = NULL;
     int itr=0;
+    IARM_Result_t result;
 
         while (itr < argc)
         {
@@ -74,9 +75,27 @@ int main(int argc, char *argv[])
 
 #endif
 
-    DISKMgr_Start();
-    DISKMgr_Loop();
-    DISKMgr_Stop();
+    /* Add error checking for DISKMgr_Start */
+    result = DISKMgr_Start();
+    if (result != IARM_RESULT_SUCCESS) {
+        LOG("ERROR: DISKMgr_Start failed with error code %d\n", result);
+        return -1;
+    }
+    
+    /* Run the main loop */
+    result = DISKMgr_Loop();
+    if (result != IARM_RESULT_SUCCESS) {
+        LOG("ERROR: DISKMgr_Loop failed with error code %d\n", result);
+    }
+    
+    /* Stop the manager */
+    result = DISKMgr_Stop();
+    if (result != IARM_RESULT_SUCCESS) {
+        LOG("ERROR: DISKMgr_Stop failed with error code %d\n", result);
+        return -1;
+    }
+    
+    LOG("Disk Manager exited successfully\n");
     return 0;
 }
 

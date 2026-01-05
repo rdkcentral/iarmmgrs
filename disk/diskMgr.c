@@ -33,39 +33,109 @@
 #include <string.h>
 #include <stdlib.h>
 #include <time.h>
+#include <signal.h>
+#include <stdbool.h>
 
 #include "libIBus.h"
 #include "diskMgr.h"
 #include "diskMgrInternal.h"
 
+/* Global flag for graceful shutdown */
+static volatile bool g_running = true;
+
+/* Signal handler for graceful shutdown */
+static void signal_handler(int signal) {
+    if (signal == SIGTERM || signal == SIGINT) {
+        LOG("Disk Manager: Received signal %d, initiating graceful shutdown\n", signal);
+        g_running = false;
+    }
+}
+
 
 IARM_Result_t DISKMgr_Start()
 {
+    IARM_Result_t rc = IARM_RESULT_SUCCESS;
 
     LOG("Entering [%s] - [%s] - disabling io redirect buf\r\n", __FUNCTION__, IARM_BUS_DISKMGR_NAME);
-	setvbuf(stdout, NULL, _IOLBF, 0);
+    setvbuf(stdout, NULL, _IOLBF, 0);
 
-	IARM_Bus_Init(IARM_BUS_DISKMGR_NAME);
-    IARM_Bus_Connect();
-    IARM_Bus_RegisterEvent(IARM_BUS_DISKMGR_EVENT_MAX);
+    /* Set up signal handlers for graceful shutdown */
+    signal(SIGTERM, signal_handler);
+    signal(SIGINT, signal_handler);
+
+    /* Initialize IARM Bus with error checking */
+    rc = IARM_Bus_Init(IARM_BUS_DISKMGR_NAME);
+    if (rc != IARM_RESULT_SUCCESS) {
+        LOG("ERROR: IARM_Bus_Init failed with error code %d\n", rc);
+        return rc;
+    }
+
+    /* Connect to IARM Bus with error checking */
+    rc = IARM_Bus_Connect();
+    if (rc != IARM_RESULT_SUCCESS) {
+        LOG("ERROR: IARM_Bus_Connect failed with error code %d\n", rc);
+        if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+            LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
+        }
+        return rc;
+    }
+
+    /* Register events with error checking */
+    rc = IARM_Bus_RegisterEvent(IARM_BUS_DISKMGR_EVENT_MAX);
+    if (rc != IARM_RESULT_SUCCESS) {
+        LOG("ERROR: IARM_Bus_RegisterEvent failed with error code %d\n", rc);
+        if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+            LOG("Warning: IARM_Bus_Disconnect failed during error cleanup\n");
+        }
+        if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+            LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
+        }
+        return rc;
+    }
+
+    LOG("Disk Manager started successfully\n");
     return IARM_RESULT_SUCCESS;
 }
 
 IARM_Result_t DISKMgr_Loop()
 {
-    while(1)
+    LOG("Disk Manager: Starting main loop\n");
+    
+    /* Main loop with proper termination mechanism */
+    while(g_running)
     {
         LOG("I-ARM Disk Mgr: HeartBeat ping.\r\n");
-        sleep(2000);
+        
+        sleep(300);
+        
+        /* Check if we need to shutdown gracefully */
+        if (!g_running) {
+            LOG("Disk Manager: Shutdown signal received, exiting main loop\n");
+            break;
+        }
     }
+    
+    LOG("Disk Manager: Main loop terminated\n");
     return IARM_RESULT_SUCCESS;
 }
 
 
 IARM_Result_t DISKMgr_Stop(void)
 {
-    IARM_Bus_Disconnect();
-    IARM_Bus_Term();
+    LOG("Disk Manager: Stopping...\n");
+    
+    /* Signal the main loop to stop */
+    g_running = false;
+    
+    /* Clean up IARM connections */
+    if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
+        LOG("Warning: IARM_Bus_Disconnect failed during DISKMgr_Stop cleanup\n");
+    }
+    if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
+        LOG("Warning: IARM_Bus_Term failed during DISKMgr_Stop cleanup\n");
+    }
+    
+    LOG("Disk Manager: Stopped successfully\n");
     return IARM_RESULT_SUCCESS;
 }
 

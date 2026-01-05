@@ -127,7 +127,10 @@ int main(int argc, char *argv[])
 //    DSHal_RegisterForLog(dslogCallback);
 
 #endif
-    DSMgr_Start();
+    if (IARM_RESULT_SUCCESS != DSMgr_Start()) {
+        INT_ERROR("DSMgr_Start() failed\n");
+        return -1;
+    }
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
