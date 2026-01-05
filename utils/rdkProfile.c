@@ -74,13 +74,6 @@ profile_t searchRdkProfile(void) {
     char *rdkProfile = NULL;
     profile_t ret = PROFILE_INVALID;
     FILE* file = NULL;
-    
-    /* Security validation: Ensure path is within expected bounds */
-    if (strlen(devPropPath) >= PATH_MAX) {
-        INT_ERROR("[%s]: Device properties path too long (potential attack)\n", __FUNCTION__);
-        return PROFILE_INVALID;
-    }
-    
     file = fopen(devPropPath, "r");
     if (file == NULL) {
         INT_ERROR("[%s]: Cannot access device properties file or file not found\n", __FUNCTION__);
