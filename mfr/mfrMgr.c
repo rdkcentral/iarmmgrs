@@ -1516,16 +1516,19 @@ IARM_Result_t MFRLib_Start(void)
 
     if(err != IARM_RESULT_SUCCESS)
     {
-        if(is_connected)
-        {
-            if (IARM_Bus_Disconnect() != IARM_RESULT_SUCCESS) {
-                LOG("Warning: IARM_Bus_Disconnect failed during error cleanup\n");
-            }
-        }
-        if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
-            LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
-        }
-    }
+	if(is_connected)
+	{
+		IARM_Result_t ret = IARM_Bus_Disconnect();
+		if (ret != IARM_RESULT_SUCCESS) {
+			LOG("Warning: IARM_Bus_Disconnect failed during error cleanup\n");
+		}
+	}
+
+	IARM_Result_t term_ret = IARM_Bus_Term();
+	if (term_ret != IARM_RESULT_SUCCESS) {
+		LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
+	}
+     }
 
     return err;
 
@@ -1671,11 +1674,22 @@ static IARM_Result_t getFSRflag_(void *arg)
 
 IARM_Result_t MFRLib_Stop(void)
 {
-    if(is_connected)
+    if (is_connected)
     {
-	IARM_Bus_Disconnect();
-	IARM_Bus_Term();
+        IARM_Result_t result;
+        result = IARM_Bus_Disconnect();
+        if (result != IARM_RESULT_SUCCESS)
+        {
+            return result;
+        }
+
+        result = IARM_Bus_Term();
+        if (result != IARM_RESULT_SUCCESS)
+        {
+            return result;
+        }
     }
+
     return IARM_RESULT_SUCCESS;
 }
 
