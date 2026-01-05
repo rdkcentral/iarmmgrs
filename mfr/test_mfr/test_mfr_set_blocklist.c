@@ -10,6 +10,7 @@
 #include "libIARMCore.h"
 #include "libIBus.h"
 #include "mfrMgr.h"
+#include <limits.h>
 
 int main(int argc, char *argv[] )
 {
