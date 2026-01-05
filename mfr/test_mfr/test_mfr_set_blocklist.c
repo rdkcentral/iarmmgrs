@@ -6,7 +6,7 @@
  * **/
 
 #include <stdio.h>
-
+#include <stdlib.h>
 #include "libIARMCore.h"
 #include "libIBus.h"
 #include "mfrMgr.h"
@@ -26,7 +26,19 @@ int main(int argc, char *argv[] )
 		printf("Invalid input: not a valid unsigned integer.\n");
 		return 1;
 	}
+
+
+	if (input_ul_data > UINT_MAX) {
+    		printf("Invalid input: value exceeds unsigned int range (0 to %u).\n", UINT_MAX);
+    		return 1;
+	}
+
 	unsigned int param = (unsigned int )input_ul_data;
+        
+
+        // Wrap the integer into the required struct
+        IARM_Bus_MFRLib_Platformblockdata_Param_t param;
+        param.blocklist = blocklist_value;
 
 	IARM_Result_t ret;
 	IARM_Bus_Init("Tool-mfrsetConfigdata");
@@ -49,5 +61,6 @@ int main(int argc, char *argv[] )
 	IARM_Bus_Disconnect();
 	IARM_Bus_Term();
 	printf("Tool-mfrSetConfigdata  Exiting\r\n");
+	return 0;
 }
 

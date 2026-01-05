@@ -644,21 +644,36 @@ mfrError_t mfrSetFSRflag(uint16_t *newFsrFlag);
 mfrError_t mfrGetFSRflag(uint16_t *newFsrFlag);
 
 /**
-* @brief API to set the blocklist data from BL runtime data block of emmc
+* @brief API to set the blocklist data to BL runtime data block of emmc
 *
-* @param [in] params : unsigned integer of blocklist value
+* @param [in] params : unsigned integer pointer with the blocklist value
 *
 * @return Error Code:  Return mfrERR_NONE if operation is successful, mfrERR_GENERAL if it fails
 */
-mfrError_t mfr_setConfigData(unsigned int blocklist);
+mfrError_t mfr_setConfigData(unsigned int *blocklist);
+
 
 /**
-* @brief API to get the blocklist data from BL runtime data block of emmc
+ * @brief API to get blocklist data from the BL runtime data block in eMMC.
+ *
+ * @details
+ * This API expects a pointer to a structure of type
+ * IARM_Bus_MFRLib_Platformblockdata_Param_t, which contains the blocklist
+ * value. Although the function parameter is declared as 'unsigned int *' for
+ * backward compatibility, the caller actually provides a pointer to the
+ * platform-block-data structure, and the API writes the blocklist value into
+ * its 'blocklist' field.
+
 *
-* @param [in] params : unsigned integer pointer to carry the blocklist value
-*
-* @return Error Code:  Return mfrERR_NONE if operation is successful, mfrERR_GENERAL if it fails
-*/
+ * @param[in,out] blocklist
+ *     Pointer used to carry the blocklist output value.
+ *     In practice, this corresponds to &params->blocklist from the
+ *     IARM_Bus_MFRLib_Platformblockdata_Param_t structure.
+ *
+ * @return mfrError_t
+ *     - mfrERR_NONE     : Operation successful
+ *     - mfrERR_GENERAL  : Operation failed
+ */
 mfrError_t mfr_getConfigData(unsigned int *blocklist);
 
 #endif
