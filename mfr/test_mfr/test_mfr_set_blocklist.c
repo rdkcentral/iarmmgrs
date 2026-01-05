@@ -33,7 +33,7 @@ int main(int argc, char *argv[] )
     		return 1;
 	}
 
-	unsigned int param = (unsigned int )input_ul_data;
+	unsigned int blocklist_value = (unsigned int)input_ul_data;
         
 
         // Wrap the integer into the required struct
