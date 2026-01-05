@@ -650,7 +650,7 @@ mfrError_t mfrGetFSRflag(uint16_t *newFsrFlag);
 *
 * @return Error Code:  Return mfrERR_NONE if operation is successful, mfrERR_GENERAL if it fails
 */
-mfrError_t mfr_setConfigData(unsigned int *blocklist);
+mfrError_t mfr_setConfigData(unsigned int blocklist);
 
 
 /**
