@@ -106,7 +106,7 @@ typedef enum _RDMMgr_Status_t {
  * 
  * 1. Input Validation Required:
  *    - Always validate input length before copying to these buffers
- *    - Use strlen() to check input length against MAX_SIZE constants
+ *    - Use strnlen() to check input length against MAX_SIZE constants
  * 
  * 2. Safe String Operations:
  *    - Use strncpy() with proper null termination:
@@ -117,7 +117,7 @@ typedef enum _RDMMgr_Status_t {
  *      snprintf(pkg_info.pkg_version, RDM_PKG_VERSION_MAX_SIZE, "%s", input);
  * 
  * 3. Validation Example:
- *    if (strlen(input_name) >= RDM_PKG_NAME_MAX_SIZE) {
+ *    if (strnlen(input_name, RDM_PKG_NAME_MAX_SIZE) >= RDM_PKG_NAME_MAX_SIZE) {
  *        return RDM_PKG_INVALID_INPUT;
  *    }
  * 
@@ -127,7 +127,7 @@ typedef enum _RDMMgr_Status_t {
 typedef struct _RDMMgr_EventData_t {
 	struct _pkg_info {
 	    char pkg_name[RDM_PKG_NAME_MAX_SIZE];           /* Package name buffer - validate input length */
-	    char pkg_version[RDM_PKG_VERSION_MAX_SIZE];     /* Version string buffer - supports semantic versioning */
+	    char pkg_version[RDM_PKG_VERSION_MAX_SIZE];     /* Version string buffer */
 	    char pkg_inst_path[RDM_PKG_INST_PATH_MAX_SIZE]; /* Installation path buffer - validate path length */
 	    IARM_RDMMgr_Status_t pkg_inst_status;           /* Installation status enum */
 	} rdm_pkg_info;
