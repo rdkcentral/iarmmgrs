@@ -204,6 +204,7 @@ void ux_controller::initialize_safe_defaults()
     preferedPowerModeOnReboot = POWER_MODE_LAST_KNOWN;
     invalidateAsyncBootloaderPattern = false;
     firstPowerTransitionComplete = false;
+    ledColorInOnState = false;
 
     if (DEVICE_TYPE_STB == deviceType)
     {
