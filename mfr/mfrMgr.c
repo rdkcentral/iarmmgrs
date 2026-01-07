@@ -98,7 +98,7 @@ static IARM_Result_t getSerializedData_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_IPCCORE_FAIL;
     IARM_Bus_MFRLib_GetSerializedData_Param_t *param = (IARM_Bus_MFRLib_GetSerializedData_Param_t *)arg;
     mfrError_t err = mfrERR_NONE;
-    mfrSerializedData_t data;
+    mfrSerializedData_t data = {0};
     errno_t safec_rc = -1;
     int i;
     if (PROFILE_INVALID == profileType){
