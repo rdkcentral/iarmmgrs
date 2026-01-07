@@ -82,8 +82,21 @@ void dslogCallback(int priority,const char *buff)
 
 static void dsmgr_processkill_thread(int signum)
 {
-  printf("Exiting DSMgr process calling reboot now script %d \r\n",signum);
-  system("sh /rebootNow.sh -s dsMgrMain");
+  (void)signum; /* signal number unused to keep handler simple and async-signal-safe */
+
+  /* Use only async-signal-safe functions in the signal handler */
+  const char msg[] = "Exiting DSMgr process, calling reboot script\n";
+  write(STDERR_FILENO, msg, sizeof(msg) - 1);
+
+  pid_t pid = fork();
+  if (pid == 0)
+  {
+    /* Child process: execute the reboot script via /bin/sh */
+    char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", (char *)"-s", (char *)"dsMgrMain", NULL };
+    execve("/bin/sh", argv, NULL);
+    /* If execve fails, exit the child immediately */
+    _exit(127);
+  }
 }
 
 int main(int argc, char *argv[])
