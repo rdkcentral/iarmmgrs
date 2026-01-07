@@ -140,10 +140,15 @@ int main(int argc, char *argv[])
         return -1;
     }
     printf("DSMgr Register signal handler\n");
-    signal(SIGABRT,dsmgr_processkill_thread);
-    signal(SIGTERM,dsmgr_processkill_thread);
-    signal(SIGSEGV,dsmgr_processkill_thread);
 
+    struct sigaction sa;
+    sigemptyset(&sa.sa_mask);
+    sa.sa_flags = SA_RESTART;
+    sa.sa_handler = dsmgr_processkill_thread;
+
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
+    sigaction(SIGSEGV, &sa, NULL);
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
