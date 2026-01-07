@@ -80,7 +80,7 @@ void dslogCallback(int priority,const char *buff)
   
 #endif
 
-static void dsmgr_processkill_thread(int signum)
+static void dsmgr_signalhandler_thread(int signum)
 {
   (void)signum; /* signal number unused to keep handler simple and async-signal-safe */
 
@@ -157,7 +157,7 @@ int main(int argc, char *argv[])
     struct sigaction sa;
     sigemptyset(&sa.sa_mask);
     sa.sa_flags = SA_RESTART;
-    sa.sa_handler = dsmgr_processkill_thread;
+    sa.sa_handler = dsmgr_signalhandler_thread;
 
     sigaction(SIGABRT, &sa, NULL);
     sigaction(SIGTERM, &sa, NULL);
