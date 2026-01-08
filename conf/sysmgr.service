@@ -21,7 +21,7 @@ Description=IARM Mgr Daemon SYS MGR
 After=lighttpd.service iarmbusd.service
 
 [Service]
-ExecStart=/usr/bin/sysMgrMain
+ExecStart=/bin/sh -c '/usr/bin/sysMgrMain'
 Type=notify
 Restart=always
 
