@@ -316,7 +316,14 @@ static IARM_Result_t _GetSystemStates(void *arg)
 
 static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
-    errno_t rc = -1;	
+    errno_t rc = -1;
+    
+    /* Defensive checks for data validity */
+    if (data == NULL) {
+        LOG("ERROR: _sysEventHandler received NULL data pointer for eventId %d\n", eventId);
+        return;
+    }
+
 	/* Only handle state events */
     if (eventId != IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE) return;
 
