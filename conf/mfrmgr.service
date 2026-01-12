@@ -22,7 +22,7 @@ After=iarmbusd.service mfrlibapp.service
 
 [Service]
 Type=notify
-ExecStart=/usr/bin/mfrMgrMain
+ExecStart=/bin/sh -c '/usr/bin/mfrMgrMain'
 Restart=always
 
 [Install]
