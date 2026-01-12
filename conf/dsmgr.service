@@ -23,7 +23,7 @@ After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager
 [Service]
 Type=notify
 ExecStartPre=/bin/mkdir -p /opt/persistent/ds
-ExecStart=/usr/bin/dsMgrMain
+ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
 
 [Install]
 WantedBy=multi-user.target
