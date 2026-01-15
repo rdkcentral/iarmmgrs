@@ -1006,15 +1006,13 @@ static void* _DSMgrResnThreadFunc(void *arg)
 {
 	dsDisplayEvent_t edisplayEventStatusLocal = dsDISPLAY_EVENT_MAX;
 	/* Loop */
-	while (!dsMgr_thread_exit_flag)
+	while (1)
 	{
 		INT_INFO ("_DSMgrResnThreadFunc... wait for for HDMI or Tune Ready Events \r\n");
 
 		/*Wait for the Event*/
 		pthread_mutex_lock(&tdsMutexLock);
-		while (!dsMgr_thread_exit_flag && edisplayEventStatus == dsDISPLAY_EVENT_MAX) {
-			pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
-		}
+		pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
 		edisplayEventStatusLocal = edisplayEventStatus;
 		pthread_mutex_unlock(&tdsMutexLock);
 		INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",
