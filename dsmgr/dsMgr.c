@@ -749,7 +749,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
     edidData = (dsDisplayEDID_t *)malloc(sizeof(*edidData));
     if (edidData == NULL)
     {
-        STMGRLOG_ERROR("Failed to allocate memory for EDID data");
+        INT_ERROR("Failed to allocate memory for EDID data");
         return 0;
     }
 
@@ -790,7 +790,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 
             if (Edidparam == NULL)
             {
-                STMGRLOG_ERROR("Failed to allocate memory for EDID param");
+                INT_ERROR("Failed to allocate memory for EDID param");
                 free(edidData);
                 return 0;
             }
