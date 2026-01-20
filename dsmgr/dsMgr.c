@@ -802,9 +802,6 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 			if(rc!=EOK)
 			{
 				ERR_CHK(rc);
-				free(Edidparam);
-				free(edidData);
-				return 0;
 			}
 			dumpHdmiEdidInfo(edidData);
 			numResolutions = edidData->numOfSupportedResolution;
@@ -939,17 +936,83 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	               	}
 				}
 			}
+
+			if (false == IsValidResolution)
+			{
+				/* Boot with  the Resolution Supported by TV and Platform*/
+                for (i = 0; i < numResolutions; i++)
+                {
+                    setResn = &(edidData->suppResolutionList[i]);
+                    size_t numResolutions = dsUTL_DIM(kResolutions);
+                    for (size_t j = 0; j < numResolutions; j++)
+		            {
+		                dsVideoPortResolution_t *pfResolution = &kResolutions[j];
+		                if (0 == (strcmp(pfResolution->name,setResn->name)))
+		                {
+		                    INT_INFO("[DsMgr] Boot with TV Supported Resolution %s \r\n",pfResolution->name);
+		                    IsValidResolution = true;
+		                    break;
+		                }    
+		            }
+				}
+			}
 		}
 	}
-
+	else if (PortType == dsVIDEOPORT_TYPE_COMPONENT || PortType == dsVIDEOPORT_TYPE_BB || PortType == dsVIDEOPORT_TYPE_RF)
+	{
+		/* Set the Component / Composite  Resolution */	
+		numResolutions = dsUTL_DIM(kResolutions);
+    	for (i = 0; i < numResolutions; i++)
+    	{
+    		setResn = &kResolutions[i];
+    		if ((strcmp(presolution->name,setResn->name) == 0 ))
+    		{
+				INT_INFO("Breaking..Got Platform Resolution - %s..\r\n",setResn->name);
+        		IsValidResolution = true;
+        		break;
+    		}
+    	}
+	}
+		/*  If the Persisted Resolution settings does not matches with Platform Resolution - 
+			Force Default on Component/Composite 
+			This is to keep upward compatible and if we intend to 
+			remove any resolution from Dynamic Resolution List
+		*/
 	if(false == IsValidResolution)
 	{
 		setResn = &kResolutions[kDefaultResIndex];
 	}
 	
+	/* Set The Video Port Resolution in Requested Handle */
 	Setparam.handle = _handle;
 	Setparam.toPersist = false;
+	
+	/* If 4K support is disabled and last known resolution is 4K, default to 720p (aka default resolution) */
+	dsForceDisable4KParam_t res_4K_override;
+	memset(&res_4K_override, 0, sizeof(res_4K_override));
+	_dsGetForceDisable4K((void *) &res_4K_override);
+	if(true == res_4K_override.disable)
+	{
+		if(0 == strncmp(presolution->name, "2160", 4))
+		{
+			INT_INFO("User persisted 4K resolution. Now limiting to default (720p?) as 4K support is now disabled.\n");
+			setResn = &kResolutions[kDefaultResIndex];
+		}
+	}
+	
 	Setparam.resolution = *setResn;
+
+	/* Call during Init*/
+	#ifdef _INIT_RESN_SETTINGS
+		if(0 == iInitResnFlag)
+		{
+			INT_INFO("Init Platform Resolution - %s..\r\n",setResn->name);
+			_dsInitResolution(&Setparam);
+			free(Edidparam);
+			free(edidData);
+			return 0 ;
+		}
+	#endif
 
 	_dsSetResolution(&Setparam);
 
