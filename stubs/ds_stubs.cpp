@@ -59,8 +59,8 @@ namespace device{
 
     AudioOutputPort::AudioOutputPort(const int type, const int index, const int id) :
                                                                                    _type(type), _index(index), _id(id),
-                                                                                   _handle(-1), _encoding(AudioEncoding::kNone),
-                                                                                   _stereoMode(AudioStereoMode::kStereo), _stereoAuto(false),
+                                                                                   _handle(-1), _encoding(0),
+                                                                                   _stereoMode(0), _stereoAuto(false),
                                                                                    _gain(0.0), _db(0.0), _maxDb(0.0), _minDb(0.0), _optimalLevel(0.0),
                                                                                    _level(0.0), _loopThru(false), _muted(false), _audioDelayMs(0), _audioDelayOffsetMs(0)
     {
