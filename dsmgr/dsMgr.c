@@ -119,7 +119,7 @@ static bool isEUPlatform()
         char line[256];
 	bool isEUflag = false;
         const char* devPropPath = "/etc/device.properties";
-	char deviceProp[15]= "FRIENDLY_ID", UKRegion[5]= " UK", USRegion[5]= " US";
+	char deviceProp[15]= "FRIENDLY_ID";
 
 
 	FILE *file = fopen(devPropPath,"r");
@@ -129,14 +129,12 @@ static bool isEUPlatform()
 	}
 	while(fgets(line, sizeof(line), file)) {
 	    if(strstr(line,deviceProp)!=NULL){
-                if(strstr(line,USRegion)!=NULL)
+                if( !((strstr(line," US")!=NULL) || (strstr(line,"xglobal")!=NULL)) )
 		{
-                    INT_INFO("%s: %s ,isEUflag:%d \r\n",__FUNCTION__,line,isEUflag);
-		}
-		else{ // EU - UK/IT/DE
+		    // EU - UK/IT/DE
 		    isEUflag = true;
-		    INT_INFO("%s: %s ,isEUflag:%d \r\n",__FUNCTION__,line,isEUflag);
 		}
+		INT_INFO("%s: isEUflag:%d \r\n",__FUNCTION__,isEUflag);
 		break;
 	    }
 	}
@@ -192,6 +190,7 @@ static gboolean _SetResolutionHandler(gpointer data);
 static guint hotplug_event_src = 0;
 static gboolean dumpEdidOnChecksumDiff(gpointer data);
 static bool IsIgnoreEdid_gs = false;
+static bool bootup_flag_enabled = true;
 
 static intptr_t getVideoPortHandle(_dsVideoPortType_t port)
 {
@@ -445,8 +444,6 @@ static void setBGColor(dsVideoBackgroundColor_t color)
 /*Event Handler for DS Manager And Sys Manager Events */
 static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
-    /* allows dsmgr to set initial resolution irrespective of ignore edid only during boot */
-    static bool bootup_flag_enabled = true;
 
     /*Handle only Sys Manager Events */
 	if (strcmp(owner, IARM_BUS_SYSMGR_NAME)  == 0) 
@@ -520,6 +517,7 @@ static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                                                     hotplug_event_src = 0;
                                                 }
                                                 setBGColor(dsVIDEO_BGCOLOR_NONE);
+						/* allows dsmgr to set initial resolution irrespective of ignore edid only during boot */
 						if ((!IsIgnoreEdid_gs) || bootup_flag_enabled){
                                                     _SetVideoPortResolution();
 						    if(bootup_flag_enabled)
@@ -759,12 +757,20 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	/*Get the User Persisted Resolution Based on Handle */
 	memset(&Getparam,0,sizeof(Getparam));
 	Getparam.handle = _handle;
-	Getparam.toPersist = true;
+        gboolean hotplug_edid_diff = dumpEdidOnChecksumDiff(NULL);
+	if(bootup_flag_enabled || hotplug_edid_diff){
+	    Getparam.toPersist = true;
+        }else{
+	    Getparam.toPersist = false;
+        }
 	_dsGetResolution(&Getparam);
-	dsVideoPortResolution_t *presolution = &Getparam.resolution;	
-	INT_DEBUG("Got User Persisted Resolution - %s..\r\n",presolution->name);
+	dsVideoPortResolution_t *presolution = &Getparam.resolution;
+	if(bootup_flag_enabled||hotplug_edid_diff){
+	    INT_INFO("Got User Persisted Resolution - %s..\r\n",presolution->name);
+        }else{
+	    INT_INFO("Got Platform Resolution - %s..\r\n",presolution->name);
+        }
 
-		
 	if (PortType == dsVIDEOPORT_TYPE_HDMI)	{
 		/*Get The Display Handle */
 		dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
@@ -1256,6 +1262,7 @@ static gboolean dumpEdidOnChecksumDiff(gpointer data) {
                                     INT_DEBUG("%02X ", edidBytes[i]);
                             }
                             INT_INFO("\nHDMI-EDID Dump END>>>>>>>>>>>>>>\r\n");
+			    return true;
                     }
 		}
         }
