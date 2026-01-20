@@ -88,7 +88,6 @@ static dsDisplayEvent_t edisplayEventStatus = dsDISPLAY_EVENT_MAX;
 static pthread_t edsHDMIHPDThreadID; // HDMI HPD - HDMI Hot Plug detect events
 static pthread_mutex_t tdsMutexLock;
 static pthread_cond_t  tdsMutexCond;
-static volatile bool dsMgr_thread_exit_flag = false;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
@@ -355,7 +354,6 @@ static gboolean heartbeatMsg(gpointer data)
 IARM_Result_t DSMgr_Stop()
 {
     IARM_Result_t iarmStatus = IARM_RESULT_SUCCESS;
-    dsMgr_thread_exit_flag = true;
     if(dsMgr_Gloop)
     {
         g_main_loop_quit(dsMgr_Gloop);
