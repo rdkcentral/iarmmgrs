@@ -736,21 +736,29 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	dsVideoPortSetResolutionParam_t Setparam;
 	dsVideoPortGetResolutionParam_t Getparam;
 	dsVideoPortResolution_t *setResn = NULL;
-	dsDisplayEDID_t edidData;
-	dsDisplayGetEDIDParam_t Edidparam;
+	dsDisplayEDID_t *edidData = NULL;
+	dsDisplayGetEDIDParam_t *Edidparam = NULL;
 	int pNumResolutions = dsUTL_DIM(kResolutions);
 	/*
 		* Default Resolution Compatible check is false - Do not Force compatible resolution on startup
 	*/
 	Setparam.forceCompatible = false;
 
+    edidData = (dsDisplayEDID_t *)malloc(sizeof(*edidData));
+    if (edidData == NULL)
+    {
+        INT_ERROR("Failed to allocate memory for EDID data");
+        return 0;
+    }
+
 	/*Initialize the struct*/
-	memset(&edidData, 0, sizeof(edidData));
+	memset(edidData, 0, sizeof(*edidData));
 	
 	/* Return if Handle is NULL */
 	if (_handle == NULL)
 	{
 		INT_ERROR("_SetResolution - Got NULL Handle ..\r\n");
+		free(edidData);
 		return 0;
 	}
 	
@@ -776,17 +784,25 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 		dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
 		if (_displayHandle)
 		{
+            Edidparam = (dsDisplayGetEDIDParam_t *)malloc(sizeof(*Edidparam));
+
+            if (Edidparam == NULL)
+            {
+                INT_ERROR("Failed to allocate memory for EDID param");
+                free(edidData);
+                return 0;
+            }
 			/* Get the EDID Display Handle */
-			 memset(&Edidparam,0,sizeof(Edidparam));
-    			Edidparam.handle = _displayHandle;
-			_dsGetEDID(&Edidparam);
-			rc = memcpy_s(&edidData,sizeof(edidData), &Edidparam.edid, sizeof(Edidparam.edid));
+			 memset(Edidparam,0,sizeof(*Edidparam));
+    			Edidparam->handle = _displayHandle;
+			_dsGetEDID(Edidparam);
+			rc = memcpy_s(edidData,sizeof(*edidData), &Edidparam->edid, sizeof(Edidparam->edid));
 			if(rc!=EOK)
 			{
 				ERR_CHK(rc);
 			}
-			dumpHdmiEdidInfo(&edidData);
-			numResolutions = edidData.numOfSupportedResolution;
+			dumpHdmiEdidInfo(edidData);
+			numResolutions = edidData->numOfSupportedResolution;
 			INT_INFO("numResolutions is %d \r\n",numResolutions);
 			
 			/*  If HDMI is connected and Low power Mode. 
@@ -794,11 +810,13 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				Change the Resolution in Next Hot plug
 				DO not set the Resolution if TV is in DVI mode.
 			*/
-			if ((0 == numResolutions) || (!(edidData.hdmiDeviceType)))
+			if ((0 == numResolutions) || (!(edidData->hdmiDeviceType)))
 			{
 
 				INT_ERROR("Do not Set Resolution..The HDMI is not Ready  !! \r\n");
-				INT_ERROR("numResolutions  = %d edidData.hdmiDeviceType = %d !! \r\n",numResolutions,edidData.hdmiDeviceType);
+				INT_ERROR("numResolutions  = %d edidData.hdmiDeviceType = %d !! \r\n",numResolutions,edidData->hdmiDeviceType);
+				free(Edidparam);
+				free(edidData);
 				return 0;
 			}
 			
@@ -808,7 +826,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 			*/
 			for (i = 0; i < numResolutions; i++)
 			{
-				setResn = &(edidData.suppResolutionList[i]);
+				setResn = &(edidData->suppResolutionList[i]);
 				INT_INFO("presolution->name : %s, resolution->name : %s\r\n",presolution->name,setResn->name);
 				if ((strcmp(presolution->name,setResn->name) == 0 ))
 				{
@@ -829,9 +847,9 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				// get secondary resolution based on presolution
 				if(getSecondaryResolution(presolution->name,secResn))
 				{
-					if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,secResn,&resIndex))
+					if(isResolutionSupported(edidData,numResolutions,pNumResolutions,secResn,&resIndex))
 					{
-						setResn = &(edidData.suppResolutionList[resIndex]);
+						setResn = &(edidData->suppResolutionList[resIndex]);
 						INT_INFO("Breaking..Got Secondary Resolution - %s..\r\n",setResn->name);
                                                 IsValidResolution = true;
                                                 Setparam.forceCompatible = true;
@@ -857,7 +875,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					if(IsEUPlatform){
 					    getFallBackResolution(fallBackResolutionList[i],fbResn,1); //EU fps
 				            INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
-					    if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
+					    if(isResolutionSupported(edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
 					    {
 						IsValidResolution = true;
 					    }
@@ -866,14 +884,14 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					{
 						getFallBackResolution(fallBackResolutionList[i],fbResn,0); //default fps
 				                INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
-						if(isResolutionSupported(&edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
+						if(isResolutionSupported(edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
 						{
 							IsValidResolution = true;
 						}
 					}
 					if(IsValidResolution)
 					{
-						setResn = &(edidData.suppResolutionList[resIndex]);
+						setResn = &(edidData->suppResolutionList[resIndex]);
 						INT_INFO("[DsMgr] Got Next Best Resolution - %s\r\n",setResn->name);
 						break;
 					}
@@ -892,8 +910,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				defaultResn = &kResolutions[kDefaultResIndex];
 				for (i = 0; i < numResolutions; i++)
 				{
-					setResn = &(edidData.suppResolutionList[i]);
-					//INT_DEBUG("\n presolution->name : %s, resolution->name : %s\n",defaultResn->name,setResn->name);
+					setResn = &(edidData->suppResolutionList[i]);
 					if ((strcmp(defaultResn->name,setResn->name) == 0 ))
 					{
 						IsValidResolution = true;
@@ -908,7 +925,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				/*Take 480p as resolution if both above cases fail */
                 for (i = 0; i < numResolutions; i++)
                 {
-                    setResn = &(edidData.suppResolutionList[i]);
+                    setResn = &(edidData->suppResolutionList[i]);
                     if ((strcmp("480p",setResn->name) == 0 )) 
                 	{
 						INT_INFO("Breaking..Default to 480p Resolution - %s..\r\n",setResn->name);
@@ -923,7 +940,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				/* Boot with  the Resolution Supported by TV and Platform*/
                 for (i = 0; i < numResolutions; i++)
                 {
-                    setResn = &(edidData.suppResolutionList[i]);
+                    setResn = &(edidData->suppResolutionList[i]);
                     size_t numResolutions = dsUTL_DIM(kResolutions);
                     for (size_t j = 0; j < numResolutions; j++)
 		            {
@@ -989,11 +1006,24 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 		{
 			INT_INFO("Init Platform Resolution - %s..\r\n",setResn->name);
 			_dsInitResolution(&Setparam);
+			free(Edidparam);
+			free(edidData);
 			return 0 ;
 		}
 	#endif
 
 	_dsSetResolution(&Setparam);
+
+	if (Edidparam)
+	{
+		free(Edidparam);
+	}
+
+	if (edidData)
+	{
+		free(edidData);
+	}
+
 	return 0 ;
 }
 
