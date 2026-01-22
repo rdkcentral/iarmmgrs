@@ -661,12 +661,6 @@ static IARM_Result_t _SetStandbyVideoState(void *arg)
 	return IARM_RESULT_INVALID_PARAM;
     }
     dsMgrStandbyVideoStateParam_t *param = (dsMgrStandbyVideoStateParam_t *)arg;
-    if(NULL == param->port)
-    {
-        param->result = -1;
-        INT_DEBUG("[%s] empty port name. Cannot proceed.\n", __FUNCTION__);
-        return IARM_RESULT_SUCCESS;
-    }
     
     param->result = 0;
 
@@ -730,11 +724,6 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
 	return IARM_RESULT_INVALID_PARAM;
     }
     dsMgrStandbyVideoStateParam_t *param = (dsMgrStandbyVideoStateParam_t *)arg;
-    if(NULL == param->port)
-    {
-        INT_DEBUG("[%s]Bad port name. Cannot get state.\n", __FUNCTION__);
-        return IARM_RESULT_SUCCESS;
-    }
 
     try
     {
