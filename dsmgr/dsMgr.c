@@ -75,6 +75,7 @@ extern IARM_Result_t _dsIsDisplaySurround(void *arg);
 extern IARM_Result_t _dsGetForceDisable4K(void *arg);
 extern IARM_Result_t _dsSetBackgroundColor(void *arg);
 extern IARM_Result_t _dsGetIgnoreEDIDStatus(void *arg);
+extern IARM_Result_t _dsFPInit(void *arg);
 extern bool isComponentPortPresent();
 
 extern bool dsGetHDMIDDCLineStatus(void);
@@ -244,6 +245,17 @@ IARM_Result_t DSMgr_Start()
 		INT_ERROR("Failed to initialize DS Manager for [%s] \r\n", IARM_BUS_DSMGR_NAME);
 		return iarmStatus;
 	}
+
+    /* Initialing FP HAL as it is required to handle PowerLed based on postRebootConfig */
+    iarmStatus = _dsFPInit(NULL);
+    if (IARM_RESULT_SUCCESS != iarmStatus) {
+        INT_ERROR("Failed to initialize FrontPanel \r\n");
+        return iarmStatus;
+    }
+    else {
+        INT_INFO("FrontPanel Initialized successfully ...\r\n");
+    }
+
 	iInitResnFlag = 1;
         dsEdidIgnoreParam_t ignoreEdidParam;
         memset(&ignoreEdidParam,0,sizeof(ignoreEdidParam));
