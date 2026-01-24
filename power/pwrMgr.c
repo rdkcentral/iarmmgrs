@@ -1478,7 +1478,8 @@ static IARM_Result_t _SetDeepSleepTimeOut(void *arg)
     if(param != NULL)
     {
         __TIMESTAMP();
-        LOG("Deep sleep timeout set to : %d\r\n", param->timeout);
+    	param->timeout = 600;
+        LOG("Deep sleep timeout set to fixed 10 min value : %d\r\n", param->timeout);
         deep_sleep_wakeup_timeout_sec = param->timeout;
         m_settings.deep_sleep_timeout = param->timeout;
         IsWakeupTimerSet = 1;
