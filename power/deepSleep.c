@@ -179,8 +179,8 @@ static void SetPwrMgrDeepSleepMode(void *data)
                 LOG("Schedule Deep SLeep After %d Sec.. \r\n",deep_sleep_delay_timeout);
                 dsleep_delay_event_src = g_timeout_add_seconds ((guint) deep_sleep_delay_timeout,deep_sleep_delay_timer_fn,deepSleepMgr_Loop);
             } else {
-                LOG("Enter to Deep sleep Mode..stop Receiver with sleep 2 before DS \r\n");
-                system("sleep 2");
+                LOG("Enter to Deep sleep Mode..stop Receiver with sleep 10 before DS \r\n");
+                system("sleep 10");
                 int status = -1;
                 int retryCount = 0;
                 bool userWakeup = 0;
