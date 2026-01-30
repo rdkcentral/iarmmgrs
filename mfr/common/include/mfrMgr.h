@@ -110,6 +110,8 @@
 #define IARM_BUS_MFRLIB_API_GetBootImageName  "mfrGetBootImageName"
 #define IARM_BUS_MFRLIB_API_GetPathConfiguration "mfrGetPathConfiguration"
 #define IARM_BUS_MFRLIB_API_GetDFAST2Data     "mfrGetDFAST2Data"
+#define IARM_BUS_MFRLIB_API_GetConfigData       "mfr_getConfigData"
+#define IARM_BUS_MFRLIB_API_SetConfigData       "mfr_setConfigData"
 
 
 #define IARM_BUS_MFRLIB_COMMON_API_WriteImageCb "WriteImageCb"         /*!< This method shall be implemented by the caller calling WriteImage*/

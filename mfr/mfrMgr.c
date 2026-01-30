@@ -1200,6 +1200,101 @@ static IARM_Result_t getCPUClockSpeed_(void *arg)
 
 #endif
 
+IARM_Result_t setConfigData_(void *arg)
+{
+    typedef mfrError_t (*mfr_setConfigData)(unsigned int blocklist);
+#ifndef RDK_MFRLIB_NAME
+    LOG("Please define RDK_MFRLIB_NAME. Cannot resolve mfrsetConfigData without it.\n");
+    return IARM_RESULT_INVALID_STATE;
+#else
+    static mfr_setConfigData func = 0;
+
+    if (func == 0) {
+            void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+            if (dllib) {
+                func = (mfr_setConfigData) dlsym(dllib, "mfr_setConfigData");
+                dlclose(dllib);
+                if (func) {
+                    LOG("mfr_setConfigData is defined and loaded\n");
+                }
+                else {
+                    LOG("mfr_setConfigData is not defined\n");
+                    return IARM_RESULT_INVALID_STATE;
+                }
+            }
+            else {
+                LOG("Opening RDK_MFRLIB_NAME [%s] failed\n", RDK_MFRLIB_NAME);
+                return IARM_RESULT_INVALID_STATE;
+            }
+    }
+
+    IARM_Result_t retCode = IARM_RESULT_SUCCESS;
+    mfrError_t err = mfrERR_NONE;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
+
+    err = func(bl_rt_blocklist->blocklist);
+    if(mfrERR_NONE != err)
+    {
+        LOG("Calling mfr_setConfigData returned error 0x%x\n", err);
+        retCode = IARM_RESULT_INVALID_PARAM;
+    }
+    else {
+        LOG("Set the BL runtime blocklist success\n");
+    }
+
+    return retCode;
+#endif
+}
+
+IARM_Result_t getConfigData_(void *arg)
+{
+    typedef mfrError_t (*mfr_getConfigData)(unsigned int *blocklist);
+#ifndef RDK_MFRLIB_NAME
+    LOG("Please define RDK_MFRLIB_NAME. Cannot resolve mfrgetConfigData without it.\n");
+    return IARM_RESULT_INVALID_STATE;
+#else
+    static mfr_getConfigData func = 0;
+
+    if (func == 0) {
+            void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
+            if (dllib) {
+                func = (mfr_getConfigData) dlsym(dllib, "mfr_getConfigData");
+                dlclose(dllib);
+                if (func) {
+                    LOG("mfr_getConfigData is defined and loaded\n");
+                }
+                else {
+                    LOG("mfr_getConfigData is not defined\n");
+                    return IARM_RESULT_INVALID_STATE;
+                }
+            }
+            else {
+                LOG("Opening RDK_MFRLIB_NAME [%s] failed\n", RDK_MFRLIB_NAME);
+                return IARM_RESULT_INVALID_STATE;
+            }
+    }
+
+    IARM_Result_t retCode = IARM_RESULT_SUCCESS;
+    mfrError_t err = mfrERR_NONE;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t bl = {0} ;
+
+    err = func(&bl);
+    if(mfrERR_NONE != err)
+    {
+        LOG("Calling mfr_getConfigData returned error 0x%x\n", err);
+        retCode = IARM_RESULT_INVALID_PARAM;
+    }
+    else {
+        memcpy(bl_rt_blocklist, &bl,sizeof(IARM_Bus_MFRLib_Platformblockdata_Param_t));
+        LOG(" BL runtime blocklist value is 0x%x\n",(unsigned int) bl_rt_blocklist->blocklist);
+	// handle the blocklist version set
+    }
+
+    return retCode;
+#endif
+}
+
 IARM_Result_t MFRLib_Start(void)
 {
     IARM_Result_t err = IARM_RESULT_SUCCESS;
@@ -1402,6 +1497,20 @@ IARM_Result_t MFRLib_Start(void)
          break;
     }
 #endif
+    err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_SetConfigData, setConfigData_);
+
+    if(IARM_RESULT_SUCCESS != err)
+    {
+	LOG("Error registering call(setConfigData) in IARM.. error code : %d\n",err);
+        break;
+    }
+    err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_GetConfigData, getConfigData_);
+
+    if(IARM_RESULT_SUCCESS != err)
+    {
+         LOG("Error registering call(getConfigData) in IARM.. error code : %d\n",err);
+         break;
+    }
 	LOG("All IARM Bus calls and events registered successfully\n");
     }while(0);
 
