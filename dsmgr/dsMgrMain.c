@@ -160,7 +160,7 @@ int main(int argc, char *argv[])
     sa.sa_handler = dsmgr_signalhandler_thread;
 
     sigaction(SIGABRT, &sa, NULL);
-    sigaction(SIGTERM, &sa, NULL);
+//    sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGSEGV, &sa, NULL);
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
