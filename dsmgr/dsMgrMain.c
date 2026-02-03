@@ -93,7 +93,9 @@ static void dsmgr_signalhandler_thread(int signum)
   {
     /* Child process: execute the reboot script via /bin/sh */
     char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", (char *)"-s", (char *)"dsMgrMain", NULL };
+    INT_INFO("Start the rebootNow.sh script\n");
     execve("/bin/sh", argv, NULL);
+    INT_INFO("Completed the rebootNow.sh script\n");
     /* If execve fails, exit the child immediately */
     _exit(127);
   }
@@ -160,7 +162,6 @@ int main(int argc, char *argv[])
     sa.sa_handler = dsmgr_signalhandler_thread;
 
     sigaction(SIGABRT, &sa, NULL);
-    sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGSEGV, &sa, NULL);
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
