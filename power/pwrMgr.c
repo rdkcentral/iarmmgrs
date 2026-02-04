@@ -750,10 +750,12 @@ IARM_Result_t _SetPowerState(void *arg)
                 timeAtDeepSleep = 0;
             }
 #endif
+            LOG("IARM_BUS_PWRMGR_EVENT_MODECHANGED from %s to %s end\n",powerstateString[curState],powerstateString[newState]);
             IARM_Bus_BroadcastEvent( IARM_BUS_PWRMGR_NAME,
                                      IARM_BUS_PWRMGR_EVENT_MODECHANGED,
                                      (void *)pwrModeEventData,
                                      sizeof(IARM_Bus_PWRMgr_EventData_t));
+            LOG("IARM_BUS_PWRMGR_EVENT_MODECHANGED from %s to %s end\n",powerstateString[curState],powerstateString[newState]);
             /*
              * Call DeepSleep event update.
              */
@@ -1365,9 +1367,11 @@ static int _InitSettings(const char *settingsFile)
             _eventData.data.state.curState = (IARM_Bus_PowerState_t)g_last_known_power_state;
             _eventData.data.state.newState = (IARM_Bus_PowerState_t)pSettings->powerState;
         }
-        LOG("%s: Init setting powermode change from %d to %d \r\n", __FUNCTION__,_eventData.data.state.curState, \
+        LOG("%s: IARM_BUS_PWRMGR_EVENT_MODECHANGED from %d to %d \r\n", __FUNCTION__,_eventData.data.state.curState, \
                                                                                    _eventData.data.state.newState);
         IARM_Bus_BroadcastEvent( IARM_BUS_PWRMGR_NAME, IARM_BUS_PWRMGR_EVENT_MODECHANGED, (void *)&_eventData, sizeof(_eventData));
+        LOG("%s: IARM_BUS_PWRMGR_EVENT_MODECHANGED from %d to %d \r\n", __FUNCTION__,_eventData.data.state.curState, \
+                                                                                   _eventData.data.state.newState);
 
         if (ret > 0 && ret < (int)sizeof(*pSettings)) {
             _DumpSettings(pSettings);
