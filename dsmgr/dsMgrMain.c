@@ -93,9 +93,11 @@ static void dsmgr_signalhandler_thread(int signum)
   {
     /* Child process: execute the reboot script via /bin/sh */
     char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", (char *)"-s", (char *)"dsMgrMain", NULL };
-    INT_INFO("Start the rebootNow.sh script\n");
+    const char start_msg[] = "Start the rebootNow.sh script\n";
+    write(STDERR_FILENO, start_msg, sizeof(start_msg) - 1);
     execve("/bin/sh", argv, NULL);
-    INT_INFO("Completed the rebootNow.sh script\n");
+    const char done_msg[] = "Completed the rebootNow.sh script\n";
+    write(STDERR_FILENO, done_msg, sizeof(done_msg) - 1);
     /* If execve fails, exit the child immediately */
     _exit(127);
   }
