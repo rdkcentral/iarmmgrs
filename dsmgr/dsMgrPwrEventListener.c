@@ -387,12 +387,12 @@ static int _SetLEDStatus(PWRMgr_PowerState_t powerState)
     return 0;
 }
 
-int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
+int _SetAVPortsPowerState(PWRMgr_PowerState_t powerState)
 {
     INT_INFO("Entering [%s] powerState:%d \r\n", __FUNCTION__, powerState);
     try
     {
-        if (POWER_STATE_ON != powerState)
+        if (PWRMGR_POWERSTATE_ON != powerState)
         {
             INT_INFO("[%s] POWERSTATE %d \r\n", __FUNCTION__, powerState);
             // We're in a non-ON power state (standby or off). Certain ports may have to be left on in standby modes.
@@ -407,7 +407,7 @@ int _SetAVPortsPowerState(PowerController_PowerState_t powerState)
                         device::VideoOutputPort vPort = videoPorts.at(i);
                         bool doEnable = get_video_port_standby_setting(vPort.getName().c_str());
                         INT_DEBUG("[%s] Video port %s will be %s for PowerState[%d]\n", __FUNCTION__, vPort.getName().c_str(), (doEnable ? "enabled" : "disabled"), powerState);
-                        if ((false == doEnable) || (POWER_STATE_OFF == powerState))
+                        if ((false == doEnable) || (PWRMGR_POWERSTATE_OFF == powerState))
                         {
                             // Disable the port
                             IARM_Result_t retCode = configureVideoPort(vPort, false);
