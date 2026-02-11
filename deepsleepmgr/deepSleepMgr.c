@@ -387,7 +387,7 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                                 if(retryCount >= MAX_RETRIES)
                                 {
                                     LOG("ERROR: Device failed to enter into Deep sleep Mode after %d retries, generate key event to transition to light sleep.. \r\n", MAX_RETRIES);
-                                    T2_EVENT_STRING("SYST_ERR_DSModeFail", "ERROR: Device failed to enter into Deep sleep Mode after retries, generate key event to transition to light sleep.");
+                                    T2_EVENT_STRING("SYST_ERR_DSModeFail", "ERROR: Device failed to enter into Deep sleep Mode after 5 retries, generate key event to transition to light sleep.");
                                     pthread_mutex_lock(&deep_sleep_mutex);
                                     IsDeviceInDeepSleep = DeepSleepStatus_Failed;
                                     pthread_mutex_unlock(&deep_sleep_mutex);
