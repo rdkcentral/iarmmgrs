@@ -43,6 +43,8 @@
 #include "dsMgrInternal.h"
 #include "libIBus.h"
 #include "iarmUtil.h"
+#include "iarmutilslogger.h"
+
 
 #include "sysMgr.h"
 
