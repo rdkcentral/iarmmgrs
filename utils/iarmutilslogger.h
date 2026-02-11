@@ -124,6 +124,10 @@ extern int b_rdk_logger_enabled;
 #define INT_WARNING(FORMAT, ...)   do { printf(FORMAT, ##__VA_ARGS__); } while(0)
 
 
+#endif
+
+
+
 #define T2_EVENT_STRING(marker, value) \
     do { \
         t2_event_s((char*)marker, (char*)value); \
@@ -138,10 +142,6 @@ extern int b_rdk_logger_enabled;
     do { \
         t2_event_d((char*)marker, (int)value); \
     } while(0)
-
-#endif
-
-
 
 #endif
 
