@@ -58,6 +58,8 @@ extern "C"
 #include "frontPanelConfig.hpp"
 #include "manager.hpp"
 #include "plat_power.h"
+#include "iarmutilslogger.h"
+
 
 /* For glib APIs*/
 #include <glib.h>
