@@ -128,17 +128,17 @@ extern int b_rdk_logger_enabled;
 
 
 
-#define T2_EVENT_STRING(marker, value) \
+#define TELEMENTRY_EVENT_STRING(marker, value) \
     do { \
         t2_event_s((char*)marker, (char*)value); \
     } while(0)
 
-#define T2_EVENT_FLOAT(marker, value) \
+#define TELEMENTRY_EVENT_FLOAT(marker, value) \
     do { \
         t2_event_f((char*)marker, (double)value); \
     } while(0)
 
-#define T2_EVENT_INT(marker, value) \
+#define TELEMENTRY_EVENT_INT(marker, value) \
     do { \
         t2_event_d((char*)marker, (int)value); \
     } while(0)

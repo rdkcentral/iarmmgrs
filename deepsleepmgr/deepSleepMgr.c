@@ -217,7 +217,7 @@ IARM_Result_t DeepSleepMgr_Stop(void)
 static gboolean heartbeatMsg(gpointer data)
 {
     LOG("I-ARM Deep Sleep Mgr: HeartBeat ping.\r\n");
-    T2_EVENT_STRING("SYST_INFO_DS_HB", "I-ARM Deep Sleep Mgr: HeartBeat ping.");
+    TELEMENTRY_EVENT_STRING("SYST_INFO_DS_HB", "I-ARM Deep Sleep Mgr: HeartBeat ping.");
     return TRUE;
 }
 
@@ -387,7 +387,7 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                                 if(retryCount >= MAX_RETRIES)
                                 {
                                     LOG("ERROR: Device failed to enter into Deep sleep Mode after %d retries, generate key event to transition to light sleep.. \r\n", MAX_RETRIES);
-                                    T2_EVENT_STRING("SYST_ERR_DSModeFail", "ERROR: Device failed to enter into Deep sleep Mode after 5 retries, generate key event to transition to light sleep.");
+                                    TELEMENTRY_EVENT_STRING("SYST_ERR_DSModeFail", "ERROR: Device failed to enter into Deep sleep Mode after 5 retries, generate key event to transition to light sleep.");
                                     pthread_mutex_lock(&deep_sleep_mutex);
                                     IsDeviceInDeepSleep = DeepSleepStatus_Failed;
                                     pthread_mutex_unlock(&deep_sleep_mutex);
@@ -418,7 +418,7 @@ static void _eventHandler(const char *owner, IARM_EventId_t eventId, void *data,
                            deep sleep resulting in the device not fully resuming. To resolve this we will ensure the WAKE event
                            is always sent here */
                             LOG("Resumed due to user action. Sending KED_DEEPSLEEP_WAKEUP. \r\n");
-                            T2_EVENT_STRING("SYST_INFO_DS_WakeUp", "Resumed due to user action. Sending KED_DEEPSLEEP_WAKEUP.");
+                            TELEMENTRY_EVENT_STRING("SYST_INFO_DS_WakeUp", "Resumed due to user action. Sending KED_DEEPSLEEP_WAKEUP.");
                             IARM_Bus_IRMgr_EventData_t eventData;
                             eventData.data.irkey.keyType = KET_KEYDOWN;
                             eventData.data.irkey.keyCode = KED_DEEPSLEEP_WAKEUP;
