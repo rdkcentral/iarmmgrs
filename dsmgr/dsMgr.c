@@ -1118,6 +1118,7 @@ void _setEASAudioMode()
 
 	dsAudioGetHandleParam_t getHandle;
 	dsAudioSetStereoModeParam_t setMode;
+	const dsAudioTypeConfig_t * audioConfigs =NULL;
 	int numPorts, i = 0;
 
 	dsGetAudioTypeConfigs(&numPorts, &audioConfigs);
@@ -1166,7 +1167,6 @@ static void _setAudioMode()
 	const dsAudioTypeConfig_t * audioConfigs =NULL;
 	int numPorts, i = 0;
 
-	numPorts = dsUTL_DIM(kSupportedPortTypes);
 	dsGetAudioTypeConfigs(&numPorts, &audioConfigs);
 	INT_INFO("called dsGetAudioTypeConfigs() numPorts =%d\n", numPorts);
 
