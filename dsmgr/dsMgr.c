@@ -52,9 +52,11 @@
 #include "dsTypes.h"
 #include "dsRpc.h"
 #include "dsVideoPort.h"
-#include "dsVideoResolutionSettings.h"
+//#include "dsVideoResolutionSettings.h"
 #include "dsDisplay.h"
-#include "dsAudioSettings.h"
+//#include "dsAudioSettings.h"
+#include "dsAudioConfig.h"
+#include "dsVideoPortConfig.h"
 #include "dsAudio.h"
 #include "safec_lib.h"
 #include "rfcapi.h"
@@ -688,12 +690,17 @@ static bool isResolutionSupported(dsDisplayEDID_t *edidData, int numResolutions,
 {
 	bool supported = false;
 	dsVideoPortResolution_t *setResn = NULL;
+
+	int localNumResolutions = 0;
+	dsVideoPortResolution_t *kResolutions = NULL;
+	dsGetVideoPortResolutions(&localNumResolutions, &kResolutions);
+
 	for (int i = numResolutions-1; i >= 0; i--)
 	{
 		setResn = &(edidData->suppResolutionList[i]);
 		if(strcmp(setResn->name,Resn) == 0)
 		{
-			for (int j = pNumResolutions-1; j >=0; j--)
+			for (int j = localNumResolutions-1; j >=0; j--)
 			{
 				dsVideoPortResolution_t *pfResolution = &kResolutions[j];
 				if (0 == (strcmp(pfResolution->name,setResn->name)))
@@ -738,7 +745,13 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	dsVideoPortResolution_t *setResn = NULL;
 	dsDisplayEDID_t *edidData = NULL;
 	dsDisplayGetEDIDParam_t *Edidparam = NULL;
-	int pNumResolutions = dsUTL_DIM(kResolutions);
+	int pNumResolutions = 0;
+	dsVideoPortResolution_t *kResolutions = NULL;
+	dsGetVideoPortResolutions(&pNumResolutions, &kResolutions);
+
+	int kDefaultResIndex = 0;
+	dsGetDefaultResolutionIndex(&kDefaultResIndex);
+
 	/*
 		* Default Resolution Compatible check is false - Do not Force compatible resolution on startup
 	*/
@@ -941,8 +954,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
                 for (i = 0; i < numResolutions; i++)
                 {
                     setResn = &(edidData->suppResolutionList[i]);
-                    size_t numResolutions = dsUTL_DIM(kResolutions);
-                    for (size_t j = 0; j < numResolutions; j++)
+                    for (int j = 0; j < pNumResolutions; j++)
 		            {
 		                dsVideoPortResolution_t *pfResolution = &kResolutions[j];
 		                if (0 == (strcmp(pfResolution->name,setResn->name)))
@@ -959,8 +971,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	else if (PortType == dsVIDEOPORT_TYPE_COMPONENT || PortType == dsVIDEOPORT_TYPE_BB || PortType == dsVIDEOPORT_TYPE_RF)
 	{
 		/* Set the Component / Composite  Resolution */	
-		numResolutions = dsUTL_DIM(kResolutions);
-    	for (i = 0; i < numResolutions; i++)
+    	for (i = 0; i < pNumResolutions; i++)
     	{
     		setResn = &kResolutions[i];
     		if ((strcmp(presolution->name,setResn->name) == 0 ))
@@ -1109,12 +1120,13 @@ void _setEASAudioMode()
 	dsAudioSetStereoModeParam_t setMode;
 	int numPorts, i = 0;
 
-	numPorts = dsUTL_DIM(kSupportedPortTypes);
+	dsGetAudioTypeConfigs(&numPorts, &audioConfigs);
+	INT_INFO("called dsGetAudioTypeConfigs() numPorts =%d\n", numPorts);
 	for (i=0; i < numPorts; i++)
 	{
-		const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
+		dsAudioPortType_t audioPort = (dsAudioPortType_t)audioConfigs[i].typeId;
 		memset(&getHandle, 0, sizeof(getHandle));
-		getHandle.type = *audioPort;
+		getHandle.type = audioPort;
 		getHandle.index = 0;
 		_dsGetAudioPort (&getHandle);
 
@@ -1151,14 +1163,18 @@ static void _setAudioMode()
 
 	dsAudioGetHandleParam_t getHandle;
 	dsAudioSetStereoModeParam_t setMode;
+	const dsAudioTypeConfig_t * audioConfigs =NULL;
 	int numPorts, i = 0;
 
 	numPorts = dsUTL_DIM(kSupportedPortTypes);
+	dsGetAudioTypeConfigs(&numPorts, &audioConfigs);
+	INT_INFO("called dsGetAudioTypeConfigs() numPorts =%d\n", numPorts);
+
 	for (i=0; i < numPorts; i++)
 	{
-		const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
+		dsAudioPortType_t audioPort = (dsAudioPortType_t)audioConfigs[i].typeId;
 		memset(&getHandle, 0, sizeof(getHandle));
-		getHandle.type = *audioPort;
+		getHandle.type = audioPort;
 		getHandle.index = 0;
 		_dsGetAudioPort (&getHandle);
 			
