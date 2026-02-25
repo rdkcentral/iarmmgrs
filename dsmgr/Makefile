@@ -20,7 +20,7 @@
 
 RM          := rm -rf
 CFLAGS      := -g -fPIC -D_REENTRANT -Wall
-OBJS        := $(patsubst %.c,%.o,$(wildcard *.c)) dsMgrProductTraitsHandler.o dsMgrHelper.o
+OBJS        := $(patsubst %.c,%.o,$(wildcard *.c)) dsMgrProductTraitsHandler.o
 CPPLAGS      := -g -fPIC -D_REENTRANT -Wall
 EXECUTABLE  =   dsMgrMain
 INCLUDE     =   -I. \
