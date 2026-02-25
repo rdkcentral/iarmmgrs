@@ -104,6 +104,7 @@ static IARM_Result_t getSerializedData_(void *arg)
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
+    #ifndef DISABLE_MFR_MODELNAME
     if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
           (PROFILE_STB == profileType)){
         LOG(" Querying for sky model name ");
@@ -131,6 +132,7 @@ static IARM_Result_t getSerializedData_(void *arg)
         }
 	retCode=IARM_RESULT_SUCCESS;
     }
+    #endif
     return retCode;
 }
 
