@@ -31,7 +31,6 @@
 #include "dsRpc.h"
 
 using namespace dsMgrProductTraits;
-extern bool isTVOperatingInFactory();
 extern int _SetAVPortsPowerState(PowerController_PowerState_t powerState);
 extern IARM_Result_t _dsSetFPState(void *arg);
 
