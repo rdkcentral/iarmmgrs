@@ -465,38 +465,9 @@ bool ux_controller_tv::applyPostRebootConfig(PowerController_PowerState_t target
 
     if ((POWER_STATE_ON == last_known_state) && (POWER_STATE_STANDBY == target_state))
     {
-        /* Special handling:
-           Although the new power state is standby, leave display enabled. If last known power state is ON, app will transition TV to ON state
-           immediately afterwards anyway, so if we turn off the display to match standby state here, it'll confuse the user into thinking that TV has gone into
-           standby for good.
-
-           An exception to this criteria is if we just got here after a hard reboot. In that case, the product requirement is to go straight to standby
-           and stay there. Therefore we won't turn on the display here. This is to account for use cases where there is a power failure and power is restored
-           when user is away - in that scenario, we assume that there is no audience and keep the TV in standby.
-
-           Important: The above behaviour can be a nuisance during production or testing as it can lead to the TV going dark during various production/QA stages immediately
-           after a hard reboot. Use doForceDisplayOnPostReboot() to detect those scenarios and act accordingly.
-           */
-        if(true == doForceDisplayOnPostReboot())
-            sync_display_ports_with_power_state(POWER_STATE_ON);
-        else
-        {
-            reboot_type_t isHardReboot = getRebootType();
-            switch (isHardReboot)
-            {
-            case reboot_type_t::HARD:
-                sync_display_ports_with_power_state(POWER_STATE_STANDBY);
-                break;
-
-            case reboot_type_t::SOFT:
-                sync_display_ports_with_power_state(POWER_STATE_ON);
-                break;
-
-            default: //Unavailable. Take no action now, but keep checking every N seconds.
-                g_timeout_add_seconds(REBOOT_REASON_RETRY_INTERVAL_SECONDS, reboot_reason_cb, this);
-                break;
-            }
-        }
+        /* Special handling. Although the new power state is standby, leave display enabled. App will transition TV to ON state immediately afterwards anyway,
+           and if we turn off the display to match standby state here, it'll confuse the user into thinking that TV has gone into standby for good. */
+        sync_display_ports_with_power_state(POWER_STATE_ON);
     }
     else
     {
