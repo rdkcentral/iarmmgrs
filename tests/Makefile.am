@@ -2,7 +2,7 @@
 # If not stated otherwise in this file or this component's LICENSE
 # file the following copyright and licenses apply:
 #
-# Copyright 2016 RDK Management
+# Copyright 2025 RDK Management
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,25 +17,6 @@
 # limitations under the License.
 ##########################################################################
 
-SUBDIRS =
-DIST_SUBDIRS =
-
-IARM        = $(includedir)/rdk/iarmbus
-IARM_MGR    = $(includedir)/rdk/iarmmgrs-hal
-
-INCLUDES = -I=$(IARM) -I=$(IARM_MGR) \
-           \
-           -I=/usr/include/directfb \
-           -I ../sysmgr/include
-
-CC = $(CXX)
-
-AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 $(CFLAGS_CLIENT)
-
-bin_PROGRAMS = test_mode_change_client test_vrex_client test_sys_client
-
-test_mode_change_client_SOURCES = test_mode_change_client.c
-test_vrex_client_SOURCES = test_vrex_client.c
-test_sys_client_SOURCES = test_sys_client.c
-
-AM_LDFLAGS += $(LDFLAGS_CLIENT)
+if ENABLE_L1TESTS
+SUBDIRS = L1Tests
+endif

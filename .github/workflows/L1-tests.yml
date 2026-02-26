@@ -1,0 +1,155 @@
+name: L1-tests
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+  pull_request:
+    branches:
+      - develop
+      - main
+  workflow_call:
+    secrets:
+      RDKCM_RDKE:
+        required: true
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+env:
+  BUILD_TYPE: Debug
+
+jobs:
+  L1-tests:
+    name: Build and run unit tests
+    runs-on: ubuntu-22.04
+
+    steps:
+      - name: Set up CMake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: '3.16.x'
+          github-api-token: ''
+
+      - name: Install packages
+        run: >
+          sudo apt update
+          &&
+          sudo apt install -y
+          autoconf automake libtool pkg-config
+          libgtest-dev libgmock-dev
+          build-essential g++ cmake
+          valgrind lcov clang ninja-build
+          libglib2.0-dev libdbus-1-dev
+          libcurl4-openssl-dev
+
+      - name: Checkout iarmmgrs
+        uses: actions/checkout@v3
+        with:
+          path: iarmmgrs
+
+      - name: Checkout entservices-testframework
+        uses: actions/checkout@v3
+        with:
+          repository: rdkcentral/entservices-testframework
+          path: entservices-testframework
+          ref: develop
+          token: ${{ secrets.RDKCM_RDKE }}
+
+      - name: Checkout googletest
+        uses: actions/checkout@v3
+        with:
+          repository: google/googletest
+          path: googletest
+          ref: v1.15.0
+
+      - name: Build googletest
+        run: |
+          cmake -S "$GITHUB_WORKSPACE/googletest" \
+            -B build/googletest \
+            -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr" \
+            -DBUILD_GMOCK=ON \
+            -DBUILD_SHARED_LIBS=OFF \
+            -DCMAKE_POSITION_INDEPENDENT_CODE=ON
+          cmake --build build/googletest -j$(nproc)
+          cmake --install build/googletest
+
+      - name: Build iarmmgrs L1 tests
+        run: |
+          cd "$GITHUB_WORKSPACE/iarmmgrs"
+          autoreconf -if
+
+          # Compiler / linker flags for coverage instrumentation
+          export CFLAGS="-fprofile-arcs -ftest-coverage -g -O0"
+          export CXXFLAGS="-fprofile-arcs -ftest-coverage -g -O0"
+          export LDFLAGS="--coverage"
+
+          # Tell pkg-config / the build where to find googletest
+          export PKG_CONFIG_PATH="$GITHUB_WORKSPACE/install/usr/lib/pkgconfig:${PKG_CONFIG_PATH:-}"
+          export CPPFLAGS="-I$GITHUB_WORKSPACE/install/usr/include"
+          export LIBRARY_PATH="$GITHUB_WORKSPACE/install/usr/lib:${LIBRARY_PATH:-}"
+
+          ./configure --enable-l1tests \
+            TESTFRAMEWORK_DIR="$GITHUB_WORKSPACE/entservices-testframework"
+          make -C tests/L1Tests
+
+      - name: List tests
+        run: |
+          cd "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests"
+          ./run_L1Tests --gtest_list_tests
+
+      - name: Run unit tests without valgrind
+        run: |
+          cd "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests"
+          ./run_L1Tests --gtest_output="json:$GITHUB_WORKSPACE/iarmmgrsL1TestResults.json"
+          cp "$GITHUB_WORKSPACE/iarmmgrsL1TestResults.json" \
+             "$GITHUB_WORKSPACE/iarmmgrsL1TestResultsWithoutValgrind.json"
+
+      - name: Run unit tests with valgrind
+        if: ${{ !env.ACT }}
+        run: |
+          cd "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests"
+          valgrind \
+            --tool=memcheck \
+            --log-file="$GITHUB_WORKSPACE/valgrind_log" \
+            --leak-check=yes \
+            --show-reachable=yes \
+            --track-fds=yes \
+            --fair-sched=try \
+            ./run_L1Tests --gtest_output="json:$GITHUB_WORKSPACE/iarmmgrsL1TestResultsWithValgrind.json"
+
+      - name: Generate coverage
+        if: ${{ !env.ACT }}
+        run: |
+          lcov -c \
+            -o coverage.info \
+            -d "$GITHUB_WORKSPACE/iarmmgrs"
+
+          lcov -r coverage.info \
+            '/usr/include/*' \
+            '*/install/usr/include/*' \
+            '*/googletest/*' \
+            '*/entservices-testframework/*' \
+            '*/tests/*' \
+            '*/mocks/*' \
+            '*/stubs/*' \
+            -o filtered_coverage.info
+
+          genhtml \
+            -o coverage \
+            -t "iarmmgrs L1 coverage" \
+            filtered_coverage.info
+
+      - name: Upload artifacts
+        if: ${{ !env.ACT }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: artifacts-L1-iarmmgrs
+          path: |
+            coverage/
+            valgrind_log
+            iarmmgrsL1TestResultsWithoutValgrind.json
+            iarmmgrsL1TestResultsWithValgrind.json
+          if-no-files-found: warn
