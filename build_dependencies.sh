@@ -76,9 +76,8 @@ export DS_PATH=$ROOT/devicesettings
 
 # Build and install devicesettings
 cd $DS_PATH
-mkdir -p build
-cd build
-cmake -DCMAKE_INSTALL_PREFIX=${INSTALL_DIR} -DCMAKE_INSTALL_LIBDIR=lib ..
+autoreconf -i
+./configure --prefix=${INSTALL_DIR}
 make clean && make && make install
 
 cd $ROOT
