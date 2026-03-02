@@ -375,9 +375,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				systemStates.dac_init_timestamp.state = state;
 				systemStates.dac_init_timestamp.error = error;
 				if (payload != NULL) {
-					size_t payload_len = strlen(payload);
-					size_t max_copy = sizeof(systemStates.dac_init_timestamp.payload) - 1;
-					size_t copy_len = (payload_len < max_copy) ? payload_len : max_copy;
+					size_t copy_len = strnlen(payload, sizeof(systemStates.dac_init_timestamp.payload) - 1);
 					strncpy(systemStates.dac_init_timestamp.payload, payload, copy_len);
 					systemStates.dac_init_timestamp.payload[copy_len] = '\0';
 					printf("systemStates.dac_init_timestamp.payload=%s\n",systemStates.dac_init_timestamp.payload);
@@ -505,9 +503,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 			case IARM_BUS_SYSMGR_SYSSTATE_CABLE_CARD_SERIAL_NO:
 				systemStates.card_serial_no.error =error;
 				if (payload != NULL) {
-					size_t payload_len = strlen(payload);
-					size_t max_copy = sizeof(systemStates.card_serial_no.payload) - 1;
-					size_t copy_len = (payload_len < max_copy) ? payload_len : max_copy;
+					size_t copy_len = strnlen(payload, sizeof(systemStates.card_serial_no.payload) - 1);
 					strncpy(systemStates.card_serial_no.payload, payload, copy_len);
 					systemStates.card_serial_no.payload[copy_len] = '\0';
 					printf("systemStates.card.serial.no.payload=%s\n",systemStates.card_serial_no.payload);
@@ -517,9 +513,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				systemStates.ecm_mac.error = error;
 
 				if (payload != NULL) {
-					size_t payload_len = strlen(payload);
-					size_t max_copy = sizeof(systemStates.ecm_mac.payload) - 1;
-					size_t copy_len = (payload_len < max_copy) ? payload_len : max_copy;
+					size_t copy_len = strnlen(payload, sizeof(systemStates.ecm_mac.payload) - 1);
 					strncpy(systemStates.ecm_mac.payload, payload, copy_len);
 					systemStates.ecm_mac.payload[copy_len] = '\0';
 					printf("systemStates.ecm.mac.payload=%s\n", systemStates.ecm_mac.payload);
@@ -529,12 +523,9 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				systemStates.dac_id.state = state;
 				systemStates.dac_id.error = error;
 				if (payload != NULL) {
-					assert ( ( sizeof(systemStates.dac_id.payload) -1 ) > strlen(payload) );
-					rc = strcpy_s( systemStates.dac_id.payload,sizeof(systemStates.dac_id.payload), payload );
-					if(rc!=EOK)
-					{
-						ERR_CHK(rc);
-					}
+					size_t copy_len = strnlen(payload, sizeof(systemStates.dac_id.payload) - 1);
+					strncpy(systemStates.dac_id.payload, payload, copy_len);
+					systemStates.dac_id.payload[copy_len] = '\0';
 					LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_DAC_ID = %s\n", systemStates.dac_id.payload );
 				}
 				break;
@@ -542,20 +533,20 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				systemStates.plant_id.state = state;
 				systemStates.plant_id.error = error;
 				if (payload != NULL) {
-					assert ( ( sizeof(systemStates.plant_id.payload) -1 ) > strlen(payload) );
-					rc = strcpy_s( systemStates.plant_id.payload,sizeof(systemStates.plant_id.payload), payload );
-					if(rc!=EOK)
-					{
-						ERR_CHK(rc);
-					}
+					size_t copy_len = strnlen(payload, sizeof(systemStates.plant_id.payload) - 1);
+					strncpy(systemStates.plant_id.payload, payload, copy_len);
+					systemStates.plant_id.payload[copy_len] = '\0';
 					LOG( "Got IARM_BUS_SYSMGR_SYSSTATE_PLANT_ID = %s\n", systemStates.plant_id.payload );
 				}
 				break;
 			case IARM_BUS_SYSMGR_SYSSTATE_STB_SERIAL_NO:
 			  systemStates.stb_serial_no.error =error;
-			  strncpy(systemStates.stb_serial_no.payload,payload,strlen(payload));
-			  systemStates.stb_serial_no.payload[strlen(payload)]='\0';
-			  printf("systemStates.stb.serial.payload=%s\n",systemStates.stb_serial_no.payload);
+			  if (payload != NULL) {
+				  size_t copy_len = strnlen(payload, sizeof(systemStates.stb_serial_no.payload) - 1);
+				  strncpy(systemStates.stb_serial_no.payload, payload, copy_len);
+				  systemStates.stb_serial_no.payload[copy_len] = '\0';
+				  printf("systemStates.stb.serial.payload=%s\n",systemStates.stb_serial_no.payload);
+			  }
 			  break;
 			case   IARM_BUS_SYSMGR_SYSSTATE_BOOTUP :				
 				systemStates.bootup.state = state;
@@ -563,8 +554,11 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 				break;		    
             case   IARM_BUS_SYSMGR_SYSSTATE_DST_OFFSET :
 				systemStates.dst_offset.state = state;
-				strncpy( systemStates.dst_offset.payload,payload,strlen(payload));
-                systemStates.dst_offset.payload[ strlen(payload) ] = '\0';
+				if (payload != NULL) {
+					size_t copy_len = strnlen(payload, sizeof(systemStates.dst_offset.payload) - 1);
+					strncpy(systemStates.dst_offset.payload, payload, copy_len);
+					systemStates.dst_offset.payload[copy_len] = '\0';
+				}
 				systemStates.dst_offset.error = error;
 				break;
           
@@ -581,9 +575,12 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
 			case   IARM_BUS_SYSMGR_SYSSTATE_IP_MODE:
 				systemStates.ip_mode.state=state;
 				systemStates.ip_mode.error =error;
-				strncpy(systemStates.ip_mode.payload,payload,strlen(payload));
-				systemStates.ip_mode.payload[strlen(payload)]='\0';
-				printf("Got IARM_BUS_SYSMGR_SYSSTATE_IP_MODE systemStates.ip_mode.payload=%s\n",systemStates.ip_mode.payload);
+				if (payload != NULL) {
+					size_t copy_len = strnlen(payload, sizeof(systemStates.ip_mode.payload) - 1);
+					strncpy(systemStates.ip_mode.payload, payload, copy_len);
+					systemStates.ip_mode.payload[copy_len] = '\0';
+					printf("Got IARM_BUS_SYSMGR_SYSSTATE_IP_MODE systemStates.ip_mode.payload=%s\n",systemStates.ip_mode.payload);
+				}
 				break;				
 			case   IARM_BUS_SYSMGR_SYSSTATE_QAM_READY:
 				systemStates.qam_ready_status.state = state;
@@ -625,6 +622,9 @@ void GetSerialNumber(void)
     param.type = mfrSERIALIZED_TYPE_SERIALNUMBER;
     param.bufLen = 0; 
     iarm_ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME, IARM_BUS_MFRLIB_API_GetSerializedData, &param, sizeof(param));
+    if (param.bufLen >= sizeof(param.buffer)) {
+        param.bufLen = sizeof(param.buffer) - 1;
+    }
     param.buffer[param.bufLen] = '\0';
     pthread_mutex_lock(&tMutexLock);
     if(iarm_ret == IARM_RESULT_SUCCESS)
