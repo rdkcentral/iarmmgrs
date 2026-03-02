@@ -886,7 +886,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				// get secondary resolution based on presolution
 				if(getSecondaryResolution(presolution->name,secResn))
 				{
-					if(isResolutionSupported(edidData,numResolutions,numResolutions,secResn,&resIndex))
+					if(isResolutionSupported(edidData,numResolutions,resolutionsSize,secResn,&resIndex))
 					{
 						setResn = &(edidData->suppResolutionList[resIndex]);
 						INT_INFO("Breaking..Got Secondary Resolution - %s..\r\n",setResn->name);
@@ -914,7 +914,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					if(IsEUPlatform){
 					    getFallBackResolution(fallBackResolutionList[i],fbResn,1); //EU fps
 				            INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
-					    if(isResolutionSupported(edidData,numResolutions,numResolutions,fbResn,&resIndex))
+					    if(isResolutionSupported(edidData,numResolutions,resolutionsSize,fbResn,&resIndex))
 					    {
 						IsValidResolution = true;
 					    }
@@ -923,7 +923,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					{
 						getFallBackResolution(fallBackResolutionList[i],fbResn,0); //default fps
 				                INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
-						if(isResolutionSupported(edidData,numResolutions,numResolutions,fbResn,&resIndex))
+						if(isResolutionSupported(edidData,numResolutions,resolutionsSize,fbResn,&resIndex))
 						{
 							IsValidResolution = true;
 						}
