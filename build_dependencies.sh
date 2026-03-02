@@ -74,12 +74,6 @@ rm -rf devicesettings
 git clone -b feature/RDKEMW-8587-dlsym https://github.com/rdkcentral/devicesettings.git
 export DS_PATH=$ROOT/devicesettings
 
-# Build and install devicesettings
-cd $DS_PATH
-autoreconf -i
-./configure --prefix=${INSTALL_DIR}
-make clean && make && make install
-
 cd $ROOT
 rm -rf rdk-halif-device_settings
 git clone https://github.com/rdkcentral/rdk-halif-device_settings.git
