@@ -56,7 +56,7 @@ jobs:
           repository: rdkcentral/entservices-testframework
           path: entservices-testframework
           ref: develop
-          #token: ${{ secrets.RDKCM_RDKE }}
+          token: ${{ secrets.RDKCM_RDKE }}
     
       - name: Checkout googletest
         uses: actions/checkout@v3
