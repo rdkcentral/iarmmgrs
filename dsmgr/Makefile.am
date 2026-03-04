@@ -30,7 +30,7 @@ INCLUDES = -I . \
            -I=$(IARM) -I=$(IARM_MGR) \
            -I=$(includedir)/rdk/ds-rpc \
            -I=$(includedir)/rdk/ds-rpc \
-           -I=$(includedir)/rdk/ds-hal
+           -I=$(includedir)/rdk/ds-hal \
            -I=/usr/include
 
 CC = $(CXX)

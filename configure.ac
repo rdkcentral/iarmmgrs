@@ -107,8 +107,6 @@ AC_CONFIG_FILES([Makefile
                  sysmgr/Makefile
                  disk/Makefile
                  deviceUpdateMgr/Makefile
-                 ir/Makefile
-                 test/Makefile
                  tests/Makefile
                  tests/L1Tests/Makefile
                  mfr/Makefile])

@@ -18,8 +18,8 @@
 ##########################################################################
 #
 
-SUBDIRS = dsmgr sysmgr deviceUpdateMgr receiver test $(SUBDIR_MFR)
-DIST_SUBDIRS = dsmgr sysmgr deviceUpdateMgr receiver test tests $(SUBDIR_MFR)
+SUBDIRS = dsmgr sysmgr deviceUpdateMgr receiver $(SUBDIR_MFR)
+DIST_SUBDIRS = dsmgr sysmgr deviceUpdateMgr receiver tests $(SUBDIR_MFR)
 
 if ENABLE_L1TESTS
 SUBDIRS += tests
