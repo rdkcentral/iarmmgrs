@@ -77,6 +77,17 @@ jobs:
           cmake --build build/googletest -j$(nproc)
           cmake --install build/googletest
 
+      - name: Generate empty stub headers
+        # Headers required by #include directives in the source under test but
+        # not committed to the repo.  These are created empty so the compiler
+        # finds the file; the real declarations come from Iarm.h (testframework)
+        # which is included explicitly before the source under test.
+        run: |
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBus.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIARM.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBusDaemon.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/iarmUtil.h"
+
       - name: Build iarmmgrs L1 tests
         run: |
           cd "$GITHUB_WORKSPACE/iarmmgrs"
