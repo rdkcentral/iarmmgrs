@@ -43,6 +43,7 @@ jobs:
           build-essential g++ cmake
           valgrind lcov clang ninja-build
           libglib2.0-dev libdbus-1-dev
+          libdirectfb-dev
           libcurl4-openssl-dev
 
       - name: Checkout iarmmgrs
