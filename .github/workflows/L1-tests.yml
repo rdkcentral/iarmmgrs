@@ -96,7 +96,7 @@ jobs:
             TESTFRAMEWORK_DIR="$GITHUB_WORKSPACE/entservices-testframework"
           make -C tests/L1Tests
 
-      - name: Run unit tests without valgrind
+      - name: Run unit tests without valgrind 
         run: |
           cd "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests"
           ./run_L1Tests --gtest_output="json:$GITHUB_WORKSPACE/iarmmgrsL1TestResults.json"
