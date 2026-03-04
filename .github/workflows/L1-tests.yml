@@ -83,6 +83,7 @@ jobs:
         # finds the file; the real declarations come from Iarm.h (testframework)
         # which is included explicitly before the source under test.
         run: |
+          mkdir -p "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs"
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBus.h"
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIARM.h"
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBusDaemon.h"
