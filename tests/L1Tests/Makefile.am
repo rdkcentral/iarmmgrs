@@ -55,7 +55,6 @@ noinst_PROGRAMS = run_L1Tests
 run_L1Tests_SOURCES = \
     test_main.cpp \
     utils/test_rdkProfile.cpp \
-    $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp \
     $(top_srcdir)/tests/mocks/iarmmgrs/WrapsExt.cpp
 
 run_L1Tests_LDADD = -lgtest -lgmock

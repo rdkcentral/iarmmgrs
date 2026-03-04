@@ -21,11 +21,16 @@
  * @file WrapsExt.h
  * @brief Local extension of entservices-testframework's Wraps mock.
  *
- * The testframework provides __wrap_fopen (plus 30+ other wraps) via
- * Wraps.h / WrapsMock.h / Wraps.cpp.  However, it does NOT provide
- * __wrap_fclose or __wrap_fgets.  This file adds those two wraps using
- * a parallel WrapsExt singleton so that tests can mock all three file
- * I/O functions needed by iarmmgrs (e.g., utils/rdkProfile.c).
+ * The testframework provides the Wraps singleton and WrapsImplMock
+ * (fopen, setmntent, system, popen, ...) via Wraps.h / WrapsMock.h.
+ * However, it does NOT provide __wrap_fclose or __wrap_fgets.
+ *
+ * This header adds those two wraps using a parallel WrapsExt singleton.
+ * The corresponding WrapsExt.cpp also provides null-safe __wrap_fopen
+ * and __wrap_setmntent implementations (replacing the testframework's
+ * Wraps.cpp) so that calls made after the test fixture is torn down
+ * (e.g. gtest JSON output, gcov atexit handlers) fall through safely
+ * to the real libc functions instead of segfaulting.
  *
  * Usage in test fixtures:
  *   WrapsImplExtMock mock;
