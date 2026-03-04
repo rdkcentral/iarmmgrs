@@ -46,10 +46,24 @@
 #include <cstdio>
 #include <unistd.h>   /* unlink */
 
-/* IarmBusMock.h / Iarm.h must come BEFORE sysMgr.c so that IARM_Result_t is
- * defined as the enum (not "typedef int") before libIBus.h is processed. */
+/* sysMgr.h must come first so that _IARM_BUS_SYSMGR_H is defined before
+ * Iarm.h is processed.  This prevents the redefinition errors that arise
+ * because Iarm.h contains a duplicate copy of the sysMgr type block.
+ * libIARM.h (included transitively by sysMgr.h) is an empty stub in the
+ * test build, which is fine because sysMgr.h's own type definitions do
+ * not require IARM_Result_t. */
+#include "sysMgr.h"
+
+/* Iarm.h / IarmBusMock.h must come AFTER sysMgr.h so IARM_Result_t is
+ * defined as the proper enum before sysMgr.c's static functions are seen. */
 #include "Iarm.h"
 #include "IarmBusMock.h"
+
+/* __TIMESTAMP() is used as a no-op logging call throughout sysMgr.c.
+ * In the real IARM SDK it is defined in libIARM.h; our stub is empty. */
+#ifndef __TIMESTAMP
+#define __TIMESTAMP(...)
+#endif
 
 /* Pull in the source under test so that static functions and variables are
  * visible in this translation unit. */

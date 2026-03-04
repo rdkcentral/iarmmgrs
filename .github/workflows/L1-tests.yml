@@ -87,6 +87,7 @@ jobs:
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIARM.h"
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBusDaemon.h"
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/iarmUtil.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/mfrMgr.h"
 
       - name: Build iarmmgrs L1 tests
         run: |
