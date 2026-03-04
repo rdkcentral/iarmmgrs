@@ -50,8 +50,9 @@
 #include <cstring>
 #include <cstdio>
 
-/* mfr/include headers first — set _MFR_TYPES_H and _MFR_MGR_H_ guards
- * so the testframework's lighter copies of these files are skipped. */
+/* Stub mfrMgr.h (tests/L1Tests/stubs/mfrMgr.h) is picked up first via -I
+ * order.  It sets _MFR_MGR_H_ and provides macros + non-conflicting types.
+ * Conflicting types (ThermalState, SetBLPattern, etc.) are left to Iarm.h. */
 #include "mfrMgr.h"
 
 /* IARM mock framework.  Comes after mfrMgr.h so the mfrTypes.h guard is

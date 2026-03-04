@@ -18,15 +18,18 @@
 ##########################################################################
 
 # Include paths:
-#   - tests/L1Tests/stubs          : empty stub headers created at CI time (touch).
+#   - tests/L1Tests/stubs          : stub headers for the test build.
 #                                    libIBus.h, libIARM.h, libIBusDaemon.h,
 #                                    iarmUtil.h and libIARMCore.h are generated
-#                                    empty so #include directives resolve without
-#                                    error; real declarations come from Iarm.h
-#                                    (testframework) or from mfr/include/ below.
-#   - mfr/include                  : full HAL mfrTypes.h (sets _MFR_TYPES_H guard
-#                                    before testframework's lighter copy is seen);
-#                                    also provides mfrMgr.h, mfr_wifi_types.h, etc.
+#                                    empty at CI time (touch).  mfrMgr.h is a
+#                                    hand-written stub that avoids type
+#                                    redefinition conflicts with Iarm.h from the
+#                                    testframework: it provides all macros +
+#                                    non-conflicting types and lets the
+#                                    conflicting types come from Iarm.h.
+#   - mfr/include                  : HAL mfrTypes.h, mfr_wifi_types.h,
+#                                    mfr_wifi_api.h.  (mfrMgr.h here is
+#                                    shadowed by the stub above.)
 #   - mfr                          : mfrMgrInternal.h
 #   - TESTFRAMEWORK mocks          : Iarm.h, Wraps.h, WrapsMock.h, IarmBusMock.h, …
 #   - utils                        : rdkProfile.h / rdkProfile.c
