@@ -26,15 +26,15 @@
  *
  * External dependencies mocked via __wrap_ linker interception:
  *   - fopen  (controls whether the file "exists")     — testframework Wraps
- *   - fgets  (controls what content is "read" from the file) — local WrapsExt
- *   - fclose (verifies cleanup)                        — local WrapsExt
+ *   - fgets  (controls what content is "read" from the file) — testframework Wraps
+ *   - fclose (verifies cleanup)                        — testframework Wraps
  */
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <cstring>
 
-#include "WrapsExt.h"
+#include "WrapsMock.h"
 
 /* Include the source-under-test directly so we can exercise the static
  * internals (there are none in rdkProfile.c, but this keeps the pattern
@@ -81,22 +81,19 @@ static auto makeFgetsReader(const std::vector<std::string>& lines)
 
 class RdkProfileTest : public ::testing::Test {
 protected:
-    /* Single combined mock: testframework wraps (fopen) + local ext (fclose, fgets) */
-    WrapsImplExtMock mock;
+    WrapsImplMock mock;
 
     /* Sentinel FILE* value returned by the mocked fopen.  We never
      * dereference it — it just needs to be non-NULL. */
     FILE* fakeFp = reinterpret_cast<FILE*>(0xDEAD);
 
     void SetUp() override {
-        Wraps::setImpl(&mock);      /* fopen (testframework)  */
-        WrapsExt::setImpl(&mock);   /* fclose, fgets (local)   */
+        Wraps::setImpl(&mock);
     }
 
     void TearDown() override {
         ::testing::Mock::VerifyAndClearExpectations(&mock);
         Wraps::setImpl(nullptr);
-        WrapsExt::setImpl(nullptr);
     }
 };
 

@@ -19,8 +19,7 @@
 
 # Include paths:
 #   - tests/L1Tests/stubs          : minimal stub headers (libIARM.h, libIBusDaemon.h)
-#   - TESTFRAMEWORK mocks          : Wraps.h, WrapsMock.h, Iarm.h, etc.
-#   - tests/mocks/iarmmgrs         : local WrapsExt (fclose/fgets not in testframework)
+#   - TESTFRAMEWORK mocks          : Wraps.h, WrapsMock.h, etc.
 #   - utils                        : source under test (rdkProfile.h, iarmutilslogger.h)
 #
 # The stubs path comes first so that iarmutilslogger.h's
@@ -32,15 +31,13 @@
 
 AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -I$(TESTFRAMEWORK_DIR)/Tests/mocks \
-              -I$(top_srcdir)/tests/mocks/iarmmgrs \
               -I$(top_srcdir)/utils
 
 AM_CXXFLAGS = -Wall -std=c++14 -g
 
 # Linker flags:
 #   --wrap intercepts libc calls so the mock can control them.
-#   fopen                  : testframework's Wraps.cpp provides __wrap_fopen
-#   fclose / fgets         : local WrapsExt.cpp provides __wrap_fclose / __wrap_fgets
+#   fopen / fclose / fgets : testframework's Wraps.cpp provides the __wrap_ shims
 #   setmntent              : needed because testframework's WrapsMock.h constructor
 #                            references __real_setmntent (links cleanly, never called)
 AM_LDFLAGS = -Wl,--wrap,fopen \
@@ -55,7 +52,7 @@ noinst_PROGRAMS = run_L1Tests
 run_L1Tests_SOURCES = \
     test_main.cpp \
     utils/test_rdkProfile.cpp \
-    $(top_srcdir)/tests/mocks/iarmmgrs/WrapsExt.cpp
+    $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp
 
 run_L1Tests_LDADD = -lgtest -lgmock
 

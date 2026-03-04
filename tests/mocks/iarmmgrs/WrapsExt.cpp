@@ -19,41 +19,20 @@
 
 /**
  * @file WrapsExt.cpp
- * @brief All __wrap_ implementations for the iarmmgrs L1 test binary.
+ * @brief __wrap_fclose / __wrap_fgets implementations + WrapsExt singleton.
  *
- * Provides null-safe __wrap_ shims for every function intercepted via
- * the linker's --wrap option (fopen, fclose, fgets, setmntent).
- *
- * This file REPLACES the testframework's Wraps.cpp so that we have a
- * single, consistent set of wrappers that always fall back to the real
- * libc function when the mock implementation pointer is nullptr.
- * Without this, calls made after the test fixture is torn down (e.g.
- * gtest's JSON-output writer calling fopen, or gcov's atexit handler
- * flushing .gcda coverage data) would dereference a null impl pointer
- * and segfault.
+ * These wrap functions complement entservices-testframework's Wraps.cpp
+ * (which already provides __wrap_fopen, __wrap_setmntent, and many others
+ * with null-safe fallback to real libc).
  *
  * Build with:
- *   -Wl,--wrap,fopen -Wl,--wrap,fclose -Wl,--wrap,fgets -Wl,--wrap,setmntent
+ *   -Wl,--wrap,fclose -Wl,--wrap,fgets
  */
 
 #include "WrapsExt.h"
 #include <cstdio>
 
-/* ================================================================== */
-/*  Wraps singleton  (fopen — normally in testframework's Wraps.cpp)  */
-/* ================================================================== */
-
-WrapsImpl* Wraps::impl = nullptr;
-
-void Wraps::setImpl(WrapsImpl* newImpl)
-{
-    impl = newImpl;
-}
-
-/* ================================================================== */
-/*  WrapsExt singleton  (fclose, fgets — local extension)             */
-/* ================================================================== */
-
+/* Static member initialisation */
 WrapsExtImpl* WrapsExt::impl = nullptr;
 
 void WrapsExt::setImpl(WrapsExtImpl* newImpl)
@@ -61,26 +40,15 @@ void WrapsExt::setImpl(WrapsExtImpl* newImpl)
     impl = newImpl;
 }
 
-/* ================================================================== */
+/* ------------------------------------------------------------------ */
 /*  __wrap_  /  __real_  linker shim functions                        */
-/* ================================================================== */
+/* ------------------------------------------------------------------ */
 
 extern "C" {
 
 /* Real libc symbols — created by the linker when using --wrap */
-FILE* __real_fopen(const char* path, const char* mode);
 int   __real_fclose(FILE* stream);
 char* __real_fgets(char* s, int size, FILE* stream);
-FILE* __real_setmntent(const char* filename, const char* type);
-
-FILE* __wrap_fopen(const char* path, const char* mode)
-{
-    WrapsImpl* mock = Wraps::getImpl();
-    if (mock) {
-        return mock->fopen(path, mode);
-    }
-    return __real_fopen(path, mode);
-}
 
 int __wrap_fclose(FILE* stream)
 {
@@ -100,13 +68,7 @@ char* __wrap_fgets(char* s, int size, FILE* stream)
     return __real_fgets(s, size, stream);
 }
 
-FILE* __wrap_setmntent(const char* filename, const char* type)
-{
-    WrapsImpl* mock = Wraps::getImpl();
-    if (mock) {
-        return mock->setmntent(filename, type);
-    }
-    return __real_setmntent(filename, type);
-}
+} /* extern "C" */
+
 
 } /* extern "C" */
