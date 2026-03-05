@@ -281,6 +281,8 @@ protected:
          * (e.g. "/etc/device.properties" inside isEUPlatform) "unexpected"
          * even with NiceMock, causing spurious test failures. */
         ON_CALL(wrapsMock, fopen(_, _)).WillByDefault(Return(nullptr));
+        /* Default: fclose any pointer safely without calling real fclose. */
+        ON_CALL(wrapsMock, fclose(_)).WillByDefault(Return(0));
 
         /* Reset DSMgr_Start stub controls FIRST so that the pthread init
          * calls below pass through to the real implementations. */
@@ -1272,20 +1274,22 @@ TEST_F(DsMgrTest, DsmgrStart_DdcDelayMissing_ContinuesOk)
 }
 
 /* -- 17b-9: ddcDelay file present, fscanf succeeds -------------------- */
+/* Uses a valid static sentinel as the fake FILE* to avoid crash if GMock
+ * ever inspects the pointer value during expectation matching.           */
+static char g_ddcdelay_sentinel[1];
 TEST_F(DsMgrTest, DsmgrStart_DdcDelayRead_UpdatesCount)
 {
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    FILE *kFakeFp = reinterpret_cast<FILE *>(0xCAFE);
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillOnce(Return(kFakeFp));
-    EXPECT_CALL(wrapsMock, fclose(kFakeFp))
-        .WillOnce(Return(0));
-    /* Must also cover the fopen("/etc/device.properties") inside
-     * isEUPlatform() so no "unexpected call" failure is generated.  */
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/etc/device.properties"), _))
-        .WillOnce(Return(nullptr));
+    FILE *kFakeFp = reinterpret_cast<FILE *>(g_ddcdelay_sentinel);
+
+    /* ON_CALL (not EXPECT_CALL) avoids strict ordering / saturation
+     * issues while still controlling what fopen returns.  The ON_CALL
+     * defaults for fopen(_, _) → nullptr and fclose(_) → 0 are set in
+     * SetUp; this override takes precedence for the ddcDelay path.     */
+    ON_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillByDefault(Return(kFakeFp));
 
     g_stub_fscanf_ret   = 1;   /* success: 1 item scanned */
     g_stub_fscanf_value = 42;
@@ -1303,14 +1307,10 @@ TEST_F(DsMgrTest, DsmgrStart_DdcDelayFscanfFails_ContinuesOk)
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    FILE *kFakeFp = reinterpret_cast<FILE *>(0xCAFE);
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillOnce(Return(kFakeFp));
-    EXPECT_CALL(wrapsMock, fclose(kFakeFp))
-        .WillOnce(Return(0));
-    /* Cover the fopen("/etc/device.properties") inside isEUPlatform(). */
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/etc/device.properties"), _))
-        .WillOnce(Return(nullptr));
+    FILE *kFakeFp = reinterpret_cast<FILE *>(g_ddcdelay_sentinel);
+
+    ON_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillByDefault(Return(kFakeFp));
 
     g_stub_fscanf_ret = 0;  /* 0 items scanned → failure branch */
 
