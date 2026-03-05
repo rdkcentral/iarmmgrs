@@ -71,7 +71,7 @@ extern "C" {
 #include "sysMgr.c"
 }
 
-using ::testing::_;
+using ::testing::_; 
 
 /* -----------------------------------------------------------------------
  * Fixture
