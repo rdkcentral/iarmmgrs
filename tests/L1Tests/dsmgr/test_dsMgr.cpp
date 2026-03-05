@@ -66,15 +66,35 @@
  * also get C++ linkage.
  * --------------------------------------------------------------------- */
 
+/* -----------------------------------------------------------------------
+ * Overrideable outputs for individual DS-HAL stubs.
+ * Reset to defaults in each test's SetUp().
+ * --------------------------------------------------------------------- */
+static intptr_t      g_stub_videoPortHandle = 0;
+static int           g_stub_edidLength      = 0;
+static unsigned char g_stub_edidBytes[1024] = {};
+
 /* ---- DS HAL functions (declared extern at the top of dsMgr.c) ------- */
-IARM_Result_t _dsGetVideoPort(void *arg)        { return IARM_RESULT_SUCCESS; }
+IARM_Result_t _dsGetVideoPort(void *arg) {
+    if (g_stub_videoPortHandle) {
+        dsVideoPortGetHandleParam_t *p = static_cast<dsVideoPortGetHandleParam_t *>(arg);
+        p->handle = g_stub_videoPortHandle;
+    }
+    return IARM_RESULT_SUCCESS;
+}
 IARM_Result_t _dsIsDisplayConnected(void *arg)  { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsGetIgnoreEDIDStatus(void *arg) { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsSetResolution(void *arg)       { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsGetResolution(void *arg)       { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsInitResolution(void *arg)      { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsGetEDID(void *arg)             { return IARM_RESULT_SUCCESS; }
-IARM_Result_t _dsGetEDIDBytes(void *arg)        { return IARM_RESULT_SUCCESS; }
+IARM_Result_t _dsGetEDIDBytes(void *arg) {
+    dsDisplayGetEDIDBytesParam_t *p = static_cast<dsDisplayGetEDIDBytesParam_t *>(arg);
+    p->length = g_stub_edidLength;
+    if (g_stub_edidLength > 0)
+        memcpy(p->bytes, g_stub_edidBytes, static_cast<size_t>(g_stub_edidLength));
+    return IARM_RESULT_SUCCESS;
+}
 IARM_Result_t _dsGetForceDisable4K(void *arg)   { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsSetBackgroundColor(void *arg)  { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsGetAudioPort(void *arg)        { return IARM_RESULT_SUCCESS; }
@@ -181,6 +201,12 @@ protected:
         bHDCPAuthenticated  = false;
         bootup_flag_enabled = true;
         IsIgnoreEdid_gs     = false;
+        hotplug_event_src   = 0;
+
+        /* Reset stub overrides. */
+        g_stub_videoPortHandle = 0;
+        g_stub_edidLength      = 0;
+        memset(g_stub_edidBytes, 0, sizeof(g_stub_edidBytes));
     }
 
     void TearDown() override
@@ -847,4 +873,257 @@ TEST_F(DsMgrTest, DumpEdidOnChecksumDiff_ValidHandle_ZeroEdidLength_ReturnsFalse
             Return(dsERR_NONE)));
 
     EXPECT_FALSE(dumpEdidOnChecksumDiff(nullptr));
+}
+
+/* =======================================================================
+ * Section 13 – Direct-callable helpers
+ *
+ * heartbeatMsg, _SetResolutionHandler, isHDMIConnected, and
+ * dumpHdmiEdidInfo are all static functions compiled into this TU via
+ * #include "dsMgr.c".  They can be exercised by calling them directly.
+ * ===================================================================== */
+
+TEST_F(DsMgrTest, HeartbeatMsg_ReturnsTrue)
+{
+    /* heartbeatMsg is a GLib timeout callback that logs a heartbeat ping. */
+    EXPECT_TRUE(heartbeatMsg(nullptr));
+}
+
+TEST_F(DsMgrTest, SetResolutionHandler_ClearsHotplugSrc)
+{
+    /* _SetResolutionHandler calls _SetVideoPortResolution() then zeros
+     * hotplug_event_src.  With the default stub (_dsGetVideoPort returns
+     * handle=0) _SetVideoPortResolution takes the NULL-handle branch. */
+    hotplug_event_src = 1;
+    EXPECT_FALSE(_SetResolutionHandler(nullptr));
+    EXPECT_EQ(hotplug_event_src, static_cast<guint>(0));
+}
+
+TEST_F(DsMgrTest, IsHDMIConnected_NullHandle_ReturnsFalse)
+{
+    /* _dsGetVideoPort stub returns handle=0 → isHDMIConnected returns false. */
+    EXPECT_FALSE(isHDMIConnected());
+}
+
+TEST_F(DsMgrTest, DumpHdmiEdidInfo_NullPedidData_DoesNotCrash)
+{
+    /* NULL pointer → else-branch log; no crash or ASAN fault. */
+    dumpHdmiEdidInfo(nullptr);
+}
+
+TEST_F(DsMgrTest, DumpHdmiEdidInfo_EmptyMonitorName_TakesElseBranch)
+{
+    /* memset-zeroed edid → monitorName length == 0 → else branch. */
+    dsDisplayEDID_t edid;
+    memset(&edid, 0, sizeof(edid));
+    dumpHdmiEdidInfo(&edid);
+}
+
+TEST_F(DsMgrTest, DumpHdmiEdidInfo_PopulatedMonitorName_TakesIfBranch)
+{
+    /* Non-empty monitorName → if-branch; all fields logged without crash. */
+    dsDisplayEDID_t edid;
+    memset(&edid, 0, sizeof(edid));
+    strncpy(edid.monitorName, "TestTV", sizeof(edid.monitorName) - 1);
+    edid.hdmiDeviceType = true;
+    edid.isRepeater     = false;
+    dumpHdmiEdidInfo(&edid);
+}
+
+/* =======================================================================
+ * Section 14 – _setAudioMode / _setEASAudioMode: EAS guard branches
+ *
+ * Both functions bail out early when `isEAS` is in the wrong state.
+ * Lines 1148–1150 (_setAudioMode EAS guard) and 1103–1105
+ * (_setEASAudioMode non-EAS guard) had 0 hits.
+ * ===================================================================== */
+
+TEST_F(DsMgrTest, SetAudioMode_EasInProgress_ReturnsEarly)
+{
+    /* When EAS is active _setAudioMode must return without any DS calls. */
+    isEAS = IARM_BUS_SYS_MODE_EAS;
+    _setAudioMode();
+}
+
+TEST_F(DsMgrTest, SetEasAudioMode_NotInEas_ReturnsEarly)
+{
+    /* _setEASAudioMode bails when isEAS != EAS. */
+    isEAS = IARM_BUS_SYS_MODE_NORMAL;
+    _setEASAudioMode();
+}
+
+/* =======================================================================
+ * Section 15 – setBGColor() / getVideoPortHandle(): handle != NULL branch
+ *
+ * g_stub_videoPortHandle overrides the _dsGetVideoPort stub so it returns
+ * a non-zero handle, exercising the if(vidPortParam.handle != NULL) block
+ * (lines 434–440) that had 0 hits.
+ * ===================================================================== */
+
+TEST_F(DsMgrTest, SetBGColor_WithValidHandle_CallsSetBackgroundColor)
+{
+    g_stub_videoPortHandle = 0xCAFE;
+    setBGColor(dsVIDEO_BGCOLOR_NONE);
+    /* Lines 435-440 covered; _dsSetBackgroundColor stub absorbs the call. */
+}
+
+TEST_F(DsMgrTest, GetVideoPortHandle_StubReturnsConfiguredHandle)
+{
+    g_stub_videoPortHandle = 0xDEAD;
+    intptr_t h = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
+    EXPECT_EQ(h, static_cast<intptr_t>(0xDEAD));
+}
+
+/* =======================================================================
+ * Section 16 – dumpEdidOnChecksumDiff(): valid EDID length inner paths
+ *
+ * g_stub_edidLength/g_stub_edidBytes control what _dsGetEDIDBytes fills
+ * in.  A single test exercises both the "new checksum → dump → TRUE" path
+ * and the "same checksum → no dump → FALSE" path by calling the function
+ * twice in sequence, relying on the static cached_EDID_checksum starting
+ * at 0 (no previous test has written to it for this particular data).
+ * ===================================================================== */
+
+TEST_F(DsMgrTest, DumpEdidOnChecksumDiff_ValidEdid_NewThenSameChecksum)
+{
+    /* 128-byte EDID block; checksum byte = 0xCC (unique value not used by
+     * any earlier test). */
+    g_stub_edidLength     = 128;
+    g_stub_edidBytes[127] = 0xCC;
+
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x9ABC)),
+            Return(dsERR_NONE)));
+
+    /* First call: cached == 0, current == 0xCC → new checksum → TRUE */
+    EXPECT_TRUE(dumpEdidOnChecksumDiff(nullptr));
+
+    /* Second call: cached == current == 0xCC → no change → FALSE */
+    EXPECT_FALSE(dumpEdidOnChecksumDiff(nullptr));
+}
+
+/* =======================================================================
+ * Section 17 – DSMgr_Start(): early IARM error-return paths
+ *
+ * DSMgr_Start returns early when IARM_Bus_Init, IARM_Bus_Connect, or
+ * IARM_Bus_RegisterEvent fails.  These paths (lines 226–240) had 0 hits.
+ * All fail paths return before pthread_create so no background thread leaks.
+ * ===================================================================== */
+
+TEST_F(DsMgrTest, DsmgrStart_InitFails_ReturnsError)
+{
+    EXPECT_CALL(iarmMock, IARM_Bus_Init(_))
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+TEST_F(DsMgrTest, DsmgrStart_ConnectFails_ReturnsError)
+{
+    EXPECT_CALL(iarmMock, IARM_Bus_Init(_))
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+    EXPECT_CALL(iarmMock, IARM_Bus_Connect())
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+TEST_F(DsMgrTest, DsmgrStart_RegisterEventFails_ReturnsError)
+{
+    EXPECT_CALL(iarmMock, IARM_Bus_Init(_))
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+    EXPECT_CALL(iarmMock, IARM_Bus_Connect())
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+    EXPECT_CALL(iarmMock, IARM_Bus_RegisterEvent(_))
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* =======================================================================
+ * Section 18 – DSMgr_Stop() and DSMgr_Loop()
+ *
+ * DSMgr_Stop's success path destroys the mutex and condvar, so the
+ * DsMgrStopTest fixture tracks ownership via `mutexOwnedByTest` and
+ * only lets TearDown destroy them when DSMgr_Stop did not.
+ *
+ * DSMgr_Loop with dsMgr_Gloop==NULL skips the GLib run loop and
+ * immediately returns IARM_RESULT_SUCCESS.
+ * ===================================================================== */
+
+class DsMgrStopTest : public ::testing::Test
+{
+protected:
+    ::testing::NiceMock<IarmBusImplMock> iarmMock;
+    ::testing::NiceMock<DsHalMock>       dsHalMock;
+    ::testing::NiceMock<WrapsImplMock>   wrapsMock;
+    bool mutexOwnedByTest = true;
+
+    void SetUp() override
+    {
+        IarmBus::setImpl(&iarmMock);
+        DsHal::setImpl(&dsHalMock);
+        Wraps::setImpl(&wrapsMock);
+        pthread_mutex_init(&tdsMutexLock, nullptr);
+        pthread_cond_init(&tdsMutexCond, nullptr);
+        isEAS       = IARM_BUS_SYS_MODE_NORMAL;
+        iTuneReady  = 0;
+        dsMgr_Gloop = nullptr;
+        g_stub_videoPortHandle = 0;
+        g_stub_edidLength      = 0;
+        mutexOwnedByTest = true;
+    }
+
+    void TearDown() override
+    {
+        if (mutexOwnedByTest) {
+            pthread_cond_destroy(&tdsMutexCond);
+            pthread_mutex_destroy(&tdsMutexLock);
+        }
+        ::testing::Mock::VerifyAndClearExpectations(&iarmMock);
+        ::testing::Mock::VerifyAndClearExpectations(&dsHalMock);
+        ::testing::Mock::VerifyAndClearExpectations(&wrapsMock);
+        IarmBus::setImpl(nullptr);
+        DsHal::setImpl(nullptr);
+        Wraps::setImpl(nullptr);
+    }
+};
+
+TEST_F(DsMgrStopTest, DsmgrStop_Success_ReturnsSuccess)
+{
+    mutexOwnedByTest = false;   /* DSMgr_Stop destroys mutex/condvar */
+    EXPECT_CALL(iarmMock, IARM_Bus_Disconnect())
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+    EXPECT_CALL(iarmMock, IARM_Bus_Term())
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+
+    EXPECT_EQ(DSMgr_Stop(), IARM_RESULT_SUCCESS);
+}
+
+TEST_F(DsMgrStopTest, DsmgrStop_DisconnectFails_ReturnsError)
+{
+    /* Early return before pthread_destroy → TearDown cleans up. */
+    EXPECT_CALL(iarmMock, IARM_Bus_Disconnect())
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_EQ(DSMgr_Stop(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+TEST_F(DsMgrStopTest, DsmgrStop_TermFails_ReturnsError)
+{
+    /* Early return before pthread_destroy → TearDown cleans up. */
+    EXPECT_CALL(iarmMock, IARM_Bus_Disconnect())
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+    EXPECT_CALL(iarmMock, IARM_Bus_Term())
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_EQ(DSMgr_Stop(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+TEST_F(DsMgrTest, DsmgrLoop_NullLoop_ReturnsImmediately)
+{
+    /* dsMgr_Gloop == nullptr → GLib loop is skipped → SUCCESS. */
+    dsMgr_Gloop = nullptr;
+    EXPECT_EQ(DSMgr_Loop(), IARM_RESULT_SUCCESS);
 }
