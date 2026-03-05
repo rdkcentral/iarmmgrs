@@ -57,6 +57,7 @@
 #include "sysMgr.h"
 #include "Iarm.h"
 #include "IarmBusMock.h"
+#include "WrapsMock.h"
 
 /* -----------------------------------------------------------------------
  * All external symbols that dsMgr.c references but does not define.
@@ -160,11 +161,13 @@ class DsMgrTest : public ::testing::Test
 protected:
     ::testing::NiceMock<IarmBusImplMock> iarmMock;
     ::testing::NiceMock<DsHalMock>       dsHalMock;
+    ::testing::NiceMock<WrapsImplMock>   wrapsMock;
 
     void SetUp() override
     {
         IarmBus::setImpl(&iarmMock);
         DsHal::setImpl(&dsHalMock);
+        Wraps::setImpl(&wrapsMock);
 
         /* Initialise the mutex / condvar that _EventHandler uses. */
         pthread_mutex_init(&tdsMutexLock, nullptr);
@@ -186,8 +189,10 @@ protected:
         pthread_mutex_destroy(&tdsMutexLock);
         ::testing::Mock::VerifyAndClearExpectations(&iarmMock);
         ::testing::Mock::VerifyAndClearExpectations(&dsHalMock);
+        ::testing::Mock::VerifyAndClearExpectations(&wrapsMock);
         IarmBus::setImpl(nullptr);
         DsHal::setImpl(nullptr);
+        Wraps::setImpl(nullptr);
     }
 };
 
@@ -583,4 +588,263 @@ TEST_F(DsMgrTest, EventHandler_HdcpAuthFail_SetsBHDCPAuthenticatedFalse)
                   &ev, sizeof(ev));
 
     EXPECT_FALSE(bHDCPAuthenticated);
+}
+
+/* =======================================================================
+ * Section 9 – isEUPlatform(): file-open and content-parsing paths
+ *
+ * isEUPlatform() reads /etc/device.properties looking for a FRIENDLY_ID
+ * line to decide whether the device is an EU variant.  fopen / fgets /
+ * fclose are intercepted by --wrap; WrapsImplMock (installed on every
+ * fixture via Wraps::setImpl) controls what they return.
+ *
+ * kFakeFp is a non-NULL sentinel FILE* that the code under test never
+ * dereferences directly.
+ * ===================================================================== */
+
+namespace {
+    FILE * const kFakeFp = reinterpret_cast<FILE *>(0xDEADBEEF);
+}
+
+TEST_F(DsMgrTest, IsEUPlatform_FileOpenFails_ReturnsFalse)
+{
+    EXPECT_CALL(wrapsMock, fopen(_, _)).WillOnce(Return(nullptr));
+    EXPECT_FALSE(isEUPlatform());
+}
+
+TEST_F(DsMgrTest, IsEUPlatform_EmptyFile_ReturnsFalse)
+{
+    /* fgets returns nullptr on first call → loop exits without finding FRIENDLY_ID */
+    EXPECT_CALL(wrapsMock, fopen(_, _)).WillOnce(Return(kFakeFp));
+    EXPECT_CALL(wrapsMock, fgets(_, _, kFakeFp)).WillOnce(Return(nullptr));
+    EXPECT_CALL(wrapsMock, fclose(kFakeFp)).WillOnce(Return(0));
+    EXPECT_FALSE(isEUPlatform());
+}
+
+TEST_F(DsMgrTest, IsEUPlatform_EuLine_ReturnsTrue)
+{
+    EXPECT_CALL(wrapsMock, fopen(_, _)).WillOnce(Return(kFakeFp));
+    EXPECT_CALL(wrapsMock, fgets(_, _, kFakeFp))
+        .WillOnce([](char *buf, int size, FILE *) {
+            strncpy(buf, "FRIENDLY_ID=UK\n", static_cast<size_t>(size) - 1);
+            buf[size - 1] = '\0';
+            return buf;
+        });
+    EXPECT_CALL(wrapsMock, fclose(kFakeFp)).WillOnce(Return(0));
+    EXPECT_TRUE(isEUPlatform());
+}
+
+TEST_F(DsMgrTest, IsEUPlatform_USLine_ReturnsFalse)
+{
+    EXPECT_CALL(wrapsMock, fopen(_, _)).WillOnce(Return(kFakeFp));
+    EXPECT_CALL(wrapsMock, fgets(_, _, kFakeFp))
+        .WillOnce([](char *buf, int size, FILE *) {
+            strncpy(buf, "FRIENDLY_ID= US\n", static_cast<size_t>(size) - 1);
+            buf[size - 1] = '\0';
+            return buf;
+        });
+    EXPECT_CALL(wrapsMock, fclose(kFakeFp)).WillOnce(Return(0));
+    EXPECT_FALSE(isEUPlatform());
+}
+
+TEST_F(DsMgrTest, IsEUPlatform_XglobalLine_ReturnsFalse)
+{
+    EXPECT_CALL(wrapsMock, fopen(_, _)).WillOnce(Return(kFakeFp));
+    EXPECT_CALL(wrapsMock, fgets(_, _, kFakeFp))
+        .WillOnce([](char *buf, int size, FILE *) {
+            strncpy(buf, "FRIENDLY_ID=xglobal\n", static_cast<size_t>(size) - 1);
+            buf[size - 1] = '\0';
+            return buf;
+        });
+    EXPECT_CALL(wrapsMock, fclose(kFakeFp)).WillOnce(Return(0));
+    EXPECT_FALSE(isEUPlatform());
+}
+
+TEST_F(DsMgrTest, IsEUPlatform_FriendlyIdOnSecondLine_ReturnsTrue)
+{
+    /* First fgets returns an unrelated line; second returns the EU FRIENDLY_ID */
+    EXPECT_CALL(wrapsMock, fopen(_, _)).WillOnce(Return(kFakeFp));
+    EXPECT_CALL(wrapsMock, fgets(_, _, kFakeFp))
+        .WillOnce([](char *buf, int size, FILE *) {
+            strncpy(buf, "SOME_KEY=val\n", static_cast<size_t>(size) - 1);
+            buf[size - 1] = '\0';
+            return buf;
+        })
+        .WillOnce([](char *buf, int size, FILE *) {
+            strncpy(buf, "FRIENDLY_ID=DE\n", static_cast<size_t>(size) - 1);
+            buf[size - 1] = '\0';
+            return buf;
+        });
+    EXPECT_CALL(wrapsMock, fclose(kFakeFp)).WillOnce(Return(0));
+    EXPECT_TRUE(isEUPlatform());
+}
+
+/* =======================================================================
+ * Section 10 – setupPlatformConfig(): fallback resolution list building
+ *
+ * setupPlatformConfig() calls isEUPlatform() (which calls fopen) and
+ * then populates fallBackResolutionList[], skipping "576p" on non-EU
+ * platforms.
+ * ===================================================================== */
+
+TEST_F(DsMgrTest, SetupPlatformConfig_NonEU_ExcludesPal576p)
+{
+    /* fopen fails → isEUPlatform() returns false → non-EU build */
+    EXPECT_CALL(wrapsMock, fopen(_, _)).WillOnce(Return(nullptr));
+
+    memset(fallBackResolutionList, 0, sizeof(fallBackResolutionList));
+    setupPlatformConfig();
+
+    bool found576p = false;
+    for (int i = 0; i < RES_MAX_COUNT; ++i)
+        if (strcmp(fallBackResolutionList[i], "576p") == 0) found576p = true;
+    EXPECT_FALSE(found576p);
+}
+
+TEST_F(DsMgrTest, SetupPlatformConfig_EU_IncludesPal576p)
+{
+    /* fopen succeeds with an EU FRIENDLY_ID line → IsEUPlatform = true */
+    EXPECT_CALL(wrapsMock, fopen(_, _)).WillOnce(Return(kFakeFp));
+    EXPECT_CALL(wrapsMock, fgets(_, _, kFakeFp))
+        .WillOnce([](char *buf, int size, FILE *) {
+            strncpy(buf, "FRIENDLY_ID=UK\n", static_cast<size_t>(size) - 1);
+            buf[size - 1] = '\0';
+            return buf;
+        });
+    EXPECT_CALL(wrapsMock, fclose(kFakeFp)).WillOnce(Return(0));
+
+    memset(fallBackResolutionList, 0, sizeof(fallBackResolutionList));
+    setupPlatformConfig();
+
+    bool found576p = false;
+    for (int i = 0; i < RES_MAX_COUNT; ++i)
+        if (strcmp(fallBackResolutionList[i], "576p") == 0) found576p = true;
+    EXPECT_TRUE(found576p);
+}
+
+/* =======================================================================
+ * Section 11 – _EventHandler: additional HDCP branches
+ * ===================================================================== */
+
+/* Unknown HDCP status (neither AUTHENTICATED nor AUTHENTICATIONFAILURE):
+ * the handler broadcasts with state=1 (initial value) and leaves
+ * bHDCPAuthenticated unchanged. */
+TEST_F(DsMgrTest, EventHandler_HdcpUnknownStatus_BroadcastsAndLeavesAuthUnchanged)
+{
+    bHDCPAuthenticated = true;
+
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        StrEq(IARM_BUS_SYSMGR_NAME),
+        static_cast<IARM_EventId_t>(IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE),
+        _, _))
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+
+    IARM_Bus_DSMgr_EventData_t ev = {};
+    ev.data.hdmi_hdcp.hdcpStatus = -1;  /* intentionally invalid */
+    _EventHandler(IARM_BUS_DSMGR_NAME,
+                  IARM_BUS_DSMGR_EVENT_HDCP_STATUS,
+                  &ev, sizeof(ev));
+
+    EXPECT_TRUE(bHDCPAuthenticated);  /* unchanged */
+}
+
+/* BroadcastEvent failure: handler logs INT_ERROR but does not crash. */
+TEST_F(DsMgrTest, EventHandler_HdcpAuthenticated_BroadcastEventFails_DoesNotCrash)
+{
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(_, _, _, _))
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    IARM_Bus_DSMgr_EventData_t ev = {};
+    ev.data.hdmi_hdcp.hdcpStatus = dsHDCP_STATUS_AUTHENTICATED;
+    _EventHandler(IARM_BUS_DSMGR_NAME,
+                  IARM_BUS_DSMGR_EVENT_HDCP_STATUS,
+                  &ev, sizeof(ev));
+
+    EXPECT_TRUE(bHDCPAuthenticated);
+}
+
+/* IsIgnoreEdid_gs=true AND bootup_flag_enabled=false: the condition
+ * `(!IsIgnoreEdid_gs) || bootup_flag_enabled` is false so
+ * _SetVideoPortResolution is NOT called and bootup_flag stays false. */
+TEST_F(DsMgrTest, EventHandler_HdcpAuthenticated_IgnoreEdidSet_BootupDone_SkipsResolution)
+{
+    IsIgnoreEdid_gs     = true;
+    bootup_flag_enabled = false;
+
+    IARM_Bus_DSMgr_EventData_t ev = {};
+    ev.data.hdmi_hdcp.hdcpStatus = dsHDCP_STATUS_AUTHENTICATED;
+    _EventHandler(IARM_BUS_DSMGR_NAME,
+                  IARM_BUS_DSMGR_EVENT_HDCP_STATUS,
+                  &ev, sizeof(ev));
+
+    EXPECT_TRUE(bHDCPAuthenticated);
+    EXPECT_FALSE(bootup_flag_enabled);  /* flag was not touched */
+}
+
+/* IsIgnoreEdid_gs=true AND bootup_flag_enabled=true: the bootup override
+ * allows _SetVideoPortResolution to run; flag is cleared to false. */
+TEST_F(DsMgrTest, EventHandler_HdcpAuthenticated_IgnoreEdidSet_BootupActive_ClearsFlag)
+{
+    IsIgnoreEdid_gs     = true;
+    bootup_flag_enabled = true;
+
+    IARM_Bus_DSMgr_EventData_t ev = {};
+    ev.data.hdmi_hdcp.hdcpStatus = dsHDCP_STATUS_AUTHENTICATED;
+    _EventHandler(IARM_BUS_DSMGR_NAME,
+                  IARM_BUS_DSMGR_EVENT_HDCP_STATUS,
+                  &ev, sizeof(ev));
+
+    EXPECT_TRUE(bHDCPAuthenticated);
+    EXPECT_FALSE(bootup_flag_enabled);  /* cleared by the handler */
+}
+
+/* IsIgnoreEdid_gs=true on AUTHFAILURE: `if (!IsIgnoreEdid_gs)` is false
+ * so _SetVideoPortResolution is skipped; bHDCPAuthenticated becomes false. */
+TEST_F(DsMgrTest, EventHandler_HdcpAuthFail_IgnoreEdidSet_SkipsResolution)
+{
+    IsIgnoreEdid_gs    = true;
+    bHDCPAuthenticated = true;
+
+    IARM_Bus_DSMgr_EventData_t ev = {};
+    ev.data.hdmi_hdcp.hdcpStatus = dsHDCP_STATUS_AUTHENTICATIONFAILURE;
+    _EventHandler(IARM_BUS_DSMGR_NAME,
+                  IARM_BUS_DSMGR_EVENT_HDCP_STATUS,
+                  &ev, sizeof(ev));
+
+    EXPECT_FALSE(bHDCPAuthenticated);
+    /* bootup_flag_enabled remains at the true value set by SetUp */
+    EXPECT_TRUE(bootup_flag_enabled);
+}
+
+/* =======================================================================
+ * Section 12 – dumpEdidOnChecksumDiff(): dsGetDisplay / EDID paths
+ *
+ * dumpEdidOnChecksumDiff is a static gboolean GLib timeout callback that
+ * is called directly here because dsMgr.c is included in this TU.
+ * The DsHalMock controls what dsGetDisplay() returns.
+ * ===================================================================== */
+
+/* dsGetDisplay returns handle=0: function returns FALSE immediately
+ * without ever entering the EDID-processing block. */
+TEST_F(DsMgrTest, DumpEdidOnChecksumDiff_NoDisplayHandle_ReturnsFalse)
+{
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillOnce(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0)),
+            Return(dsERR_NONE)));
+
+    EXPECT_FALSE(dumpEdidOnChecksumDiff(nullptr));
+}
+
+/* dsGetDisplay returns a non-zero handle but _dsGetEDIDBytes (hardcoded
+ * stub) leaves EdidBytesParam.length = 0.  The guard
+ * `if((length > 0) && (length <= 512))` is false → returns FALSE. */
+TEST_F(DsMgrTest, DumpEdidOnChecksumDiff_ValidHandle_ZeroEdidLength_ReturnsFalse)
+{
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillOnce(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1234)),
+            Return(dsERR_NONE)));
+
+    EXPECT_FALSE(dumpEdidOnChecksumDiff(nullptr));
 }
