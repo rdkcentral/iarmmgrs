@@ -61,7 +61,7 @@
 #endif
 #ifdef IARM_BUS_DSMGR_API_GetStandbyVideoState
 #undef IARM_BUS_DSMGR_API_GetStandbyVideoState
-#endif
+#endif 
 
 #include "dsRpc.h"      /* RPC param structs + dsSleepMode_t                       */
 
