@@ -39,9 +39,15 @@
 #ifndef _MFR_MGR_H_
 #define _MFR_MGR_H_
 
+#ifdef __cplusplus
+extern "C" {
+#endif
 #include "mfrTypes.h"
 #include "mfr_wifi_types.h"
 #include "mfr_wifi_api.h"
+#ifdef __cplusplus
+}
+#endif
 
 /* -----------------------------------------------------------------------
  * Macros — identical to mfr/include/mfrMgr.h.
