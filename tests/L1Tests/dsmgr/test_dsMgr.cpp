@@ -1259,9 +1259,10 @@ TEST_F(DsMgrTest, DsmgrStart_DdcDelayMissing_ContinuesOk)
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    /* fopen("/opt/ddcDelay") → NULL  ⇒  fscanf block is skipped */
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillOnce(Return(nullptr));
+    /* fopen("/opt/ddcDelay") → NULL via ON_CALL default (no EXPECT_CALL
+     * so that the later fopen("/etc/device.properties") inside
+     * isEUPlatform() is also resolved by the same default without
+     * triggering an "unexpected call" failure). */
 
     /* IARM_Bus_Call for GetSystemStates → succeed, TuneReady = 0 */
     ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
@@ -1281,6 +1282,10 @@ TEST_F(DsMgrTest, DsmgrStart_DdcDelayRead_UpdatesCount)
         .WillOnce(Return(kFakeFp));
     EXPECT_CALL(wrapsMock, fclose(kFakeFp))
         .WillOnce(Return(0));
+    /* Must also cover the fopen("/etc/device.properties") inside
+     * isEUPlatform() so no "unexpected call" failure is generated.  */
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/etc/device.properties"), _))
+        .WillOnce(Return(nullptr));
 
     g_stub_fscanf_ret   = 1;   /* success: 1 item scanned */
     g_stub_fscanf_value = 42;
@@ -1303,6 +1308,9 @@ TEST_F(DsMgrTest, DsmgrStart_DdcDelayFscanfFails_ContinuesOk)
         .WillOnce(Return(kFakeFp));
     EXPECT_CALL(wrapsMock, fclose(kFakeFp))
         .WillOnce(Return(0));
+    /* Cover the fopen("/etc/device.properties") inside isEUPlatform(). */
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/etc/device.properties"), _))
+        .WillOnce(Return(nullptr));
 
     g_stub_fscanf_ret = 0;  /* 0 items scanned → failure branch */
 
@@ -1318,8 +1326,9 @@ TEST_F(DsMgrTest, DsmgrStart_GetSysStatesFails_ReturnsError)
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillOnce(Return(nullptr));
+    /* No EXPECT_CALL on fopen — ON_CALL default returns nullptr for any
+     * path (/opt/ddcDelay, etc.).  DSMgr_Start returns early here so
+     * isEUPlatform() is never reached. */
 
     EXPECT_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
         .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
@@ -1333,8 +1342,7 @@ TEST_F(DsMgrTest, DsmgrStart_TuneReady_SetsFlag)
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillOnce(Return(nullptr));
+    /* No EXPECT_CALL on fopen — ON_CALL default returns nullptr. */
 
     /* Program IARM_Bus_Call to set TuneReadyStatus.state = 1 */
     EXPECT_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
@@ -1356,8 +1364,7 @@ TEST_F(DsMgrTest, DsmgrStart_TuneNotReady_FlagUnset)
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillOnce(Return(nullptr));
+    /* No EXPECT_CALL on fopen — ON_CALL default returns nullptr. */
 
     EXPECT_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
         .WillOnce(::testing::Invoke(
@@ -1378,8 +1385,7 @@ TEST_F(DsMgrTest, DsmgrStart_GloopNull_SkipsTimeout)
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillOnce(Return(nullptr));
+    /* No EXPECT_CALL on fopen — ON_CALL default returns nullptr. */
     ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
         .WillByDefault(Return(IARM_RESULT_SUCCESS));
 
@@ -1395,17 +1401,12 @@ TEST_F(DsMgrTest, DsmgrStart_FullSuccess_SetsGloop)
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillOnce(Return(nullptr));
+    /* No EXPECT_CALL on fopen — ON_CALL default returns nullptr for both
+     * /opt/ddcDelay and /etc/device.properties (non-EU default). */
     ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
         .WillByDefault(Return(IARM_RESULT_SUCCESS));
 
     g_stub_gloop_null = false;  /* returns 0xBEEF sentinel */
-
-    /* setupPlatformConfig() calls isEUPlatform() which opens
-     * /etc/device.properties.  Return NULL → non-EU default. */
-    EXPECT_CALL(wrapsMock, fopen(StrEq("/etc/device.properties"), _))
-        .WillOnce(Return(nullptr));
 
     EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
     EXPECT_NE(dsMgr_Gloop, nullptr);
