@@ -53,6 +53,7 @@
 #include <cstring>
 #include <cerrno>
 #include <pthread.h>
+#include <unistd.h>
 #include <glib.h>
 
 /* sysMgr.h first — prevents type-redefinition conflicts with Iarm.h */
@@ -77,24 +78,57 @@
  * Overrideable outputs for individual DS-HAL stubs.
  * Reset to defaults in each test's SetUp().
  * --------------------------------------------------------------------- */
-static intptr_t      g_stub_videoPortHandle = 0;
+/* Per-port-type handle stubs.  g_stub_videoPortHandle is the legacy alias
+ * for the HDMI handle used by pre-existing tests.  New tests use the
+ * per-type globals to exercise the fallback cascade in _SetVideoPortResolution. */
+static intptr_t      g_stub_videoPortHandle = 0; /* HDMI (legacy name kept) */
+static intptr_t      g_stub_compHandle      = 0; /* dsVIDEOPORT_TYPE_COMPONENT */
+static intptr_t      g_stub_bbHandle        = 0; /* dsVIDEOPORT_TYPE_BB       */
+static intptr_t      g_stub_rfHandle        = 0; /* dsVIDEOPORT_TYPE_RF       */
+static bool          g_stub_isDisplayConnected = false;
 static int           g_stub_edidLength      = 0;
 static unsigned char g_stub_edidBytes[1024] = {};
 
+/* Controllable EDID content for _SetResolution HDMI tests. */
+static int    g_stub_edid_numResolutions = 0;
+static bool   g_stub_edid_hdmiDeviceType = false;
+static char   g_stub_edid_res0_name[32]  = {};
+
+/* Controllable stereo mode returned by _dsGetStereoMode. */
+static dsAudioStereoMode_t g_stub_stereoMode = dsAUDIO_STEREO_UNKNOWN;
+
 /* ---- DS HAL functions (declared extern at the top of dsMgr.c) ------- */
 IARM_Result_t _dsGetVideoPort(void *arg) {
-    if (g_stub_videoPortHandle) {
-        dsVideoPortGetHandleParam_t *p = static_cast<dsVideoPortGetHandleParam_t *>(arg);
-        p->handle = g_stub_videoPortHandle;
+    dsVideoPortGetHandleParam_t *p = static_cast<dsVideoPortGetHandleParam_t *>(arg);
+    switch (p->type) {
+    case dsVIDEOPORT_TYPE_HDMI:      p->handle = g_stub_videoPortHandle; break;
+    case dsVIDEOPORT_TYPE_COMPONENT: p->handle = g_stub_compHandle;      break;
+    case dsVIDEOPORT_TYPE_BB:        p->handle = g_stub_bbHandle;        break;
+    case dsVIDEOPORT_TYPE_RF:        p->handle = g_stub_rfHandle;        break;
+    default:                         p->handle = 0;                      break;
     }
     return IARM_RESULT_SUCCESS;
 }
-IARM_Result_t _dsIsDisplayConnected(void *arg)  { return IARM_RESULT_SUCCESS; }
+IARM_Result_t _dsIsDisplayConnected(void *arg) {
+    dsVideoPortIsDisplayConnectedParam_t *p =
+        static_cast<dsVideoPortIsDisplayConnectedParam_t *>(arg);
+    p->connected = g_stub_isDisplayConnected;
+    return IARM_RESULT_SUCCESS;
+}
 IARM_Result_t _dsGetIgnoreEDIDStatus(void *arg) { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsSetResolution(void *arg)       { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsGetResolution(void *arg)       { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsInitResolution(void *arg)      { return IARM_RESULT_SUCCESS; }
-IARM_Result_t _dsGetEDID(void *arg)             { return IARM_RESULT_SUCCESS; }
+IARM_Result_t _dsGetEDID(void *arg) {
+    dsDisplayGetEDIDParam_t *p = static_cast<dsDisplayGetEDIDParam_t *>(arg);
+    p->edid.numOfSupportedResolution = g_stub_edid_numResolutions;
+    p->edid.hdmiDeviceType           = g_stub_edid_hdmiDeviceType;
+    if (g_stub_edid_numResolutions > 0 && g_stub_edid_res0_name[0] != '\0') {
+        strncpy(p->edid.suppResolutionList[0].name, g_stub_edid_res0_name,
+                sizeof(p->edid.suppResolutionList[0].name) - 1);
+    }
+    return IARM_RESULT_SUCCESS;
+}
 IARM_Result_t _dsGetEDIDBytes(void *arg) {
     dsDisplayGetEDIDBytesParam_t *p = static_cast<dsDisplayGetEDIDBytesParam_t *>(arg);
     p->length = g_stub_edidLength;
@@ -105,7 +139,11 @@ IARM_Result_t _dsGetEDIDBytes(void *arg) {
 IARM_Result_t _dsGetForceDisable4K(void *arg)   { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsSetBackgroundColor(void *arg)  { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsGetAudioPort(void *arg)        { return IARM_RESULT_SUCCESS; }
-IARM_Result_t _dsGetStereoMode(void *arg)       { return IARM_RESULT_SUCCESS; }
+IARM_Result_t _dsGetStereoMode(void *arg) {
+    dsAudioSetStereoModeParam_t *p = static_cast<dsAudioSetStereoModeParam_t *>(arg);
+    p->mode = g_stub_stereoMode;
+    return IARM_RESULT_SUCCESS;
+}
 IARM_Result_t _dsSetStereoMode(void *arg)       { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsGetStereoAuto(void *arg)       { return IARM_RESULT_SUCCESS; }
 IARM_Result_t _dsIsDisplaySurround(void *arg)   { return IARM_RESULT_SUCCESS; }
@@ -146,6 +184,10 @@ static bool g_stub_gloop_null              = false;
 extern "C" int __real_fclose(FILE *);
 
 extern "C" {
+
+/* usleep is called inside _SetVideoPortResolution when the HDMI handle is
+ * non-NULL (100 ms wait).  Wrap it to a no-op so tests run instantly.   */
+void __wrap_usleep(useconds_t us) { (void)us; }
 
 /* Wrapped libc / pthread symbols */
 int __real_pthread_cond_init(pthread_cond_t *, const pthread_condattr_t *);
@@ -296,9 +338,19 @@ protected:
         dsMgr_Gloop         = nullptr;
 
         /* Reset stub overrides. */
-        g_stub_videoPortHandle = 0;
-        g_stub_edidLength      = 0;
+        g_stub_videoPortHandle   = 0;
+        g_stub_compHandle        = 0;
+        g_stub_bbHandle          = 0;
+        g_stub_rfHandle          = 0;
+        g_stub_isDisplayConnected    = false;
+        g_stub_edidLength            = 0;
         memset(g_stub_edidBytes, 0, sizeof(g_stub_edidBytes));
+        /* EDID-content stubs for _SetResolution tests. */
+        g_stub_edid_numResolutions   = 0;
+        g_stub_edid_hdmiDeviceType   = false;
+        memset(g_stub_edid_res0_name, 0, sizeof(g_stub_edid_res0_name));
+        /* Stereo-mode stub for _setAudioMode / _setEASAudioMode tests. */
+        g_stub_stereoMode            = dsAUDIO_STEREO_UNKNOWN;
     }
 
     void TearDown() override
@@ -1402,6 +1454,72 @@ TEST_F(DsMgrTest, DsmgrStart_FullSuccess_SetsGloop)
 }
 
 /* =======================================================================
+ * Section 17c – _SetVideoPortResolution(): HDMI non-NULL branch coverage
+ *
+ * Each test calls _SetVideoPortResolution() directly.  The per-type
+ * handle stubs control which port-type branch is taken.  usleep is
+ * wrapped to a no-op so tests run without a 100 ms delay.
+ * ===================================================================== */
+
+/* Helper: sentinel address for a safe non-NULL intptr_t handle value. */
+static char g_port_sentinel_buf[4];
+#define STUB_HANDLE(offset) \
+    (reinterpret_cast<intptr_t>(g_port_sentinel_buf + (offset)))
+
+/* -- 17c-1: HDMI handle present + display connected → HDMI resolution -- */
+TEST_F(DsMgrTest, SetVPR_HdmiConnected_SetsHdmiResolution)
+{
+    g_stub_videoPortHandle    = STUB_HANDLE(0);  /* non-NULL HDMI handle */
+    g_stub_isDisplayConnected = true;
+    iInitResnFlag             = 1;
+    /* dsGetDisplay (NiceMock) returns 0 for _displayHandle by default →
+     * _SetResolution skips the EDID block, falls back to default res,
+     * calls _dsSetResolution stub safely.                              */
+    EXPECT_EQ(_SetVideoPortResolution(), 0);
+}
+
+/* -- 17c-2: HDMI present + not connected + component handle present ---- */
+TEST_F(DsMgrTest, SetVPR_HdmiNotConnected_CompPresent_SetsComponent)
+{
+    g_stub_videoPortHandle    = STUB_HANDLE(0);
+    g_stub_isDisplayConnected = false;
+    g_stub_compHandle         = STUB_HANDLE(1);
+    EXPECT_EQ(_SetVideoPortResolution(), 0);
+}
+
+/* -- 17c-3: HDMI present + not connected + no comp + BB handle present - */
+TEST_F(DsMgrTest, SetVPR_HdmiNotConnected_NullComp_BBPresent_SetsBB)
+{
+    g_stub_videoPortHandle    = STUB_HANDLE(0);
+    g_stub_isDisplayConnected = false;
+    g_stub_compHandle         = 0;
+    g_stub_bbHandle           = STUB_HANDLE(2);
+    EXPECT_EQ(_SetVideoPortResolution(), 0);
+}
+
+/* -- 17c-4: HDMI present + not connected + no comp/BB + RF present ----- */
+TEST_F(DsMgrTest, SetVPR_HdmiNotConnected_NullBB_RFPresent_SetsRF)
+{
+    g_stub_videoPortHandle    = STUB_HANDLE(0);
+    g_stub_isDisplayConnected = false;
+    g_stub_compHandle         = 0;
+    g_stub_bbHandle           = 0;
+    g_stub_rfHandle           = STUB_HANDLE(3);
+    EXPECT_EQ(_SetVideoPortResolution(), 0);
+}
+
+/* -- 17c-5: HDMI present + not connected + all other handles NULL ------ */
+TEST_F(DsMgrTest, SetVPR_HdmiNotConnected_AllNull_LogsAndReturns)
+{
+    g_stub_videoPortHandle    = STUB_HANDLE(0);
+    g_stub_isDisplayConnected = false;
+    g_stub_compHandle         = 0;
+    g_stub_bbHandle           = 0;
+    g_stub_rfHandle           = 0;
+    EXPECT_EQ(_SetVideoPortResolution(), 0);
+}
+
+/* =======================================================================
  * Section 18 – DSMgr_Stop() and DSMgr_Loop()
  *
  * DSMgr_Stop's success path destroys the mutex and condvar, so the
@@ -1491,4 +1609,332 @@ TEST_F(DsMgrTest, DsmgrLoop_NullLoop_ReturnsImmediately)
     /* dsMgr_Gloop == nullptr → GLib loop is skipped → SUCCESS. */
     dsMgr_Gloop = nullptr;
     EXPECT_EQ(DSMgr_Loop(), IARM_RESULT_SUCCESS);
+}
+
+/* =======================================================================
+ * Section 19a – isResolutionSupported(): EDID × kResolutions lookup
+ *
+ * isResolutionSupported(edidData, numResolutions, pNumResolutions,
+ *                       Resn, &index) scans edidData->suppResolutionList
+ * [0..numResolutions-1] for Resn, then verifies that entry also exists
+ * in kResolutions[0..pNumResolutions-1].  Returns true + index on match.
+ * ===================================================================== */
+
+/* 19a-1: Resn found in EDID list AND in kResolutions → true + index 0. */
+TEST_F(DsMgrTest, IsResolutionSupported_FoundInBothLists_ReturnsTrueWithIndex)
+{
+    dsDisplayEDID_t edid;
+    memset(&edid, 0, sizeof(edid));
+    strncpy(edid.suppResolutionList[0].name, "720p", 31);
+
+    int index = -1;
+    int pNum  = static_cast<int>(dsUTL_DIM(kResolutions));
+    EXPECT_TRUE(isResolutionSupported(&edid, 1, pNum, "720p", &index));
+    EXPECT_EQ(index, 0);
+}
+
+/* 19a-2: numResolutions == 0 → empty EDID list → false. */
+TEST_F(DsMgrTest, IsResolutionSupported_EmptyEdidList_ReturnsFalse)
+{
+    dsDisplayEDID_t edid;
+    memset(&edid, 0, sizeof(edid));
+
+    int index = -1;
+    int pNum  = static_cast<int>(dsUTL_DIM(kResolutions));
+    EXPECT_FALSE(isResolutionSupported(&edid, 0, pNum, "720p", &index));
+}
+
+/* 19a-3: Resn found in EDID list but NOT in kResolutions → false. */
+TEST_F(DsMgrTest, IsResolutionSupported_NotInKResolutions_ReturnsFalse)
+{
+    dsDisplayEDID_t edid;
+    memset(&edid, 0, sizeof(edid));
+    strncpy(edid.suppResolutionList[0].name, "unknown_res", 31);
+
+    int index = -1;
+    int pNum  = static_cast<int>(dsUTL_DIM(kResolutions));
+    EXPECT_FALSE(isResolutionSupported(&edid, 1, pNum, "unknown_res", &index));
+}
+
+/* 19a-4: Resn not found in EDID list at all → false. */
+TEST_F(DsMgrTest, IsResolutionSupported_ResnNotInEdidList_ReturnsFalse)
+{
+    dsDisplayEDID_t edid;
+    memset(&edid, 0, sizeof(edid));
+    strncpy(edid.suppResolutionList[0].name, "1080p60", 31);
+
+    int index = -1;
+    int pNum  = static_cast<int>(dsUTL_DIM(kResolutions));
+    EXPECT_FALSE(isResolutionSupported(&edid, 1, pNum, "720p", &index));
+}
+
+/* =======================================================================
+ * Section 19b – _SetResolution(): branch coverage
+ *
+ * g_stub_edid_* globals let tests control what _dsGetEDID fills into
+ * the EDID struct.  dsGetDisplay() is provided by DsHalMock.
+ * dumpEdidOnChecksumDiff(NULL) — called unconditionally inside
+ * _SetResolution — also calls dsGetDisplay; hence tests that need a
+ * non-zero _displayHandle use WillRepeatedly for dsGetDisplay so both
+ * calls (in dumpEdid and in the HDMI branch) get the same stub value.
+ * ===================================================================== */
+
+/* 19b-1: NULL handle → malloc'd edidData freed, early return, no crash. */
+TEST_F(DsMgrTest, SetResolution_NullHandle_ReturnsEarly)
+{
+    intptr_t handle = 0;  /* NULL */
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* 19b-2: COMPONENT port + presolution name doesn't match any kResolutions
+ * entry (stub returns ""); falls back to kDefaultResIndex → _dsSetResolution. */
+TEST_F(DsMgrTest, SetResolution_ComponentNoMatch_UsesFallback)
+{
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    /* _dsGetResolution stub: returns empty name "" → no match in kResolutions
+     * → IsValidResolution=false → setResn = kResolutions[kDefaultResIndex].
+     * _dsSetResolution stub absorbs the call safely.                     */
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* 19b-3: BB port → identical COMPONENT/BB/RF code path; no crash. */
+TEST_F(DsMgrTest, SetResolution_BbPort_UsesFallback)
+{
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_BB), 0);
+}
+
+/* 19b-4: RF port → identical path; no crash. */
+TEST_F(DsMgrTest, SetResolution_RfPort_UsesFallback)
+{
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_RF), 0);
+}
+
+/* 19b-5: HDMI + dsGetDisplay returns 0 → _displayHandle=0 →
+ * skips EDID block → IsValidResolution=false → kDefaultResIndex. */
+TEST_F(DsMgrTest, SetResolution_HdmiDisplayHandleZero_UsesFallback)
+{
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    /* NiceMock default: dsGetDisplay doesn't set out-param → stays 0. */
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* 19b-6: HDMI + non-zero displayHandle + numResolutions=0 → early return
+ * via "(0 == numResolutions) || (!hdmiDeviceType)" guard.             */
+TEST_F(DsMgrTest, SetResolution_HdmiZeroNumResolutions_EarlyReturn)
+{
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    /* Both calls to dsGetDisplay (in dumpEdidOnChecksumDiff and in the
+     * HDMI branch) must return the same non-zero handle.               */
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    /* g_stub_edid_numResolutions = 0 (SetUp default) →
+     * edidData->numOfSupportedResolution = 0 → early return.          */
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* 19b-7: HDMI + non-zero displayHandle + numResolutions>0 +
+ * hdmiDeviceType=false → DVI device → early return.                  */
+TEST_F(DsMgrTest, SetResolution_HdmiDviDevice_EarlyReturn)
+{
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    g_stub_edid_numResolutions = 1;
+    g_stub_edid_hdmiDeviceType = false;
+    strncpy(g_stub_edid_res0_name, "720p", sizeof(g_stub_edid_res0_name) - 1);
+
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* 19b-8: HDMI + non-zero displayHandle + numResolutions=1 +
+ * hdmiDeviceType=true + EDID has "720p".
+ * Persisted resolution "" has no match; default "720p" found in EDID;
+ * IsValidResolution=true → _dsSetResolution called.                   */
+TEST_F(DsMgrTest, SetResolution_HdmiValidEdid_DefaultResolutionMatch)
+{
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    g_stub_edid_numResolutions = 1;
+    g_stub_edid_hdmiDeviceType = true;
+    strncpy(g_stub_edid_res0_name, "720p", sizeof(g_stub_edid_res0_name) - 1);
+
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* =======================================================================
+ * Section 19c – _DSMgrResnThreadFunc(): branch coverage
+ *
+ * __real_pthread_create bypasses __wrap_pthread_create so a real thread
+ * is spawned.  A wrapper function installs a cleanup handler that
+ * unlocks tdsMutexLock on cancellation (pthread_cond_wait re-locks the
+ * mutex before invoking cleanup, so this prevents mutex corruption on
+ * TearDown).  nanosleep() is used instead of usleep() (which is wrapped
+ * to a no-op) to provide real delays for thread synchronisation.
+ * ===================================================================== */
+
+namespace {
+    static void tdsMutexUnlockCleanup(void *arg)
+    {
+        pthread_mutex_unlock(static_cast<pthread_mutex_t *>(arg));
+    }
+
+    /* Wrapper: installs a cleanup handler so mutex is unlocked if the
+     * thread is cancelled while inside pthread_cond_wait.              */
+    static void *resnThreadWrapper(void *)
+    {
+        pthread_cleanup_push(tdsMutexUnlockCleanup, &tdsMutexLock);
+        _DSMgrResnThreadFunc(nullptr);
+        pthread_cleanup_pop(0);
+        return nullptr;
+    }
+
+    static void realSleepMs(long ms)
+    {
+        struct timespec ts;
+        ts.tv_sec  = ms / 1000;
+        ts.tv_nsec = (ms % 1000) * 1000000L;
+        nanosleep(&ts, nullptr);
+    }
+}
+
+/* 19c-1: CONNECTED + iTuneReady=1 + bHDCPAuthenticated=true
+ * → _SetVideoPortResolution() called; hotplug_event_src not set.      */
+TEST_F(DsMgrTest, ResnThread_ConnectedTuneHDCP_SetsResolution)
+{
+    iTuneReady         = 1;
+    bHDCPAuthenticated = true;
+    hotplug_event_src  = 0;
+
+    pthread_t t;
+    __real_pthread_create(&t, nullptr, resnThreadWrapper, nullptr);
+    realSleepMs(30);   /* let thread enter pthread_cond_wait */
+
+    pthread_mutex_lock(&tdsMutexLock);
+    edisplayEventStatus = dsDISPLAY_EVENT_CONNECTED;
+    pthread_cond_signal(&tdsMutexCond);
+    pthread_mutex_unlock(&tdsMutexLock);
+    realSleepMs(50);   /* let thread process and re-enter cond_wait */
+
+    pthread_cancel(t);
+    pthread_join(t, nullptr);
+
+    /* Thread called _SetVideoPortResolution (no crash, all handles=0) +
+     * _setAudioMode (EAS=NORMAL, port stubs ok).  hotplug_event_src was
+     * cleared (it was 0) and not set on connected path.               */
+    EXPECT_EQ(hotplug_event_src, static_cast<guint>(0));
+}
+
+/* 19c-2: DISCONNECTED + iTuneReady=1 + isComponentPortPresent=true
+ * → bHDCPAuthenticated cleared + hotplug_event_src set to 1 by
+ * __wrap_g_timeout_add_seconds.                                        */
+TEST_F(DsMgrTest, ResnThread_DisconnectedTuneReady_SetsHotplugTimer)
+{
+    iTuneReady         = 1;
+    bHDCPAuthenticated = true;
+    hotplug_event_src  = 0;
+
+    pthread_t t;
+    __real_pthread_create(&t, nullptr, resnThreadWrapper, nullptr);
+    realSleepMs(30);
+
+    pthread_mutex_lock(&tdsMutexLock);
+    edisplayEventStatus = dsDISPLAY_EVENT_DISCONNECTED;
+    pthread_cond_signal(&tdsMutexCond);
+    pthread_mutex_unlock(&tdsMutexLock);
+    realSleepMs(50);
+
+    pthread_cancel(t);
+    pthread_join(t, nullptr);
+
+    EXPECT_FALSE(bHDCPAuthenticated);
+    /* isComponentPortPresent() stub → true → g_timeout_add_seconds
+     * wrapped → returns 1 → hotplug_event_src = 1.                    */
+    EXPECT_EQ(hotplug_event_src, static_cast<guint>(1));
+}
+
+/* 19c-3: DISCONNECTED + iTuneReady=0 → both conditions false → no action;
+ * bHDCPAuthenticated and hotplug_event_src unchanged.                  */
+TEST_F(DsMgrTest, ResnThread_DisconnectedTuneNotReady_NoAction)
+{
+    iTuneReady         = 0;
+    bHDCPAuthenticated = true;
+    hotplug_event_src  = 0;
+
+    pthread_t t;
+    __real_pthread_create(&t, nullptr, resnThreadWrapper, nullptr);
+    realSleepMs(30);
+
+    pthread_mutex_lock(&tdsMutexLock);
+    edisplayEventStatus = dsDISPLAY_EVENT_DISCONNECTED;
+    pthread_cond_signal(&tdsMutexCond);
+    pthread_mutex_unlock(&tdsMutexLock);
+    realSleepMs(50);
+
+    pthread_cancel(t);
+    pthread_join(t, nullptr);
+
+    EXPECT_TRUE(bHDCPAuthenticated);   /* unchanged */
+    EXPECT_EQ(hotplug_event_src, static_cast<guint>(0));
+}
+
+/* =======================================================================
+ * Section 19d – _setAudioMode() / _setEASAudioMode(): full port loop
+ *
+ * kSupportedPortTypes = { dsAUDIOPORT_TYPE_HDMI_ARC, dsAUDIOPORT_TYPE_SPDIF }
+ * Neither entry matches dsAUDIOPORT_TYPE_HDMI so the HDMI-specific block
+ * inside _setAudioMode is dead for this platform stub; only the base path
+ * (_dsGetAudioPort + _dsGetStereoMode + _dsSetStereoMode per port) runs.
+ * ===================================================================== */
+
+/* 19d-1: _setAudioMode with EAS=NORMAL → full port loop; no crash. */
+TEST_F(DsMgrTest, SetAudioMode_NormalEas_FullPortLoop)
+{
+    isEAS = IARM_BUS_SYS_MODE_NORMAL;
+    /* Iterates HDMI_ARC + SPDIF ports; all DS HAL stubs are no-ops. */
+    _setAudioMode();
+}
+
+/* 19d-2: _setAudioMode with HDMI video handle set and display connected;
+ * kSupportedPortTypes doesn't include HDMI so HDMI logic is not reached,
+ * but the test exercises the video-port state with non-default globals. */
+TEST_F(DsMgrTest, SetAudioMode_HdmiHandleConnected_NormalEas)
+{
+    isEAS                     = IARM_BUS_SYS_MODE_NORMAL;
+    g_stub_videoPortHandle    = STUB_HANDLE(0);
+    g_stub_isDisplayConnected = true;
+    _setAudioMode();
+}
+
+/* 19d-3: _setEASAudioMode EAS path — PASSTHRU mode → set to STEREO. */
+TEST_F(DsMgrTest, SetEasAudioMode_PassthruMode_FallsBackToStereo)
+{
+    isEAS             = IARM_BUS_SYS_MODE_EAS;
+    g_stub_stereoMode = dsAUDIO_STEREO_PASSTHRU;
+    /* _dsGetStereoMode stub fills PASSTHRU → code overrides to STEREO →
+     * _dsSetStereoMode stub absorbs the call; no crash expected.       */
+    _setEASAudioMode();
+}
+
+/* 19d-4: _setEASAudioMode EAS path — non-PASSTHRU mode → unchanged. */
+TEST_F(DsMgrTest, SetEasAudioMode_SurroundMode_Unchanged)
+{
+    isEAS             = IARM_BUS_SYS_MODE_EAS;
+    g_stub_stereoMode = dsAUDIO_STEREO_SURROUND;
+    _setEASAudioMode();
 }
