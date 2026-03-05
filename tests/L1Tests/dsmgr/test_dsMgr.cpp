@@ -105,6 +105,16 @@ void dsMgrDeinitPwrControllerEvt(void) {}
  * --------------------------------------------------------------------- */
 #include "dsMgr.c"
 
+/* ---- DS HAL mock bridge -------------------------------------------
+ * dsGetDisplay is called directly by dsMgr.c (no _ds* wrapper), so it
+ * needs a definition in this TU.  DSHAL_MOCK_DEFINE_BRIDGES causes
+ * dsHalMock.h to emit the extern "C" bridge and the DsHal::s_impl
+ * definition here, allowing each test to program return values via the
+ * DsHalMock installed on the fixture.
+ * --------------------------------------------------------------------- */
+#define DSHAL_MOCK_DEFINE_BRIDGES
+#include "dsHalMock.h"
+
 using ::testing::_;
 using ::testing::StrEq;
 using ::testing::Return;
@@ -149,10 +159,12 @@ class DsMgrTest : public ::testing::Test
 {
 protected:
     ::testing::NiceMock<IarmBusImplMock> iarmMock;
+    ::testing::NiceMock<DsHalMock>       dsHalMock;
 
     void SetUp() override
     {
         IarmBus::setImpl(&iarmMock);
+        DsHal::setImpl(&dsHalMock);
 
         /* Initialise the mutex / condvar that _EventHandler uses. */
         pthread_mutex_init(&tdsMutexLock, nullptr);
@@ -173,7 +185,9 @@ protected:
         pthread_cond_destroy(&tdsMutexCond);
         pthread_mutex_destroy(&tdsMutexLock);
         ::testing::Mock::VerifyAndClearExpectations(&iarmMock);
+        ::testing::Mock::VerifyAndClearExpectations(&dsHalMock);
         IarmBus::setImpl(nullptr);
+        DsHal::setImpl(nullptr);
     }
 };
 

@@ -41,6 +41,7 @@
 # entservices-testframework checkout.
 
 AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
+              -I$(top_srcdir)/tests/L1Tests/mocks \
               -I$(top_srcdir)/mfr/include \
               -I$(top_srcdir)/mfr \
               -I$(TESTFRAMEWORK_DIR)/Tests/mocks \
