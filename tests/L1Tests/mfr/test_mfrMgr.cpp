@@ -168,7 +168,7 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastsEventAndUpdatesProgress)
     mfrUpgradeStatus_t status;
     memset(&status, 0, sizeof(status));
     status.progress   = mfrUPGRADE_PROGRESS_STARTED;
-    status.error      = 0;
+    status.error      = mfrERR_NONE;
     status.percentage = 5000; /* internal unit: percentage * 100 */
 
     EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
