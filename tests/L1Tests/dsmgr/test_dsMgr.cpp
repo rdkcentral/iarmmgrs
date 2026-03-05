@@ -51,6 +51,8 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <cstring>
+#include <cstdarg>
+#include <cerrno>
 #include <pthread.h>
 
 /* sysMgr.h first — prevents type-redefinition conflicts with Iarm.h */
@@ -113,8 +115,10 @@ bool dsGetHDMIDDCLineStatus(void) { return false; }
 bool isComponentPortPresent(void) { return true; }
 
 /* ---- DS Manager HAL initialisation (called from DSMgr_Start) ----------
- * Declared inside extern "C" in stubs/dsMgr.h, so must be defined as C. */
-extern "C" IARM_Result_t dsMgr_init(void) { return IARM_RESULT_SUCCESS; }
+ * Declared inside extern "C" in stubs/dsMgr.h, so must be defined as C.
+ * The global lets individual tests inject failure. */
+static IARM_Result_t g_stub_dsMgr_init_result = IARM_RESULT_SUCCESS;
+extern "C" IARM_Result_t dsMgr_init(void) { return g_stub_dsMgr_init_result; }
 
 /* ---- Power Controller API (declared inside extern "C" in power_controller.h) */
 extern "C" void PowerController_Init(void) {}
@@ -124,6 +128,82 @@ extern "C" void PowerController_Term(void) {}
 void initPwrEventListner(void)         {}
 void dsMgrInitPwrControllerEvt(void)   {}
 void dsMgrDeinitPwrControllerEvt(void) {}
+
+/* -----------------------------------------------------------------------
+ * __wrap_ functions for DSMgr_Start() branch coverage.
+ *
+ * pthread_cond_init / pthread_create / fscanf / g_main_loop_new /
+ * g_timeout_add_seconds / g_main_loop_unref are intercepted via
+ * --wrap so we can inject failures and avoid spawning real threads
+ * or GLib loops in unit tests.
+ * --------------------------------------------------------------------- */
+static int  g_stub_pthread_cond_init_ret   = 0;
+static int  g_stub_pthread_create_ret      = 0;
+static int  g_stub_fscanf_ret              = 1;   /* 1 == success (1 item scanned) */
+static int  g_stub_fscanf_value            = 5;   /* value written to *arg */
+static bool g_stub_gloop_null              = false;
+
+extern "C" {
+
+/* Wrapped libc / pthread symbols */
+int __real_pthread_cond_init(pthread_cond_t *, const pthread_condattr_t *);
+int __wrap_pthread_cond_init(pthread_cond_t *cond, const pthread_condattr_t *attr)
+{
+    if (g_stub_pthread_cond_init_ret != 0)
+        return g_stub_pthread_cond_init_ret;
+    return __real_pthread_cond_init(cond, attr);
+}
+
+int __real_pthread_create(pthread_t *, const pthread_attr_t *,
+                          void *(*)(void *), void *);
+int __wrap_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
+                          void *(*start)(void *), void *arg)
+{
+    if (g_stub_pthread_create_ret != 0)
+        return g_stub_pthread_create_ret;
+    /* In success-path tests we still avoid spawning the real infinite-loop
+     * thread.  Return 0 (success) but don't actually create anything.     */
+    *thread = 0;
+    return 0;
+}
+
+int __real_fscanf(FILE *, const char *, ...);
+int __wrap_fscanf(FILE *stream, const char *fmt, ...)
+{
+    /* Only intercept the "%d" call that DSMgr_Start makes for ddcDelay.
+     * Write the test-controlled value into the int* argument.            */
+    va_list ap;
+    va_start(ap, fmt);
+    int *dest = va_arg(ap, int *);
+    va_end(ap);
+    if (dest)
+        *dest = g_stub_fscanf_value;
+    return g_stub_fscanf_ret;
+}
+
+/* Wrapped GLib symbols */
+GMainLoop *__real_g_main_loop_new(GMainContext *, gboolean);
+GMainLoop *__wrap_g_main_loop_new(GMainContext *ctx, gboolean is_running)
+{
+    if (g_stub_gloop_null)
+        return nullptr;
+    /* Return a distinguishable non-NULL sentinel.  We never run the loop
+     * so the pointer is never dereferenced by GLib internals.            */
+    return reinterpret_cast<GMainLoop *>(0xBEEF);
+}
+
+guint __wrap_g_timeout_add_seconds(guint interval, GSourceFunc func, gpointer data)
+{
+    (void)interval; (void)func; (void)data;
+    return 1;  /* fake source id */
+}
+
+void __wrap_g_main_loop_unref(GMainLoop *loop)
+{
+    (void)loop; /* no-op — we never allocated a real GMainLoop */
+}
+
+} /* extern "C" */
 
 /* -----------------------------------------------------------------------
  * Source under test — included last so the stubs above satisfy all
@@ -194,6 +274,15 @@ protected:
         DsHal::setImpl(&dsHalMock);
         Wraps::setImpl(&wrapsMock);
 
+        /* Reset DSMgr_Start stub controls FIRST so that the pthread init
+         * calls below pass through to the real implementations. */
+        g_stub_dsMgr_init_result     = IARM_RESULT_SUCCESS;
+        g_stub_pthread_cond_init_ret = 0;
+        g_stub_pthread_create_ret    = 0;
+        g_stub_fscanf_ret            = 1;
+        g_stub_fscanf_value          = 5;
+        g_stub_gloop_null            = false;
+
         /* Initialise the mutex / condvar that _EventHandler uses. */
         pthread_mutex_init(&tdsMutexLock, nullptr);
         pthread_cond_init(&tdsMutexCond, nullptr);
@@ -207,6 +296,9 @@ protected:
         bootup_flag_enabled = true;
         IsIgnoreEdid_gs     = false;
         hotplug_event_src   = 0;
+        iResnCount          = 5;
+        iInitResnFlag       = 0;
+        dsMgr_Gloop         = nullptr;
 
         /* Reset stub overrides. */
         g_stub_videoPortHandle = 0;
@@ -1047,6 +1139,271 @@ TEST_F(DsMgrTest, DsmgrStart_RegisterEventFails_ReturnsError)
 }
 
 /* =======================================================================
+ * Section 17b – DSMgr_Start(): deeper branch coverage
+ *
+ * Tests below cover every remaining if-statement inside DSMgr_Start.
+ * The __wrap_ functions defined at the top of this file let us control
+ * pthread_cond_init, pthread_create, fscanf, and g_main_loop_new without
+ * spawning real threads or GLib loops.
+ * ===================================================================== */
+
+/* Helper: program the IarmBusMock so the first four IARM calls succeed
+ * (Init → Connect → RegisterEvent → dsMgr_init). */
+static void stubIarmPassInit(IarmBusImplMock &m)
+{
+    EXPECT_CALL(m, IARM_Bus_Init(_))
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+    EXPECT_CALL(m, IARM_Bus_Connect())
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+    EXPECT_CALL(m, IARM_Bus_RegisterEvent(_))
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+}
+
+/* Helper: after dsMgr_init succeeds, the next five IARM calls are
+ * RegisterEventHandler(×3), RegisterCall(×1).  Program them to succeed
+ * by default and optionally override one later. */
+static void stubIarmPassRegister(IarmBusImplMock &m)
+{
+    ON_CALL(m, IARM_Bus_RegisterEventHandler(_, _, _))
+        .WillByDefault(Return(IARM_RESULT_SUCCESS));
+    ON_CALL(m, IARM_Bus_RegisterCall(_, _))
+        .WillByDefault(Return(IARM_RESULT_SUCCESS));
+}
+
+/* -- 17b-1: dsMgr_init returns failure -------------------------------- */
+TEST_F(DsMgrTest, DsmgrStart_DsMgrInitFails_ReturnsError)
+{
+    stubIarmPassInit(iarmMock);
+    g_stub_dsMgr_init_result = IARM_RESULT_IPCCORE_FAIL;
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* -- 17b-2: first RegisterEventHandler (SYSMGR) fails ---------------- */
+TEST_F(DsMgrTest, DsmgrStart_RegEvtSysMgrFails_ReturnsError)
+{
+    stubIarmPassInit(iarmMock);
+    /* First RegisterEventHandler → FAIL; the rest are never called. */
+    EXPECT_CALL(iarmMock, IARM_Bus_RegisterEventHandler(_, _, _))
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* -- 17b-3: second RegisterEventHandler (HDMI_HOTPLUG) fails ---------- */
+TEST_F(DsMgrTest, DsmgrStart_RegEvtHdmiHpFails_ReturnsError)
+{
+    stubIarmPassInit(iarmMock);
+    EXPECT_CALL(iarmMock, IARM_Bus_RegisterEventHandler(_, _, _))
+        .WillOnce(Return(IARM_RESULT_SUCCESS))      /* SYSMGR */
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL)); /* HDMI_HOTPLUG */
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* -- 17b-4: third RegisterEventHandler (HDCP_STATUS) fails ------------ */
+TEST_F(DsMgrTest, DsmgrStart_RegEvtHdcpFails_ReturnsError)
+{
+    stubIarmPassInit(iarmMock);
+    EXPECT_CALL(iarmMock, IARM_Bus_RegisterEventHandler(_, _, _))
+        .WillOnce(Return(IARM_RESULT_SUCCESS))      /* SYSMGR */
+        .WillOnce(Return(IARM_RESULT_SUCCESS))       /* HDMI_HOTPLUG */
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL)); /* HDCP_STATUS */
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* -- 17b-5: RegisterCall (SysModeChange) fails ------------------------ */
+TEST_F(DsMgrTest, DsmgrStart_RegCallSysModeFails_ReturnsError)
+{
+    stubIarmPassInit(iarmMock);
+    ON_CALL(iarmMock, IARM_Bus_RegisterEventHandler(_, _, _))
+        .WillByDefault(Return(IARM_RESULT_SUCCESS));
+    EXPECT_CALL(iarmMock, IARM_Bus_RegisterCall(_, _))
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* -- 17b-6: pthread_cond_init fails ----------------------------------- */
+TEST_F(DsMgrTest, DsmgrStart_CondInitFails_ReturnsError)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+    g_stub_pthread_cond_init_ret = EINVAL;  /* any non-zero → failure */
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* -- 17b-7: pthread_create fails -------------------------------------- */
+TEST_F(DsMgrTest, DsmgrStart_ThreadCreateFails_ReturnsError)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+    g_stub_pthread_create_ret = EAGAIN;  /* any non-zero → failure */
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* -- 17b-8: ddcDelay file not found (fopen returns NULL) -------------- */
+TEST_F(DsMgrTest, DsmgrStart_DdcDelayMissing_ContinuesOk)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+
+    /* fopen("/opt/ddcDelay") → NULL  ⇒  fscanf block is skipped */
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillOnce(Return(nullptr));
+
+    /* IARM_Bus_Call for GetSystemStates → succeed, TuneReady = 0 */
+    ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
+        .WillByDefault(Return(IARM_RESULT_SUCCESS));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
+}
+
+/* -- 17b-9: ddcDelay file present, fscanf succeeds -------------------- */
+TEST_F(DsMgrTest, DsmgrStart_DdcDelayRead_UpdatesCount)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+
+    FILE *kFakeFp = reinterpret_cast<FILE *>(0xCAFE);
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillOnce(Return(kFakeFp));
+    EXPECT_CALL(wrapsMock, fclose(kFakeFp))
+        .WillOnce(Return(0));
+
+    g_stub_fscanf_ret   = 1;   /* success: 1 item scanned */
+    g_stub_fscanf_value = 42;
+
+    ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
+        .WillByDefault(Return(IARM_RESULT_SUCCESS));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
+    EXPECT_EQ(iResnCount, 42);
+}
+
+/* -- 17b-10: ddcDelay file present, fscanf fails ---------------------- */
+TEST_F(DsMgrTest, DsmgrStart_DdcDelayFscanfFails_ContinuesOk)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+
+    FILE *kFakeFp = reinterpret_cast<FILE *>(0xCAFE);
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillOnce(Return(kFakeFp));
+    EXPECT_CALL(wrapsMock, fclose(kFakeFp))
+        .WillOnce(Return(0));
+
+    g_stub_fscanf_ret = 0;  /* 0 items scanned → failure branch */
+
+    ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
+        .WillByDefault(Return(IARM_RESULT_SUCCESS));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
+}
+
+/* -- 17b-11: IARM_Bus_Call (GetSystemStates) fails -------------------- */
+TEST_F(DsMgrTest, DsmgrStart_GetSysStatesFails_ReturnsError)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillOnce(Return(nullptr));
+
+    EXPECT_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_IPCCORE_FAIL);
+}
+
+/* -- 17b-12: TuneReadyStatus.state == 1 → iTuneReady set ------------- */
+TEST_F(DsMgrTest, DsmgrStart_TuneReady_SetsFlag)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillOnce(Return(nullptr));
+
+    /* Program IARM_Bus_Call to set TuneReadyStatus.state = 1 */
+    EXPECT_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
+        .WillOnce(::testing::Invoke(
+            [](const char *, const char *, void *arg, size_t) -> IARM_Result_t {
+                auto *p = static_cast<IARM_Bus_SYSMgr_GetSystemStates_Param_t *>(arg);
+                memset(p, 0, sizeof(*p));
+                p->TuneReadyStatus.state = 1;
+                return IARM_RESULT_SUCCESS;
+            }));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
+    EXPECT_EQ(iTuneReady, 1);
+}
+
+/* -- 17b-13: TuneReadyStatus.state != 1 → iTuneReady stays 0 --------- */
+TEST_F(DsMgrTest, DsmgrStart_TuneNotReady_FlagUnset)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillOnce(Return(nullptr));
+
+    EXPECT_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
+        .WillOnce(::testing::Invoke(
+            [](const char *, const char *, void *arg, size_t) -> IARM_Result_t {
+                auto *p = static_cast<IARM_Bus_SYSMgr_GetSystemStates_Param_t *>(arg);
+                memset(p, 0, sizeof(*p));
+                p->TuneReadyStatus.state = 0;
+                return IARM_RESULT_SUCCESS;
+            }));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
+    EXPECT_EQ(iTuneReady, 0);
+}
+
+/* -- 17b-14: g_main_loop_new returns NULL → else-branch -------------- */
+TEST_F(DsMgrTest, DsmgrStart_GloopNull_SkipsTimeout)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillOnce(Return(nullptr));
+    ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
+        .WillByDefault(Return(IARM_RESULT_SUCCESS));
+
+    g_stub_gloop_null = true;
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
+    EXPECT_EQ(dsMgr_Gloop, nullptr);
+}
+
+/* -- 17b-15: full success path (g_main_loop_new non-NULL) ------------- */
+TEST_F(DsMgrTest, DsmgrStart_FullSuccess_SetsGloop)
+{
+    stubIarmPassInit(iarmMock);
+    stubIarmPassRegister(iarmMock);
+
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
+        .WillOnce(Return(nullptr));
+    ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
+        .WillByDefault(Return(IARM_RESULT_SUCCESS));
+
+    g_stub_gloop_null = false;  /* returns 0xBEEF sentinel */
+
+    /* setupPlatformConfig() calls isEUPlatform() which opens
+     * /etc/device.properties.  Return NULL → non-EU default. */
+    EXPECT_CALL(wrapsMock, fopen(StrEq("/etc/device.properties"), _))
+        .WillOnce(Return(nullptr));
+
+    EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
+    EXPECT_NE(dsMgr_Gloop, nullptr);
+}
+
+/* =======================================================================
  * Section 18 – DSMgr_Stop() and DSMgr_Loop()
  *
  * DSMgr_Stop's success path destroys the mutex and condvar, so the
@@ -1070,6 +1427,11 @@ protected:
         IarmBus::setImpl(&iarmMock);
         DsHal::setImpl(&dsHalMock);
         Wraps::setImpl(&wrapsMock);
+
+        /* Ensure wrapped pthread calls fall through to real implementations. */
+        g_stub_pthread_cond_init_ret = 0;
+        g_stub_pthread_create_ret    = 0;
+
         pthread_mutex_init(&tdsMutexLock, nullptr);
         pthread_cond_init(&tdsMutexCond, nullptr);
         isEAS       = IARM_BUS_SYS_MODE_NORMAL;

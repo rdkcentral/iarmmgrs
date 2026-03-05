@@ -63,12 +63,24 @@ AM_CXXFLAGS = -Wall -std=c++14 -g
 #   setmntent                   : needed because WrapsMock.h ctor refs __real_setmntent
 #   mfr_init                    : mfr test controls MFRLib_Start behaviour
 #   mfrGetSerializedData        : mfr test controls getSerializedData_ behaviour
+#   pthread_cond_init /
+#   pthread_create              : DSMgr_Start thread-creation failure paths
+#   fscanf                      : DSMgr_Start ddcDelay read path
+#   g_main_loop_new /
+#   g_timeout_add_seconds /
+#   g_main_loop_unref           : DSMgr_Start GLib loop branches
 AM_LDFLAGS = -Wl,--wrap,fopen \
              -Wl,--wrap,fclose \
              -Wl,--wrap,fgets \
              -Wl,--wrap,setmntent \
              -Wl,--wrap,mfr_init \
              -Wl,--wrap,mfrGetSerializedData \
+             -Wl,--wrap,pthread_cond_init \
+             -Wl,--wrap,pthread_create \
+             -Wl,--wrap,fscanf \
+             -Wl,--wrap,g_main_loop_new \
+             -Wl,--wrap,g_timeout_add_seconds \
+             -Wl,--wrap,g_main_loop_unref \
              -pthread
 
 # ---------- Test binary ----------
