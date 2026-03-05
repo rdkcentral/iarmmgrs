@@ -275,6 +275,13 @@ protected:
         DsHal::setImpl(&dsHalMock);
         Wraps::setImpl(&wrapsMock);
 
+        /* Default: any fopen call not matched by a specific EXPECT_CALL
+         * returns nullptr.  Without this, setting EXPECT_CALL for one
+         * fopen path (e.g. "/opt/ddcDelay") makes every other fopen path
+         * (e.g. "/etc/device.properties" inside isEUPlatform) "unexpected"
+         * even with NiceMock, causing spurious test failures. */
+        ON_CALL(wrapsMock, fopen(_, _)).WillByDefault(Return(nullptr));
+
         /* Reset DSMgr_Start stub controls FIRST so that the pthread init
          * calls below pass through to the real implementations. */
         g_stub_dsMgr_init_result     = IARM_RESULT_SUCCESS;
