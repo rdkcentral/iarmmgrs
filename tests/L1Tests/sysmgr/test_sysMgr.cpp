@@ -93,10 +93,19 @@ protected:
     {
         IarmBus::setImpl(&iarmMock);
 
-        /* Reset mutable static state to well-known values */
+        /* SYSMgr_Stop() calls pthread_mutex_destroy(); reinitialise the
+         * mutex here so SYSMgr_Start() can safely lock it even on the
+         * first test or after a previous TearDown destroyed it. */
+        pthread_mutex_init(&tMutexLock, nullptr);
+
+        /* Reset mutable static state to well-known values so SYSMgr_Start
+         * always takes the !initialized branch. */
         memset(&systemStates, 0, sizeof(systemStates));
         keyLogStatus = 1;   /* documented default */
         initialized  = 0;
+
+        /* Bring the manager up – registers all IARM calls/events. */
+        ASSERT_EQ(IARM_RESULT_SUCCESS, SYSMgr_Start());
 
         /* Remove the HDCP profile sentinel file if a previous test left it */
         ::unlink(profile_1_filename);
@@ -104,6 +113,9 @@ protected:
 
     void TearDown() override
     {
+        /* Shut the manager down cleanly before validating mock expectations. */
+        SYSMgr_Stop();
+
         ::testing::Mock::VerifyAndClearExpectations(&iarmMock);
         IarmBus::setImpl(nullptr);
 
@@ -208,7 +220,7 @@ TEST_F(SysMgrTest, IarmSetKeyCodeLoggingPref_InvalidValueIgnored)
  * Section 3 – _GetSystemStates
  * ====================================================================== */
 
-TEST_F(SysMgrTest, GetSystemStates_ReturnsZeroedStateAfterReset)
+TEST_F(SysMgrTest, GetSystemStates_ReturnsInitialisedStateAfterStart)
 {
     IARM_Bus_SYSMgr_GetSystemStates_Param_t out;
     memset(&out, 0xff, sizeof(out));  /* fill with garbage */
@@ -218,7 +230,8 @@ TEST_F(SysMgrTest, GetSystemStates_ReturnsZeroedStateAfterReset)
     EXPECT_EQ(IARM_RESULT_SUCCESS, result);
     EXPECT_EQ(0, out.channel_map.state);
     EXPECT_EQ(0, out.bootup.state);
-    EXPECT_EQ(0, out.hdcp_enabled.state);
+    /* SYSMgr_Start() sets hdcp_enabled.state = 1 as the documented default */
+    EXPECT_EQ(1, out.hdcp_enabled.state);
 }
 
 TEST_F(SysMgrTest, GetSystemStates_ReturnsUpdatedChannelMap)
@@ -482,6 +495,293 @@ TEST_F(SysMgrTest, SysEventHandler_MultipleUpdates_LastOneWins)
 
     EXPECT_EQ(9, systemStates.bootup.state);
     EXPECT_EQ(2, systemStates.bootup.error);
+}
+
+/* =======================================================================
+ * Section 5b – _sysEventHandler: remaining switch-case branches
+ * ====================================================================== */
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesExitOkKeySequence)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_EXIT_OK, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.exit_ok_key_sequence.state);
+    EXPECT_EQ(0, systemStates.exit_ok_key_sequence.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesCmac)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CMAC, 3, 1);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(3, systemStates.cmac.state);
+    EXPECT_EQ(1, systemStates.cmac.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesMotoEntitlement)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_MOTO_ENTITLEMENT, 2, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(2, systemStates.card_moto_entitlements.state);
+    EXPECT_EQ(0, systemStates.card_moto_entitlements.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesMotoHrvRx)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_MOTO_HRV_RX, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.card_moto_hrv_rx.state);
+    EXPECT_EQ(0, systemStates.card_moto_hrv_rx.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesDacInitTimestamp_WithPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_DAC_INIT_TIMESTAMP, 1, 0, "1234567890");
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.dac_init_timestamp.state);
+    EXPECT_EQ(0, systemStates.dac_init_timestamp.error);
+    EXPECT_STREQ("1234567890", systemStates.dac_init_timestamp.payload);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesCardCiscoStatus)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CARD_CISCO_STATUS, 5, 2);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(5, systemStates.card_cisco_status.state);
+    EXPECT_EQ(2, systemStates.card_cisco_status.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesVideoPresenting)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_VIDEO_PRESENTING, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.video_presenting.state);
+    EXPECT_EQ(0, systemStates.video_presenting.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesHdmiEdidRead)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_HDMI_EDID_READ, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.hdmi_edid_read.state);
+    EXPECT_EQ(0, systemStates.hdmi_edid_read.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesFirmwareDownload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_FIRMWARE_DWNLD, 2, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(2, systemStates.firmware_download.state);
+    EXPECT_EQ(0, systemStates.firmware_download.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesFirmwareUpdateState)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_FIRMWARE_UPDATE_STATE, 3, 1);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(3, systemStates.firmware_update_state.state);
+    EXPECT_EQ(1, systemStates.firmware_update_state.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesRedRecovState)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_RED_RECOV_UPDATE_STATE, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.red_recov_state.state);
+    EXPECT_EQ(0, systemStates.red_recov_state.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesTimeZone_WithPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_TIME_ZONE, 1, 0, "EST05EDT,M3.2.0,M11.1.0");
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.time_zone_available.state);
+    EXPECT_EQ(0, systemStates.time_zone_available.error);
+    EXPECT_STREQ("EST05EDT,M3.2.0,M11.1.0", systemStates.time_zone_available.payload);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesCaSystem)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CA_SYSTEM, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.ca_system.state);
+    EXPECT_EQ(0, systemStates.ca_system.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesDsgBroadcastTunnel)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_DSG_BROADCAST_CHANNEL, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.dsg_broadcast_tunnel.state);
+    EXPECT_EQ(0, systemStates.dsg_broadcast_tunnel.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesDsgCaTunnel)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_DSG_CA_TUNNEL, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.dsg_ca_tunnel.state);
+    EXPECT_EQ(0, systemStates.dsg_ca_tunnel.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesCableCard)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CABLE_CARD, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.cable_card.state);
+    EXPECT_EQ(0, systemStates.cable_card.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesCableCardDownload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CABLE_CARD_DWNLD, 2, 1);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(2, systemStates.cable_card_download.state);
+    EXPECT_EQ(1, systemStates.cable_card_download.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesCvrSubsystem)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CVR_SUBSYSTEM, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.cvr_subsystem.state);
+    EXPECT_EQ(0, systemStates.cvr_subsystem.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesDownload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_DOWNLOAD, 1, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.download.state);
+    EXPECT_EQ(0, systemStates.download.error);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesVodAd_WithPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_VOD_AD, 1, 0, "vod_data");
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.vod_ad.state);
+    EXPECT_EQ(0, systemStates.vod_ad.error);
+    EXPECT_STREQ("vod_data", systemStates.vod_ad.payload);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesCableCardSerialNo_WithPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CABLE_CARD_SERIAL_NO, 0, 0, "CARD123");
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    /* CABLE_CARD_SERIAL_NO stores error and payload; state field is not updated */
+    EXPECT_EQ(0, systemStates.card_serial_no.error);
+    EXPECT_STREQ("CARD123", systemStates.card_serial_no.payload);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesEcmMac_WithPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_ECM_MAC, 0, 0, "AA:BB:CC:DD:EE:FF");
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    /* ECM_MAC stores error and payload; state field is not updated */
+    EXPECT_EQ(0, systemStates.ecm_mac.error);
+    EXPECT_STREQ("AA:BB:CC:DD:EE:FF", systemStates.ecm_mac.payload);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesDacId_WithPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_DAC_ID, 1, 0, "DAC42");
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.dac_id.state);
+    EXPECT_EQ(0, systemStates.dac_id.error);
+    EXPECT_STREQ("DAC42", systemStates.dac_id.payload);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesPlantId_WithPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_PLANT_ID, 1, 0, "PLANT7");
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(1, systemStates.plant_id.state);
+    EXPECT_EQ(0, systemStates.plant_id.error);
+    EXPECT_STREQ("PLANT7", systemStates.plant_id.payload);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_UpdatesStbSerialNo_WithPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_STB_SERIAL_NO, 0, 0, "STB99");
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    /* STB_SERIAL_NO stores error and payload; state field is not updated */
+    EXPECT_EQ(0, systemStates.stb_serial_no.error);
+    EXPECT_STREQ("STB99", systemStates.stb_serial_no.payload);
 }
 
 /* =======================================================================
