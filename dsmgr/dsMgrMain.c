@@ -29,6 +29,7 @@
 
 #include "dsMgrInternal.h"
 #include "dsserverregisterlog.h"
+
 #ifdef __cplusplus 
 extern "C" {
 #endif
@@ -39,14 +40,17 @@ extern "C" {
 #include <unistd.h>
 #include "libIBus.h"
 #include <stdlib.h>
-#include <string.h>
-#include <time.h>
 #include <sys/stat.h>
-#include <sys/resource.h>
-#include <limits.h>
+#include <string.h>
 #ifdef __cplusplus 
 }
 #endif
+
+#ifdef ENABLE_BREAKPAD
+#include "client/linux/handler/exception_handler.h"
+static google_breakpad::ExceptionHandler* g_breakpad_handler = NULL;
+#endif
+
 #ifdef ENABLE_SD_NOTIFY
 #include <systemd/sd-daemon.h>
 #endif
@@ -57,80 +61,44 @@ int b_rdk_logger_enabled = 0;
 
 #endif
 
-/* Store original signal handlers for proper crash handling */
-static struct sigaction _originalSegmentationHandler;
-static struct sigaction _originalAbortHandler;
-static const char* _postMortemPath = "/opt/logs/dsmgr_crashes/";
-
-/* Dump crash metadata - similar to Thunder's DumpMetadata() */
-static void dsmgr_DumpCrashMetadata(int signum, const char* reason)
+#ifdef ENABLE_BREAKPAD
+/* Breakpad minidump callback - called after minidump is written */
+static bool breakpad_dump_callback(const google_breakpad::MinidumpDescriptor& descriptor,
+                                   void* context,
+                                   bool succeeded)
 {
-    char filename[256];
-    char timestamp[64];
-    time_t now = time(NULL);
-    struct tm* tm_info = localtime(&now);
-    FILE* dumpFile = NULL;
-    
-    strftime(timestamp, sizeof(timestamp), "%Y%m%d_%H%M%S", tm_info);
-    snprintf(filename, sizeof(filename), "%sdsmgr_crash_%s_sig%d.log", 
-             _postMortemPath, timestamp, signum);
-    
-    /* Create crash dump directory if it doesn't exist */
-    mkdir(_postMortemPath, 0755);
-    
-    dumpFile = fopen(filename, "w");
-    if (dumpFile != NULL) {
-        fprintf(dumpFile, "===============================================\n");
-        fprintf(dumpFile, "DSMgr Crash Report\n");
-        fprintf(dumpFile, "===============================================\n");
-        fprintf(dumpFile, "Timestamp: %s\n", timestamp);
-        fprintf(dumpFile, "Process ID: %d\n", getpid());
-        fprintf(dumpFile, "Signal: %d (%s)\n", signum, 
-                (signum == SIGSEGV) ? "SIGSEGV - Segmentation Fault" :
-                (signum == SIGABRT) ? "SIGABRT - Abort Signal" : "Unknown");
-        fprintf(dumpFile, "Reason: %s\n", reason);
-        fprintf(dumpFile, "===============================================\n\n");
-        
-        /* Dump process information */
-        fprintf(dumpFile, "Process Information:\n");
-        fprintf(dumpFile, "  Working Directory: ");
-        char cwd[PATH_MAX];
-        if (getcwd(cwd, sizeof(cwd)) != NULL) {
-            fprintf(dumpFile, "%s\n", cwd);
-        } else {
-            fprintf(dumpFile, "Unable to retrieve\n");
-        }
-        
-        /* Dump memory maps for debugging */
-        fprintf(dumpFile, "\n  Memory Maps: /proc/%d/maps\n", getpid());
-        char maps_cmd[128];
-        snprintf(maps_cmd, sizeof(maps_cmd), "cat /proc/%d/maps", getpid());
-        FILE* maps = popen(maps_cmd, "r");
-        if (maps) {
-            char line[256];
-            while (fgets(line, sizeof(line), maps)) {
-                fprintf(dumpFile, "    %s", line);
-            }
-            pclose(maps);
-        }
-        
-        fprintf(dumpFile, "\n===============================================\n");
-        fprintf(dumpFile, "End of Crash Report\n");
-        fprintf(dumpFile, "Core dump location: /opt/logs/core.%d\n", getpid());
-        fprintf(dumpFile, "===============================================\n");
-        
-        fclose(dumpFile);
-        
-        /* Log to syslog/stderr */
-        const char log_msg[] = "[DSMGR_CRASH] Metadata dumped to: ";
-        write(STDERR_FILENO, log_msg, sizeof(log_msg) - 1);
-        write(STDERR_FILENO, filename, strlen(filename));
-        write(STDERR_FILENO, "\n", 1);
-    } else {
-        const char err_msg[] = "[DSMGR_CRASH] ERROR: Failed to create crash dump file\n";
-        write(STDERR_FILENO, err_msg, sizeof(err_msg) - 1);
-    }
+  /* Use only async-signal-safe functions */
+  const char msg[] = "[DSMGR_CRASH] Minidump written to: ";
+  write(STDERR_FILENO, msg, sizeof(msg) - 1);
+  write(STDERR_FILENO, descriptor.path(), strlen(descriptor.path()));
+  write(STDERR_FILENO, "\n", 1);
+  
+  if (succeeded) {
+    const char success_msg[] = "[DSMGR_CRASH] Minidump generation: SUCCESS\n";
+    write(STDERR_FILENO, success_msg, sizeof(success_msg) - 1);
+  } else {
+    const char fail_msg[] = "[DSMGR_CRASH] Minidump generation: FAILED\n";
+    write(STDERR_FILENO, fail_msg, sizeof(fail_msg) - 1);
+  }
+  
+  /* Trigger system reboot via rebootNow.sh */
+  const char reboot_msg[] = "[DSMGR_CRASH] Triggering system reboot...\n";
+  write(STDERR_FILENO, reboot_msg, sizeof(reboot_msg) - 1);
+  
+  pid_t pid = fork();
+  if (pid == 0) {
+    /* Child process: execute the reboot script */
+    char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", 
+                          (char *)"-s", (char *)"dsMgrMain", NULL };
+    execve("/bin/sh", argv, NULL);
+    _exit(127);
+  }
+  
+  /* Return true to allow default crash behavior (core dump if enabled) */
+  /* Return false to suppress default handling */
+  return succeeded;
 }
+#endif
 
 #ifdef RDK_LOGGER_ENABLED
 
@@ -162,101 +130,25 @@ void dslogCallback(int priority,const char *buff)
 
 static void dsmgr_signalhandler_thread(int signum)
 {
-    /* Use only async-signal-safe functions in the signal handler */
-    char sigbuf[128];
-    int len;
-    
-    /* Log signal reception */
-    const char entry_msg[] = "[DSMGR_CRASH] Signal handler triggered: ";
-    write(STDERR_FILENO, entry_msg, sizeof(entry_msg) - 1);
-    
-    /* Convert signal number to string safely */
-    len = snprintf(sigbuf, sizeof(sigbuf), "signum=%d (%s) in process [%d]\n", 
-                   signum,
-                   (signum == SIGSEGV) ? "SIGSEGV" :
-                   (signum == SIGABRT) ? "SIGABRT" :
-                   (signum == SIGTERM) ? "SIGTERM" :
-                   (signum == SIGQUIT) ? "SIGQUIT" :
-                   (signum == SIGUSR1) ? "SIGUSR1" : "UNKNOWN",
-                   getpid());
-    write(STDERR_FILENO, sigbuf, len);
-    
-    if ((signum == SIGTERM) || (signum == SIGQUIT)) {
-        /* Graceful shutdown requested */
-        const char shutdown_msg[] = "[DSMGR_CRASH] DSMgr shutting down due to SIGTERM/SIGQUIT. Regular shutdown.\n";
-        write(STDERR_FILENO, shutdown_msg, sizeof(shutdown_msg) - 1);
-        
-        /* Clean shutdown - call stop functions */
-        DSMgr_Stop();
-        exit(0);
-    }
-    else if ((signum == SIGSEGV) || (signum == SIGABRT)) {
-        /* CRASH DETECTED - Thunder-style handling */
-        const char crash_msg[] = "[DSMGR_CRASH] ============================================\n"
-                                  "[DSMGR_CRASH] FATAL CRASH DETECTED - Collecting debug data\n"
-                                  "[DSMGR_CRASH] ============================================\n";
-        write(STDERR_FILENO, crash_msg, sizeof(crash_msg) - 1);
-        
-        /* Step 1: Restore original handlers to prevent recursive crash */
-        sigaction(SIGSEGV, &_originalSegmentationHandler, NULL);
-        sigaction(SIGABRT, &_originalAbortHandler, NULL);
-        
-        const char restore_msg[] = "[DSMGR_CRASH] Original signal handlers restored\n";
-        write(STDERR_FILENO, restore_msg, sizeof(restore_msg) - 1);
-        
-        /* Step 2: Enable core dump generation */
-        struct rlimit core_limit;
-        core_limit.rlim_cur = RLIM_INFINITY;
-        core_limit.rlim_max = RLIM_INFINITY;
-        if (setrlimit(RLIMIT_CORE, &core_limit) == 0) {
-            const char core_msg[] = "[DSMGR_CRASH] Core dump enabled (unlimited size)\n";
-            write(STDERR_FILENO, core_msg, sizeof(core_msg) - 1);
-        }
-        
-        /* Step 3: Dump metadata (debug information) */
-        const char dump_msg[] = "[DSMGR_CRASH] Dumping crash metadata...\n";
-        write(STDERR_FILENO, dump_msg, sizeof(dump_msg) - 1);
-        
-        dsmgr_DumpCrashMetadata(signum, "Segmentation fault or abort signal");
-        
-        /* Step 4: Trigger reboot in background (non-blocking) */
-        pid_t pid = fork();
-        if (pid == 0) {
-            /* Child process: execute the reboot script */
-            const char reboot_msg[] = "[DSMGR_CRASH] Child process: Triggering system reboot...\n";
-            write(STDERR_FILENO, reboot_msg, sizeof(reboot_msg) - 1);
-            
-            char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", 
-                                   (char *)"-s", (char *)"dsMgrMain_Crash", NULL };
-            execve("/bin/sh", argv, NULL);
-            _exit(127); /* If exec fails */
-        }
-        
-        /* Step 5: Generate core dump by re-raising signal */
-        const char reraise_msg[] = "[DSMGR_CRASH] Re-raising signal to generate core dump...\n"
-                                    "[DSMGR_CRASH] All relevant data has been dumped\n"
-                                    "[DSMGR_CRASH] ============================================\n";
-        write(STDERR_FILENO, reraise_msg, sizeof(reraise_msg) - 1);
-        
-        /* Flush all buffers before crash */
-        sync();
-        
-        /* Re-raise the signal - this will generate the core dump */
-        raise(signum);
-        
-        /* Should not reach here */
-        _exit(128 + signum);
-    }
-    else if (signum == SIGUSR1) {
-        /* Manual metadata dump request (for debugging live system) */
-        const char usr1_msg[] = "[DSMGR_DEBUG] SIGUSR1 received - Dumping metadata (no crash)\n";
-        write(STDERR_FILENO, usr1_msg, sizeof(usr1_msg) - 1);
-        
-        dsmgr_DumpCrashMetadata(signum, "Manual dump via SIGUSR1");
-        
-        const char done_msg[] = "[DSMGR_DEBUG] Metadata dump complete. Process continues.\n";
-        write(STDERR_FILENO, done_msg, sizeof(done_msg) - 1);
-    }
+  (void)signum; /* signal number unused to keep handler simple and async-signal-safe */
+
+  /* Use only async-signal-safe functions in the signal handler */
+  const char msg[] = "Exiting DSMgr process, calling reboot script\n";
+  write(STDERR_FILENO, msg, sizeof(msg) - 1);
+
+  pid_t pid = fork();
+  if (pid == 0)
+  {
+    /* Child process: execute the reboot script via /bin/sh */
+    char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", (char *)"-s", (char *)"dsMgrMain", NULL };
+    const char start_msg[] = "Start the rebootNow.sh script\n";
+    write(STDERR_FILENO, start_msg, sizeof(start_msg) - 1);
+    execve("/bin/sh", argv, NULL);
+    const char done_msg[] = "Completed the rebootNow.sh script\n";
+    write(STDERR_FILENO, done_msg, sizeof(done_msg) - 1);
+    /* If execve fails, exit the child immediately */
+    _exit(127);
+  }
 }
 
 int main(int argc, char *argv[])
@@ -312,54 +204,55 @@ int main(int argc, char *argv[])
         INT_ERROR("DSMgr_Start() failed\n");
         return -1;
     }
-    printf("[DSMGR_INIT] Registering crash handlers (Breakpad-style)...\n");
-    INT_INFO("[DSMGR_INIT] Setting up Thunder-style crash handling with metadata dump\n");
+    
+#ifdef ENABLE_BREAKPAD
+    /* Initialize Breakpad minidump handler */
+    const char* minidump_path = "/opt/minidumps";
+    const char* secure_minidump_path = "/opt/secure/minidumps";
+    const char* selected_path = minidump_path;
+    
+    /* Check if secure path exists, otherwise use non-secure */
+    struct stat st;
+    if (stat(secure_minidump_path, &st) == 0 && S_ISDIR(st.st_mode)) {
+        selected_path = secure_minidump_path;
+        printf("[DSMGR_INIT] Using secure minidump path: %s\n", selected_path);
+    } else {
+        /* Create non-secure minidump directory if it doesn't exist */
+        mkdir(minidump_path, 0755);
+        printf("[DSMGR_INIT] Using minidump path: %s\n", selected_path);
+    }
+    
+    google_breakpad::MinidumpDescriptor descriptor(selected_path);
+    g_breakpad_handler = new google_breakpad::ExceptionHandler(
+        descriptor,
+        NULL,                          /* filter callback */
+        breakpad_dump_callback,        /* minidump callback */
+        NULL,                          /* callback context */
+        true,                          /* install handler */
+        -1                             /* server fd (not used) */
+    );
+    
+    if (g_breakpad_handler) {
+        printf("[DSMGR_INIT] Breakpad exception handler initialized successfully\n");
+        printf("[DSMGR_INIT] Minidumps will be written to: %s\n", selected_path);
+        INT_INFO("[DSMGR_INIT] Breakpad minidump handler enabled\n");
+    } else {
+        printf("[DSMGR_INIT] WARNING: Failed to initialize Breakpad handler\n");
+        INT_ERROR("[DSMGR_INIT] Breakpad initialization failed\n");
+    }
+#else
+    printf("[DSMGR_INIT] Breakpad not enabled - no minidump generation\n");
+#endif
+    
+    printf("DSMgr Register signal handler\n");
 
-    /* Setup signal handler structure */
     struct sigaction sa;
-    memset(&sa, 0, sizeof(struct sigaction));
     sigemptyset(&sa.sa_mask);
-    sa.sa_flags = 0; /* Not SA_RESTART for crash signals */
+    sa.sa_flags = SA_RESTART;
     sa.sa_handler = dsmgr_signalhandler_thread;
 
-    /* Register graceful shutdown handlers */
-    if (sigaction(SIGTERM, &sa, NULL) == 0) {
-        printf("[DSMGR_INIT] SIGTERM handler registered (graceful shutdown)\n");
-    }
-    if (sigaction(SIGQUIT, &sa, NULL) == 0) {
-        printf("[DSMGR_INIT] SIGQUIT handler registered (graceful shutdown)\n");
-    }
-    
-    /* Register crash handlers - SAVE ORIGINAL HANDLERS (Thunder pattern) */
-    if (sigaction(SIGSEGV, &sa, &_originalSegmentationHandler) == 0) {
-        printf("[DSMGR_INIT] SIGSEGV handler registered (crash detection + core dump)\n");
-        INT_INFO("[DSMGR_INIT] SIGSEGV: Will dump metadata and generate core dump\n");
-    } else {
-        printf("[DSMGR_INIT] ERROR: Failed to register SIGSEGV handler\n");
-        INT_ERROR("[DSMGR_INIT] CRITICAL: SIGSEGV handler registration failed\n");
-    }
-    
-    if (sigaction(SIGABRT, &sa, &_originalAbortHandler) == 0) {
-        printf("[DSMGR_INIT] SIGABRT handler registered (crash detection + core dump)\n");
-        INT_INFO("[DSMGR_INIT] SIGABRT: Will dump metadata and generate core dump\n");
-    } else {
-        printf("[DSMGR_INIT] ERROR: Failed to register SIGABRT handler\n");
-        INT_ERROR("[DSMGR_INIT] CRITICAL: SIGABRT handler registration failed\n");
-    }
-    
-    /* Register SIGUSR1 for manual metadata dump (debugging aid) */
-    if (sigaction(SIGUSR1, &sa, NULL) == 0) {
-        printf("[DSMGR_INIT] SIGUSR1 handler registered (manual metadata dump)\n");
-        printf("[DSMGR_INIT] Use 'kill -USR1 %d' to dump metadata without crash\n", getpid());
-    }
-    
-    /* Configure core dump settings */
-    struct rlimit core_limit;
-    getrlimit(RLIMIT_CORE, &core_limit);
-    printf("[DSMGR_INIT] Current core dump limit: %lu bytes\n", (unsigned long)core_limit.rlim_cur);
-    
-    printf("[DSMGR_INIT] Crash metadata will be saved to: %s\n", _postMortemPath);
-    printf("[DSMGR_INIT] Breakpad-style crash handling: ENABLED\n");
+    sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGSEGV, &sa, NULL);
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
@@ -375,6 +268,15 @@ int main(int argc, char *argv[])
 #endif
     DSMgr_Loop();
     DSMgr_Stop();
+    
+#ifdef ENABLE_BREAKPAD
+    /* Cleanup Breakpad handler on normal exit */
+    if (g_breakpad_handler) {
+        delete g_breakpad_handler;
+        g_breakpad_handler = NULL;
+    }
+#endif
+    
     return 0;
 }
 
