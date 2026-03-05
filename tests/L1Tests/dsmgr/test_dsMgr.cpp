@@ -51,7 +51,6 @@
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
 #include <cstring>
-#include <cstdarg>
 #include <cerrno>
 #include <pthread.h>
 #include <glib.h>
@@ -140,9 +139,11 @@ void dsMgrDeinitPwrControllerEvt(void) {}
  * --------------------------------------------------------------------- */
 static int  g_stub_pthread_cond_init_ret   = 0;
 static int  g_stub_pthread_create_ret      = 0;
-static int  g_stub_fscanf_ret              = 1;   /* 1 == success (1 item scanned) */
-static int  g_stub_fscanf_value            = 5;   /* value written to *arg */
 static bool g_stub_gloop_null              = false;
+
+/* __real_fclose lets us release real FILE* objects that the fclose mock
+ * would otherwise swallow without actually closing.                      */
+extern "C" int __real_fclose(FILE *);
 
 extern "C" {
 
@@ -166,20 +167,6 @@ int __wrap_pthread_create(pthread_t *thread, const pthread_attr_t *attr,
      * thread.  Return 0 (success) but don't actually create anything.     */
     *thread = 0;
     return 0;
-}
-
-int __real_fscanf(FILE *, const char *, ...);
-int __wrap_fscanf(FILE *stream, const char *fmt, ...)
-{
-    /* Only intercept the "%d" call that DSMgr_Start makes for ddcDelay.
-     * Write the test-controlled value into the int* argument.            */
-    va_list ap;
-    va_start(ap, fmt);
-    int *dest = va_arg(ap, int *);
-    va_end(ap);
-    if (dest)
-        *dest = g_stub_fscanf_value;
-    return g_stub_fscanf_ret;
 }
 
 /* Wrapped GLib symbols */
@@ -289,8 +276,6 @@ protected:
         g_stub_dsMgr_init_result     = IARM_RESULT_SUCCESS;
         g_stub_pthread_cond_init_ret = 0;
         g_stub_pthread_create_ret    = 0;
-        g_stub_fscanf_ret            = 1;
-        g_stub_fscanf_value          = 5;
         g_stub_gloop_null            = false;
 
         /* Initialise the mutex / condvar that _EventHandler uses. */
@@ -1274,50 +1259,54 @@ TEST_F(DsMgrTest, DsmgrStart_DdcDelayMissing_ContinuesOk)
 }
 
 /* -- 17b-9: ddcDelay file present, fscanf succeeds -------------------- */
-/* Uses a valid static sentinel as the fake FILE* to avoid crash if GMock
- * ever inspects the pointer value during expectation matching.           */
-static char g_ddcdelay_sentinel[1];
+/* Uses a real tmpfile so the real fscanf can read "42" from it.  The
+ * fclose mock swallows the close call (returns 0), so we manually
+ * release the tmpfile via __real_fclose after DSMgr_Start returns.      */
 TEST_F(DsMgrTest, DsmgrStart_DdcDelayRead_UpdatesCount)
 {
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    FILE *kFakeFp = reinterpret_cast<FILE *>(g_ddcdelay_sentinel);
+    /* Build a real temp file containing "42" so fscanf("%d") succeeds. */
+    FILE *tmpfp = tmpfile();
+    ASSERT_NE(tmpfp, nullptr);
+    fputs("42", tmpfp);
+    rewind(tmpfp);
 
-    /* ON_CALL (not EXPECT_CALL) avoids strict ordering / saturation
-     * issues while still controlling what fopen returns.  The ON_CALL
-     * defaults for fopen(_, _) → nullptr and fclose(_) → 0 are set in
-     * SetUp; this override takes precedence for the ddcDelay path.     */
     ON_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillByDefault(Return(kFakeFp));
-
-    g_stub_fscanf_ret   = 1;   /* success: 1 item scanned */
-    g_stub_fscanf_value = 42;
+        .WillByDefault(Return(tmpfp));
 
     ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
         .WillByDefault(Return(IARM_RESULT_SUCCESS));
 
     EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
     EXPECT_EQ(iResnCount, 42);
+
+    /* fclose was mocked (no-op); release the real FILE* ourselves. */
+    __real_fclose(tmpfp);
 }
 
 /* -- 17b-10: ddcDelay file present, fscanf fails ---------------------- */
+/* Empty tmpfile → fscanf("%d") returns EOF (not 1) → error branch.     */
 TEST_F(DsMgrTest, DsmgrStart_DdcDelayFscanfFails_ContinuesOk)
 {
     stubIarmPassInit(iarmMock);
     stubIarmPassRegister(iarmMock);
 
-    FILE *kFakeFp = reinterpret_cast<FILE *>(g_ddcdelay_sentinel);
+    /* Empty file: fscanf will return EOF because there is nothing to read. */
+    FILE *tmpfp = tmpfile();
+    ASSERT_NE(tmpfp, nullptr);
 
     ON_CALL(wrapsMock, fopen(StrEq("/opt/ddcDelay"), _))
-        .WillByDefault(Return(kFakeFp));
-
-    g_stub_fscanf_ret = 0;  /* 0 items scanned → failure branch */
+        .WillByDefault(Return(tmpfp));
 
     ON_CALL(iarmMock, IARM_Bus_Call(_, _, _, _))
         .WillByDefault(Return(IARM_RESULT_SUCCESS));
 
     EXPECT_EQ(DSMgr_Start(), IARM_RESULT_SUCCESS);
+
+    /* fclose was mocked (no-op); release the real FILE* ourselves. */
+    __real_fclose(tmpfp);
 }
 
 /* -- 17b-11: IARM_Bus_Call (GetSystemStates) fails -------------------- */
