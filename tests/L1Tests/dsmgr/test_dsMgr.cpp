@@ -40,9 +40,12 @@
  * Link-time stubs
  * ---------------
  * All external symbols referenced by dsMgr.c (DS HAL, PowerController,
- * PwrEventListener helpers, etc.) are defined in the extern "C" block
- * BEFORE #include "dsMgr.c" so the intra-TU linker resolves them without
- * a separate stub translation unit.
+ * PwrEventListener helpers, etc.) are defined as plain C++ functions
+ * BEFORE #include "dsMgr.c" so the intra-TU linker resolves them.
+ * No extern "C" wrapper is used: dsMgrPwrEventListener.h includes
+ * <queue> (C++ templates) which cannot appear inside extern "C".
+ * Since the entire TU is compiled as C++, all symbols share C++ linkage
+ * and the definitions satisfy dsMgr.c's extern declarations correctly.
  */
 
 #include <gtest/gtest.h>
@@ -57,10 +60,10 @@
 
 /* -----------------------------------------------------------------------
  * All external symbols that dsMgr.c references but does not define.
- * Placed inside extern "C" to match the C linkage that dsMgr.c assigns
- * to these symbols through its own extern declarations / include chain.
+ * Defined as plain C++ functions; no extern "C" wrapper is needed because
+ * the whole TU is C++ and dsMgr.c's extern declarations in the same TU
+ * also get C++ linkage.
  * --------------------------------------------------------------------- */
-extern "C" {
 
 /* ---- DS HAL functions (declared extern at the top of dsMgr.c) ------- */
 IARM_Result_t _dsGetVideoPort(void *arg)        { return IARM_RESULT_SUCCESS; }
@@ -83,12 +86,13 @@ IARM_Result_t _dsIsDisplaySurround(void *arg)   { return IARM_RESULT_SUCCESS; }
 bool dsGetHDMIDDCLineStatus(void) { return false; }
 bool isComponentPortPresent(void) { return true; }
 
-/* ---- DS Manager HAL initialisation (called from DSMgr_Start) --------- */
-IARM_Result_t dsMgr_init(void) { return IARM_RESULT_SUCCESS; }
+/* ---- DS Manager HAL initialisation (called from DSMgr_Start) ----------
+ * Declared inside extern "C" in stubs/dsMgr.h, so must be defined as C. */
+extern "C" IARM_Result_t dsMgr_init(void) { return IARM_RESULT_SUCCESS; }
 
-/* ---- Power Controller API (declared in power_controller.h) ----------- */
-void     PowerController_Init(void)  {}
-void     PowerController_Term(void)  {}
+/* ---- Power Controller API (declared inside extern "C" in power_controller.h) */
+extern "C" void PowerController_Init(void) {}
+extern "C" void PowerController_Term(void) {}
 
 /* ---- Power Event Listener helper (defined in dsMgrPwrEventListener.c)  */
 void initPwrEventListner(void)         {}
@@ -100,8 +104,6 @@ void dsMgrDeinitPwrControllerEvt(void) {}
  * extern declarations found inside dsMgr.c.
  * --------------------------------------------------------------------- */
 #include "dsMgr.c"
-
-} /* extern "C" */
 
 using ::testing::_;
 using ::testing::StrEq;
