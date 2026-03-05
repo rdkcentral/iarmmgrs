@@ -51,7 +51,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -I$(top_srcdir)/dsmgr \
               -I$(DS_IF_DIR)/include \
               -I$(DS_DIR)/rpc/include \
-              -I$(DS_DIR)/stubs
+              -I$(DS_DIR)/stubs \
+              $(GLIB_CFLAGS)
 
 AM_CXXFLAGS = -Wall -std=c++14 -g
 
@@ -81,7 +82,7 @@ run_L1Tests_SOURCES = \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Iarm.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp
 
-run_L1Tests_LDADD = -lgtest -lgmock
+run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS)
 
 # Run tests on 'make check'
 TESTS = run_L1Tests
