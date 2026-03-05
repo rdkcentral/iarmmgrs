@@ -54,6 +54,7 @@
 #include <cstdarg>
 #include <cerrno>
 #include <pthread.h>
+#include <glib.h>
 
 /* sysMgr.h first — prevents type-redefinition conflicts with Iarm.h */
 #include "sysMgr.h"
