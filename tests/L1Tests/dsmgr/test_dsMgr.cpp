@@ -59,6 +59,11 @@
 #include "IarmBusMock.h"
 #include "WrapsMock.h"
 
+/* dsMgr.h (stub) pulls in dsRpc.h which defines the RPC param structs
+ * (dsVideoPortGetHandleParam_t, dsDisplayGetEDIDBytesParam_t, …) needed
+ * by the DS-HAL stub functions defined below.  Must come before those. */
+#include "dsMgr.h"
+
 /* -----------------------------------------------------------------------
  * All external symbols that dsMgr.c references but does not define.
  * Defined as plain C++ functions; no extern "C" wrapper is needed because
