@@ -47,7 +47,11 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -I$(top_srcdir)/utils \
               -I$(top_srcdir)/sysmgr \
               -I$(top_srcdir)/sysmgr/include \
-              -I$(top_srcdir)/stubs
+              -I$(top_srcdir)/stubs \
+              -I$(top_srcdir)/dsmgr \
+              -I$(DS_IF_DIR)/include \
+              -I$(DS_DIR)/rpc/include \
+              -I$(DS_DIR)/stubs
 
 AM_CXXFLAGS = -Wall -std=c++14 -g
 
@@ -73,6 +77,7 @@ run_L1Tests_SOURCES = \
     utils/test_rdkProfile.cpp \
     sysmgr/test_sysMgr.cpp \
     mfr/test_mfrMgr.cpp \
+    dsmgr/test_dsMgr.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Iarm.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp
 
