@@ -51,6 +51,18 @@
 #define RPDSMGR_H_
 
 #include "dsTypes.h"    /* HAL types — dsHdmiInPort_t, dsVideoPortResolution_t, … */
+
+/* dsRpc.h redefines IARM_BUS_DSMGR_API_SetStandbyVideoState and
+ * IARM_BUS_DSMGR_API_GetStandbyVideoState with different string literals
+ * than those in the testframework Iarm.h mock.  Undefine them first so
+ * dsRpc.h can set the canonical production values that dsMgr.c expects. */
+#ifdef IARM_BUS_DSMGR_API_SetStandbyVideoState
+#undef IARM_BUS_DSMGR_API_SetStandbyVideoState
+#endif
+#ifdef IARM_BUS_DSMGR_API_GetStandbyVideoState
+#undef IARM_BUS_DSMGR_API_GetStandbyVideoState
+#endif
+
 #include "dsRpc.h"      /* RPC param structs + dsSleepMode_t                       */
 
 #ifdef __cplusplus
