@@ -29,7 +29,6 @@
 
 #include "dsMgrInternal.h"
 #include "dsserverregisterlog.h"
-
 #ifdef __cplusplus 
 extern "C" {
 #endif
@@ -40,17 +39,9 @@ extern "C" {
 #include <unistd.h>
 #include "libIBus.h"
 #include <stdlib.h>
-#include <sys/stat.h>
-#include <string.h>
 #ifdef __cplusplus 
 }
 #endif
-
-#ifdef ENABLE_BREAKPAD
-#include "client/linux/handler/exception_handler.h"
-static google_breakpad::ExceptionHandler* g_breakpad_handler = NULL;
-#endif
-
 #ifdef ENABLE_SD_NOTIFY
 #include <systemd/sd-daemon.h>
 #endif
@@ -59,45 +50,6 @@ static google_breakpad::ExceptionHandler* g_breakpad_handler = NULL;
 
 int b_rdk_logger_enabled = 0;
 
-#endif
-
-#ifdef ENABLE_BREAKPAD
-/* Breakpad minidump callback - called after minidump is written */
-static bool breakpad_dump_callback(const google_breakpad::MinidumpDescriptor& descriptor,
-                                   void* context,
-                                   bool succeeded)
-{
-  /* Use only async-signal-safe functions */
-  const char msg[] = "[DSMGR_CRASH] Minidump written to: ";
-  write(STDERR_FILENO, msg, sizeof(msg) - 1);
-  write(STDERR_FILENO, descriptor.path(), strlen(descriptor.path()));
-  write(STDERR_FILENO, "\n", 1);
-  
-  if (succeeded) {
-    const char success_msg[] = "[DSMGR_CRASH] Minidump generation: SUCCESS\n";
-    write(STDERR_FILENO, success_msg, sizeof(success_msg) - 1);
-  } else {
-    const char fail_msg[] = "[DSMGR_CRASH] Minidump generation: FAILED\n";
-    write(STDERR_FILENO, fail_msg, sizeof(fail_msg) - 1);
-  }
-  
-  /* Trigger system reboot via rebootNow.sh */
-  const char reboot_msg[] = "[DSMGR_CRASH] Triggering system reboot...\n";
-  write(STDERR_FILENO, reboot_msg, sizeof(reboot_msg) - 1);
-  
-  pid_t pid = fork();
-  if (pid == 0) {
-    /* Child process: execute the reboot script */
-    char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", 
-                          (char *)"-s", (char *)"dsMgrMain", NULL };
-    execve("/bin/sh", argv, NULL);
-    _exit(127);
-  }
-  
-  /* Return true to allow default crash behavior (core dump if enabled) */
-  /* Return false to suppress default handling */
-  return succeeded;
-}
 #endif
 
 #ifdef RDK_LOGGER_ENABLED
@@ -141,11 +93,7 @@ static void dsmgr_signalhandler_thread(int signum)
   {
     /* Child process: execute the reboot script via /bin/sh */
     char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", (char *)"-s", (char *)"dsMgrMain", NULL };
-    const char start_msg[] = "Start the rebootNow.sh script\n";
-    write(STDERR_FILENO, start_msg, sizeof(start_msg) - 1);
     execve("/bin/sh", argv, NULL);
-    const char done_msg[] = "Completed the rebootNow.sh script\n";
-    write(STDERR_FILENO, done_msg, sizeof(done_msg) - 1);
     /* If execve fails, exit the child immediately */
     _exit(127);
   }
@@ -204,46 +152,6 @@ int main(int argc, char *argv[])
         INT_ERROR("DSMgr_Start() failed\n");
         return -1;
     }
-    
-#ifdef ENABLE_BREAKPAD
-    /* Initialize Breakpad minidump handler */
-    const char* minidump_path = "/opt/minidumps";
-    const char* secure_minidump_path = "/opt/secure/minidumps";
-    const char* selected_path = minidump_path;
-    
-    /* Check if secure path exists, otherwise use non-secure */
-    struct stat st;
-    if (stat(secure_minidump_path, &st) == 0 && S_ISDIR(st.st_mode)) {
-        selected_path = secure_minidump_path;
-        printf("[DSMGR_INIT] Using secure minidump path: %s\n", selected_path);
-    } else {
-        /* Create non-secure minidump directory if it doesn't exist */
-        mkdir(minidump_path, 0755);
-        printf("[DSMGR_INIT] Using minidump path: %s\n", selected_path);
-    }
-    
-    google_breakpad::MinidumpDescriptor descriptor(selected_path);
-    g_breakpad_handler = new google_breakpad::ExceptionHandler(
-        descriptor,
-        NULL,                          /* filter callback */
-        breakpad_dump_callback,        /* minidump callback */
-        NULL,                          /* callback context */
-        true,                          /* install handler */
-        -1                             /* server fd (not used) */
-    );
-    
-    if (g_breakpad_handler) {
-        printf("[DSMGR_INIT] Breakpad exception handler initialized successfully\n");
-        printf("[DSMGR_INIT] Minidumps will be written to: %s\n", selected_path);
-        INT_INFO("[DSMGR_INIT] Breakpad minidump handler enabled\n");
-    } else {
-        printf("[DSMGR_INIT] WARNING: Failed to initialize Breakpad handler\n");
-        INT_ERROR("[DSMGR_INIT] Breakpad initialization failed\n");
-    }
-#else
-    printf("[DSMGR_INIT] Breakpad not enabled - no minidump generation\n");
-#endif
-    
     printf("DSMgr Register signal handler\n");
 
     struct sigaction sa;
@@ -252,6 +160,7 @@ int main(int argc, char *argv[])
     sa.sa_handler = dsmgr_signalhandler_thread;
 
     sigaction(SIGABRT, &sa, NULL);
+    sigaction(SIGTERM, &sa, NULL);
     sigaction(SIGSEGV, &sa, NULL);
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
@@ -268,15 +177,6 @@ int main(int argc, char *argv[])
 #endif
     DSMgr_Loop();
     DSMgr_Stop();
-    
-#ifdef ENABLE_BREAKPAD
-    /* Cleanup Breakpad handler on normal exit */
-    if (g_breakpad_handler) {
-        delete g_breakpad_handler;
-        g_breakpad_handler = NULL;
-    }
-#endif
-    
     return 0;
 }
 
