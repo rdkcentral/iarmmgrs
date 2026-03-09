@@ -1964,3 +1964,615 @@ TEST_F(DsMgrTest, SetEasAudioMode_SurroundMode_Unchanged)
         }));
     _setEASAudioMode();
 }
+
+/* =======================================================================
+ * Section 19e – _SetResolution(): full branch coverage
+ *
+ * Root cause of prior zero-coverage: NiceMock<DsHalMock> default for
+ * dsGetVideoPortResolutions leaves outSize=0 and outRes=nullptr, which
+ * triggers the guard at line 763-766 (resolutionsSize<=0 || pResolutions==NULL)
+ * on every call, making all downstream code unreachable.
+ *
+ * Every test below either:
+ *   (a) explicitly tests one of the early-exit guards, or
+ *   (b) uses setupValidPlatformResolutions() to supply a non-empty platform
+ *       resolution table so the code advances past the guards.
+ *
+ * Platform resolution table used by (b) tests:
+ *   index 0 → "480p"  (also used as NTSC fallback)
+ *   index 1 → "720p"  (default)
+ *   index 2 → "1080p"
+ *   index 3 → "1080p50" (framerate-qualified; needed for EU fps tests)
+ *
+ * fallBackResolutionList is populated by calling setupPlatformConfig() with
+ * wrapsMock set to return nullptr for fopen (IsEUPlatform=false), giving:
+ *   ["2160p","1080p","1080i","720p","480p",""] (576p excluded for non-EU).
+ * Tests that need IsEUPlatform=true set the global after the call.
+ * ===================================================================== */
+
+namespace {
+
+/* Shared platform-resolution table; sized to hold up to 4 entries.     */
+static dsVideoPortResolution_t g_testPlatformRes[4];
+
+/* Populate g_testPlatformRes and install ON_CALLs for the two mandatory
+ * mock methods.  defaultIdx selects which entry is the platform default.*/
+static void setupValidPlatformResolutions(
+        ::testing::NiceMock<DsHalMock> &mock,
+        int defaultIdx = 1,
+        int numRes     = 3)
+{
+    memset(g_testPlatformRes, 0, sizeof(g_testPlatformRes));
+    strncpy(g_testPlatformRes[0].name, "480p",   sizeof(g_testPlatformRes[0].name)-1);
+    strncpy(g_testPlatformRes[1].name, "720p",   sizeof(g_testPlatformRes[1].name)-1);
+    strncpy(g_testPlatformRes[2].name, "1080p",  sizeof(g_testPlatformRes[2].name)-1);
+    strncpy(g_testPlatformRes[3].name, "1080p50",sizeof(g_testPlatformRes[3].name)-1);
+
+    ON_CALL(mock, dsGetVideoPortResolutions(_, _))
+        .WillByDefault(Invoke([numRes](int *sz, dsVideoPortResolution_t **res) {
+            *sz  = numRes;
+            *res = g_testPlatformRes;
+            return dsERR_NONE;
+        }));
+    ON_CALL(mock, dsGetDefaultResolutionIndex(_))
+        .WillByDefault(Invoke([defaultIdx](int *idx) {
+            *idx = defaultIdx;
+            return dsERR_NONE;
+        }));
+}
+
+} /* anonymous namespace */
+
+/* ----------------------------------------------------------------------- *
+ * 19e-1: _dsGetVideoPortResolutions returns an error code →              *
+ *        early return at the very first guard (line 758-760).            *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_GetResolutionsFails_EarlyReturn)
+{
+    ON_CALL(dsHalMock, dsGetVideoPortResolutions(_, _))
+        .WillByDefault(Return(dsERR_GENERAL));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-2: _dsGetVideoPortResolutions succeeds but sets outSize=0 →        *
+ *        guard at line 763-766 (resolutionsSize<=0 || pResolutions==NULL) *
+ *        fires and returns early.                                         *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_ZeroResolutionsSize_EarlyReturn)
+{
+    ON_CALL(dsHalMock, dsGetVideoPortResolutions(_, _))
+        .WillByDefault(Invoke([](int *sz, dsVideoPortResolution_t **res) {
+            *sz  = 0;
+            *res = nullptr;
+            return dsERR_NONE;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-3: _dsGetDefaultResolutionIndex returns an error →                 *
+ *        early return at line 770-772.                                    *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_GetDefaultIndexFails_EarlyReturn)
+{
+    /* Provide valid resolutions so the code can reach the next guard.  */
+    setupValidPlatformResolutions(dsHalMock);
+    ON_CALL(dsHalMock, dsGetDefaultResolutionIndex(_))
+        .WillByDefault(Return(dsERR_GENERAL));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-4: _dsGetDefaultResolutionIndex returns an index >= resolutionsSize *
+ *        → guard at line 775-778 fires and returns early.                *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_DefaultIndexOutOfRange_EarlyReturn)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    ON_CALL(dsHalMock, dsGetDefaultResolutionIndex(_))
+        .WillByDefault(Invoke([](int *idx) {
+            *idx = 99;  /* > resolutionsSize (3) */
+            return dsERR_NONE;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-5: NULL handle, but resolution data is valid → edidData allocated  *
+ *        then freed at the NULL-handle guard (line 797-801).             *
+ *        (Previous 19b-1 never reached this guard; it hit line 764.)    *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_NullHandleAfterValidResolutions_EarlyReturn)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    intptr_t handle = 0;  /* NULL */
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-6: bootup_flag_enabled=false + dumpEdidOnChecksumDiff returns false *
+ *        (dsGetDisplay returns 0 → no checksum diff) → toPersist=false   *
+ *        branch (line 811) + platform-resolution log (line 818).         *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_BootupDisabled_PersistFalse)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    bootup_flag_enabled = false;
+    /* dsGetDisplay NiceMock default: returns handle=0 → no EDID diff.  */
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-7: bootup_flag_enabled=true → toPersist=true branch (line 809) +  *
+ *        persisted-resolution log (line 816).                            *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_BootupEnabled_PersistTrue)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    bootup_flag_enabled = true;
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-8: COMPONENT port + persisted name "720p" matches g_testPlatformRes *
+ *        → IsValidResolution=true via the COMPONENT for-loop (line 1000-  *
+ *        1007) → _dsSetResolution called on the success path.            *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_ComponentPersistMatchesPlatform_SetsResolution)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            strncpy(p->resolution.name, "720p",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-9: BB port + persisted name "480p" matches first platform entry →  *
+ *        IsValidResolution=true via the COMPONENT/BB/RF for-loop.        *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_BbPortPersistMatchesPlatform_SetsResolution)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            strncpy(p->resolution.name, "480p",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_BB), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-10: RF port + persisted name "1080p" matches third platform entry → *
+ *         IsValidResolution=true via the COMPONENT/BB/RF for-loop.       *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_RfPortPersistMatchesPlatform_SetsResolution)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            strncpy(p->resolution.name, "1080p",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_RF), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-11: COMPONENT port + persisted name not in platform table →        *
+ *         IsValidResolution=false → fallback to default (line 1016-1018) *
+ *         → _dsSetResolution called with default entry.                  *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_ComponentPersistNoMatch_FallsBackToDefault)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    /* NiceMock default for dsGetResolution leaves name="" → no match.  */
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-12: HDMI + valid resolution data + dsGetDisplay returns handle=0  *
+ *         (NiceMock default) → EDID block is skipped entirely →          *
+ *         IsValidResolution=false → _dsSetResolution with default entry. *
+ *         (Previous 19b-5 never reached line 821; it hit line 764.)      *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiDisplayHandleZeroValidResns_UsesFallback)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    /* dsGetDisplay NiceMock default: leaves handle=0.                   */
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-13: HDMI + non-zero display handle + numOfSupportedResolution=0 →  *
+ *         early return at the "(0==numResolutions)||(!hdmiDeviceType)"    *
+ *         guard (lines 852-859). Edidparam and edidData are freed.       *
+ *         (Previous 19b-6 never reached line 823; it hit line 764.)      *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiZeroNumResolutionsValidResns_EarlyReturn)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    /* NiceMock default for dsGetEDID leaves numOfSupportedResolution=0. */
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-14: HDMI + non-zero display handle + numResolutions>0 +            *
+ *         hdmiDeviceType=false (DVI device) →                            *
+ *         early return at the "!hdmiDeviceType" condition.               *
+ *         (Previous 19b-7 never reached line 823; it hit line 764.)      *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiDviDeviceValidResns_EarlyReturn)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 1;
+            p->edid.hdmiDeviceType           = false;  /* DVI */
+            strncpy(p->edid.suppResolutionList[0].name, "720p",
+                    sizeof(p->edid.suppResolutionList[0].name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-15: HDMI + persisted "720p" matches EDID entry "720p" →           *
+ *         IsValidResolution=true via the direct name-match loop          *
+ *         (lines 866-875); Setparam.forceCompatible set to true;         *
+ *         _dsSetResolution called.                                        *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiPersistedMatchesEdid_SetsResolution)
+{
+    setupValidPlatformResolutions(dsHalMock);
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 2;
+            p->edid.hdmiDeviceType           = true;
+            strncpy(p->edid.suppResolutionList[0].name, "1080p",
+                    sizeof(p->edid.suppResolutionList[0].name)-1);
+            strncpy(p->edid.suppResolutionList[1].name, "720p",
+                    sizeof(p->edid.suppResolutionList[1].name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            strncpy(p->resolution.name, "720p",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-16: HDMI + persisted "2160p50" not in EDID (direct match fails) +  *
+ *         IsEUPlatform=false → EU block skipped; fallback resolution      *
+ *         loop: base "2160p" found in fallBackResolutionList; next entry  *
+ *         "1080p" → getFallBackResolution("1080p",...,0) → "1080p60";    *
+ *         EDID has "1080p60" AND g_testPlatformRes has "1080p" (exact    *
+ *         match inside isResolutionSupported fails here); but "1080p60"   *
+ *         is in EDID AND added to platform table → IsValidResolution=true *
+ *         via fallback fps path (lines 899-935).                          *
+ *                                                                         *
+ * g_testPlatformRes is extended to 4 entries to include "1080p60" so     *
+ * isResolutionSupported can find a cross-match between EDID and platform. *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiFallbackResolutionFound)
+{
+    /* Extend platform table to include the fps-qualified entry.          */
+    memset(g_testPlatformRes, 0, sizeof(g_testPlatformRes));
+    strncpy(g_testPlatformRes[0].name, "480p",  sizeof(g_testPlatformRes[0].name)-1);
+    strncpy(g_testPlatformRes[1].name, "720p",  sizeof(g_testPlatformRes[1].name)-1);
+    strncpy(g_testPlatformRes[2].name, "1080p", sizeof(g_testPlatformRes[2].name)-1);
+    strncpy(g_testPlatformRes[3].name, "1080p60",sizeof(g_testPlatformRes[3].name)-1);
+    ON_CALL(dsHalMock, dsGetVideoPortResolutions(_, _))
+        .WillByDefault(Invoke([](int *sz, dsVideoPortResolution_t **res) {
+            *sz  = 4;
+            *res = g_testPlatformRes;
+            return dsERR_NONE;
+        }));
+    ON_CALL(dsHalMock, dsGetDefaultResolutionIndex(_))
+        .WillByDefault(Invoke([](int *idx) {
+            *idx = 1;  /* "720p" */
+            return dsERR_NONE;
+        }));
+
+    /* Build fallBackResolutionList: ["2160p","1080p","1080i","720p","480p",""] */
+    setupPlatformConfig();  /* uses wrapsMock fopen→nullptr → non-EU list */
+
+    IsEUPlatform = false;
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 1;
+            p->edid.hdmiDeviceType           = true;
+            /* getFallBackResolution("1080p",...,0) → "1080p60"          */
+            strncpy(p->edid.suppResolutionList[0].name, "1080p60",
+                    sizeof(p->edid.suppResolutionList[0].name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            /* "2160p50" → parseResolution → base "2160p" is index 0 in
+             * fallBackResolutionList; next entry "1080p" generates
+             * fallback "1080p60" which is in both EDID and platform.    */
+            strncpy(p->resolution.name, "2160p50",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-17: HDMI + persisted "576p" not in EDID, not in fallback list,     *
+ *         not via EU secondary; default platform entry "720p" IS in EDID *
+ *         → IsValidResolution=true via the default-resolution check      *
+ *         (lines 945-957).                                                *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiDefaultPlatformResMatchesEdid)
+{
+    setupValidPlatformResolutions(dsHalMock, /*defaultIdx=*/1);
+    setupPlatformConfig();  /* populate fallBackResolutionList (non-EU) */
+    IsEUPlatform = false;
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 1;
+            p->edid.hdmiDeviceType           = true;
+            /* "720p" == defaultResn (g_testPlatformRes[1]) → matched at
+             * the default-platform-resolution check.                    */
+            strncpy(p->edid.suppResolutionList[0].name, "720p",
+                    sizeof(p->edid.suppResolutionList[0].name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            /* "576p" not in EDID, not in fallback list for non-EU.      */
+            strncpy(p->resolution.name, "576p",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-18: HDMI + persisted "576p" + default "480p" NOT in EDID + EDID   *
+ *         has "480p" → 480p fallback path (lines 962-972).               *
+ *         default set to index 2 ("1080p") so that "1080p" is not in     *
+ *         EDID, forcing the code into the 480p check.                    *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiNoDefaultInEdid_480pFallback)
+{
+    setupValidPlatformResolutions(dsHalMock, /*defaultIdx=*/2);
+    setupPlatformConfig();
+    IsEUPlatform = false;
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 1;
+            p->edid.hdmiDeviceType           = true;
+            /* Only "480p" in EDID; default "1080p" is absent, so the
+             * default-resolution check fails and the 480p check fires.  */
+            strncpy(p->edid.suppResolutionList[0].name, "480p",
+                    sizeof(p->edid.suppResolutionList[0].name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            strncpy(p->resolution.name, "576p",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-19: HDMI + persisted "576p" + default "480p" NOT in EDID + no 480p *
+ *         in EDID either → last-resort "boot with TV supported" path      *
+ *         (lines 977-990): EDID "1080p" found in g_testPlatformRes →     *
+ *         IsValidResolution=true.                                         *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiLastResortBootWithTvSupported)
+{
+    /* Use default=index 0 ("480p") so default-resolution check uses
+     * "480p" which is absent from the EDID.                             */
+    setupValidPlatformResolutions(dsHalMock, /*defaultIdx=*/0);
+    setupPlatformConfig();
+    IsEUPlatform = false;
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 1;
+            p->edid.hdmiDeviceType           = true;
+            /* "1080p" not matched by direct/EU/fallback/default/480p
+             * checks, but IS in g_testPlatformRes → last-resort match.  */
+            strncpy(p->edid.suppResolutionList[0].name, "1080p",
+                    sizeof(p->edid.suppResolutionList[0].name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            /* "576p" not in EDID, not in non-EU fallback list.          */
+            strncpy(p->resolution.name, "576p",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-20: EU platform + HDMI + persisted "1080p50" not directly in EDID  *
+ *         → EU secondary path (lines 883-894):                           *
+ *         getSecondaryResolution("1080p50") = "1080p60";                 *
+ *         EDID has "1080p60" AND platform has "1080p60" →                *
+ *         IsValidResolution=true via EU secondary resolution.             *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiEuSecondaryResolutionMatch)
+{
+    /* Add "1080p60" to platform table.                                   */
+    memset(g_testPlatformRes, 0, sizeof(g_testPlatformRes));
+    strncpy(g_testPlatformRes[0].name, "480p",   sizeof(g_testPlatformRes[0].name)-1);
+    strncpy(g_testPlatformRes[1].name, "720p",   sizeof(g_testPlatformRes[1].name)-1);
+    strncpy(g_testPlatformRes[2].name, "1080p",  sizeof(g_testPlatformRes[2].name)-1);
+    strncpy(g_testPlatformRes[3].name, "1080p60",sizeof(g_testPlatformRes[3].name)-1);
+    ON_CALL(dsHalMock, dsGetVideoPortResolutions(_, _))
+        .WillByDefault(Invoke([](int *sz, dsVideoPortResolution_t **res) {
+            *sz  = 4;
+            *res = g_testPlatformRes;
+            return dsERR_NONE;
+        }));
+    ON_CALL(dsHalMock, dsGetDefaultResolutionIndex(_))
+        .WillByDefault(Invoke([](int *idx) {
+            *idx = 1;
+            return dsERR_NONE;
+        }));
+
+    IsEUPlatform = true;
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 2;
+            p->edid.hdmiDeviceType           = true;
+            strncpy(p->edid.suppResolutionList[0].name, "720p",
+                    sizeof(p->edid.suppResolutionList[0].name)-1);
+            strncpy(p->edid.suppResolutionList[1].name, "1080p60",
+                    sizeof(p->edid.suppResolutionList[1].name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            /* "1080p50" not directly in EDID; secondary = "1080p60".    */
+            strncpy(p->resolution.name, "1080p50",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* ----------------------------------------------------------------------- *
+ * 19e-21: EU platform + HDMI + persisted "2160p50" + EDID has "1080p50"  *
+ *         → EU secondary ("2160p60") not in EDID; EU fallback fps path   *
+ *         (lines 914-919): getFallBackResolution("1080p","...",1)→        *
+ *         "1080p50"; EDID has "1080p50" AND platform has "1080p50" →     *
+ *         IsValidResolution=true via EU fallback fps.                     *
+ * ----------------------------------------------------------------------- */
+TEST_F(DsMgrTest, SetResolution_HdmiEuFallbackFpsMatch)
+{
+    /* Include "1080p50" in platform table so isResolutionSupported passes.*/
+    memset(g_testPlatformRes, 0, sizeof(g_testPlatformRes));
+    strncpy(g_testPlatformRes[0].name, "480p",   sizeof(g_testPlatformRes[0].name)-1);
+    strncpy(g_testPlatformRes[1].name, "720p",   sizeof(g_testPlatformRes[1].name)-1);
+    strncpy(g_testPlatformRes[2].name, "1080p",  sizeof(g_testPlatformRes[2].name)-1);
+    strncpy(g_testPlatformRes[3].name, "1080p50",sizeof(g_testPlatformRes[3].name)-1);
+    ON_CALL(dsHalMock, dsGetVideoPortResolutions(_, _))
+        .WillByDefault(Invoke([](int *sz, dsVideoPortResolution_t **res) {
+            *sz  = 4;
+            *res = g_testPlatformRes;
+            return dsERR_NONE;
+        }));
+    ON_CALL(dsHalMock, dsGetDefaultResolutionIndex(_))
+        .WillByDefault(Invoke([](int *idx) {
+            *idx = 1;
+            return dsERR_NONE;
+        }));
+
+    setupPlatformConfig();   /* builds fallBackResolutionList (non-EU) */
+    IsEUPlatform = true;     /* override the global after setup         */
+
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 1;
+            p->edid.hdmiDeviceType           = true;
+            /* "1080p50" satisfies: EU fps fallback for "1080p" entry   *
+             * in fallBackResolutionList (index 1).                      */
+            strncpy(p->edid.suppResolutionList[0].name, "1080p50",
+                    sizeof(p->edid.suppResolutionList[0].name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            /* "2160p50": direct match fails; secondary "2160p60" not in
+             * EDID; base="2160p" is at index 0 in fallBackResolutionList;
+             * loop starts at i=1: "1080p"→EU fps→"1080p50"→match!       */
+            strncpy(p->resolution.name, "2160p50",
+                    sizeof(p->resolution.name)-1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    static char sentinel[4];
+    intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
+    EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
