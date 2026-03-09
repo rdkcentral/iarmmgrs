@@ -57,8 +57,10 @@
 #include <gmock/gmock.h>
 #include <cstdint>
 
-/* dsError_t, dsVideoPortType_t and dsERR_NONE come from dsError.h / dsTypes.h
- * which dsMgr.c already pulled in before this header is included. */
+/* dsError_t, dsVideoPortType_t, dsERR_NONE, IARM_Result_t, and the _ds*
+ * RPC parameter struct types (dsVideoPortGetHandleParam_t, etc.) all come
+ * from headers that dsMgr.c (or the test stub dsMgr.h) pulls in before
+ * this header is included. */
 
 /* =========================================================================
  * Abstract interface
@@ -77,6 +79,19 @@ public:
                                    int               index,
                                    intptr_t         *handle) = 0;
 
+    /* ---- _ds* IARM RPC wrapper functions --------------------------------
+     * These mirror the _ds*()-prefixed extern functions in dsMgr.c.  The
+     * bridge functions in the test TU cast void*arg to the typed struct
+     * pointer and call through here, allowing tests to control return
+     * values and output fields via ON_CALL / EXPECT_CALL.
+     * ------------------------------------------------------------------- */
+    virtual IARM_Result_t dsGetVideoPort(dsVideoPortGetHandleParam_t *p)               = 0;
+    virtual IARM_Result_t dsIsDisplayConnected(dsVideoPortIsDisplayConnectedParam_t *p) = 0;
+    virtual IARM_Result_t dsGetResolution(dsVideoPortGetResolutionParam_t *p)          = 0;
+    virtual IARM_Result_t dsGetEDID(dsDisplayGetEDIDParam_t *p)                        = 0;
+    virtual IARM_Result_t dsGetEDIDBytes(dsDisplayGetEDIDBytesParam_t *p)              = 0;
+    virtual IARM_Result_t dsGetStereoMode(dsAudioSetStereoModeParam_t *p)              = 0;
+
     /* ---- impl-pointer management -------------------------------------- */
     static DsHal *getInstance() { return s_impl; }
     static void   setImpl(DsHal *impl) { s_impl = impl; }
@@ -94,6 +109,24 @@ class DsHalMock : public DsHal
 public:
     MOCK_METHOD(dsError_t, dsGetDisplay,
                 (dsVideoPortType_t type, int index, intptr_t *handle),
+                (override));
+    MOCK_METHOD(IARM_Result_t, dsGetVideoPort,
+                (dsVideoPortGetHandleParam_t *p),
+                (override));
+    MOCK_METHOD(IARM_Result_t, dsIsDisplayConnected,
+                (dsVideoPortIsDisplayConnectedParam_t *p),
+                (override));
+    MOCK_METHOD(IARM_Result_t, dsGetResolution,
+                (dsVideoPortGetResolutionParam_t *p),
+                (override));
+    MOCK_METHOD(IARM_Result_t, dsGetEDID,
+                (dsDisplayGetEDIDParam_t *p),
+                (override));
+    MOCK_METHOD(IARM_Result_t, dsGetEDIDBytes,
+                (dsDisplayGetEDIDBytesParam_t *p),
+                (override));
+    MOCK_METHOD(IARM_Result_t, dsGetStereoMode,
+                (dsAudioSetStereoModeParam_t *p),
                 (override));
 };
 
