@@ -67,6 +67,13 @@
  * by the DS-HAL stub functions defined below.  Must come before those. */
 #include "dsMgr.h"
 
+/* dsHalMock.h defines the DsHal abstract interface + DsHalMock.  Must be
+ * included here — before the _ds* bridge functions below — because those
+ * functions call DsHal::getInstance().  DSHAL_MOCK_DEFINE_BRIDGES also
+ * emits the extern "C" dsGetDisplay() bridge and DsHal::s_impl in this TU. */
+#define DSHAL_MOCK_DEFINE_BRIDGES
+#include "dsHalMock.h"
+
 /* -----------------------------------------------------------------------
  * All external symbols that dsMgr.c references but does not define.
  * Defined as plain C++ functions; no extern "C" wrapper is needed because
@@ -220,15 +227,17 @@ void __wrap_g_main_loop_unref(GMainLoop *loop)
  * --------------------------------------------------------------------- */
 #include "dsMgr.c"
 
-/* ---- DS HAL mock bridge -------------------------------------------
- * dsGetDisplay is called directly by dsMgr.c (no _ds* wrapper), so it
- * needs a definition in this TU.  DSHAL_MOCK_DEFINE_BRIDGES causes
- * dsHalMock.h to emit the extern "C" bridge and the DsHal::s_impl
- * definition here, allowing each test to program return values via the
- * DsHalMock installed on the fixture.
- * --------------------------------------------------------------------- */
-#define DSHAL_MOCK_DEFINE_BRIDGES
-#include "dsHalMock.h"
+/* kPlatformResCount() — returns the number of entries in the kResolutions
+ * platform-resolution table defined in dsVideoResolutionSettings.h.
+ * Using a sentinel walk (name[0] == '\0' marks end) avoids sizeof() on the
+ * array, which fails when the CI runner's header declares kResolutions as an
+ * extern incomplete-array type.                                            */
+static int kPlatformResCount()
+{
+    int n = 0;
+    while (kResolutions[n].name[0] != '\0') ++n;
+    return n;
+}
 
 using ::testing::_;
 using ::testing::Invoke;
@@ -1628,7 +1637,7 @@ TEST_F(DsMgrTest, IsResolutionSupported_FoundInBothLists_ReturnsTrueWithIndex)
     strncpy(edid.suppResolutionList[0].name, "720p", 31);
 
     int index = -1;
-    int pNum  = static_cast<int>(dsUTL_DIM(kResolutions));
+    int pNum  = kPlatformResCount();
     EXPECT_TRUE(isResolutionSupported(&edid, 1, pNum, "720p", &index));
     EXPECT_EQ(index, 0);
 }
@@ -1640,7 +1649,7 @@ TEST_F(DsMgrTest, IsResolutionSupported_EmptyEdidList_ReturnsFalse)
     memset(&edid, 0, sizeof(edid));
 
     int index = -1;
-    int pNum  = static_cast<int>(dsUTL_DIM(kResolutions));
+    int pNum  = kPlatformResCount();
     EXPECT_FALSE(isResolutionSupported(&edid, 0, pNum, "720p", &index));
 }
 
@@ -1652,7 +1661,7 @@ TEST_F(DsMgrTest, IsResolutionSupported_NotInKResolutions_ReturnsFalse)
     strncpy(edid.suppResolutionList[0].name, "unknown_res", 31);
 
     int index = -1;
-    int pNum  = static_cast<int>(dsUTL_DIM(kResolutions));
+    int pNum  = kPlatformResCount();
     EXPECT_FALSE(isResolutionSupported(&edid, 1, pNum, "unknown_res", &index));
 }
 
@@ -1664,7 +1673,7 @@ TEST_F(DsMgrTest, IsResolutionSupported_ResnNotInEdidList_ReturnsFalse)
     strncpy(edid.suppResolutionList[0].name, "1080p60", 31);
 
     int index = -1;
-    int pNum  = static_cast<int>(dsUTL_DIM(kResolutions));
+    int pNum  = kPlatformResCount();
     EXPECT_FALSE(isResolutionSupported(&edid, 1, pNum, "720p", &index));
 }
 
