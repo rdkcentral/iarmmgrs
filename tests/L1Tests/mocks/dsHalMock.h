@@ -35,7 +35,13 @@
  *
  * Direct DS HAL calls currently wrapped here
  * ------------------------------------------
- *   dsGetDisplay() — called from _SetResolution() and dumpEdidOnChecksumDiff()
+ *   dsGetDisplay()                — called from _SetResolution() and
+ *                                   dumpEdidOnChecksumDiff()
+ *   _dsGetVideoPortResolutions()  — called from isResolutionSupported() and
+ *                                   _SetResolution()
+ *   _dsGetDefaultResolutionIndex()— called from _SetResolution()
+ *   _dsGetAudioTypeConfigs()      — called from _setAudioMode() and
+ *                                   _setEASAudioMode()
  *
  * Usage
  * -----
@@ -92,6 +98,13 @@ public:
     virtual IARM_Result_t dsGetEDIDBytes(dsDisplayGetEDIDBytesParam_t *p)              = 0;
     virtual IARM_Result_t dsGetStereoMode(dsAudioSetStereoModeParam_t *p)              = 0;
 
+    /* ---- Platform configuration functions called directly by dsMgr.c -- */
+    virtual dsError_t dsGetVideoPortResolutions(int *outSize,
+                                               dsVideoPortResolution_t **outRes)       = 0;
+    virtual dsError_t dsGetDefaultResolutionIndex(int *outIndex)                       = 0;
+    virtual dsError_t dsGetAudioTypeConfigs(int *outSize,
+                                            const dsAudioTypeConfig_t **outConfigs)    = 0;
+
     /* ---- impl-pointer management -------------------------------------- */
     static DsHal *getInstance() { return s_impl; }
     static void   setImpl(DsHal *impl) { s_impl = impl; }
@@ -128,6 +141,15 @@ public:
     MOCK_METHOD(IARM_Result_t, dsGetStereoMode,
                 (dsAudioSetStereoModeParam_t *p),
                 (override));
+    MOCK_METHOD(dsError_t, dsGetVideoPortResolutions,
+                (int *outSize, dsVideoPortResolution_t **outRes),
+                (override));
+    MOCK_METHOD(dsError_t, dsGetDefaultResolutionIndex,
+                (int *outIndex),
+                (override));
+    MOCK_METHOD(dsError_t, dsGetAudioTypeConfigs,
+                (int *outSize, const dsAudioTypeConfig_t **outConfigs),
+                (override));
 };
 
 /* =========================================================================
@@ -156,6 +178,35 @@ extern "C" dsError_t dsGetDisplay(dsVideoPortType_t type,
 
     /* Safe fallback: no display available */
     if (handle) *handle = 0;
+    return dsERR_NONE;
+}
+
+dsError_t _dsGetVideoPortResolutions(int *outSize, dsVideoPortResolution_t **outRes)
+{
+    DsHal *impl = DsHal::getInstance();
+    if (impl)
+        return impl->dsGetVideoPortResolutions(outSize, outRes);
+    if (outSize) *outSize = 0;
+    if (outRes)  *outRes  = nullptr;
+    return dsERR_NONE;
+}
+
+dsError_t _dsGetDefaultResolutionIndex(int *outIndex)
+{
+    DsHal *impl = DsHal::getInstance();
+    if (impl)
+        return impl->dsGetDefaultResolutionIndex(outIndex);
+    if (outIndex) *outIndex = 0;
+    return dsERR_NONE;
+}
+
+dsError_t _dsGetAudioTypeConfigs(int *outSize, const dsAudioTypeConfig_t **outConfigs)
+{
+    DsHal *impl = DsHal::getInstance();
+    if (impl)
+        return impl->dsGetAudioTypeConfigs(outSize, outConfigs);
+    if (outSize)    *outSize    = 0;
+    if (outConfigs) *outConfigs = nullptr;
     return dsERR_NONE;
 }
 
