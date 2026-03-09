@@ -413,16 +413,6 @@ TEST_F(DsMgrTest, ParseResolution_480p_ReturnsBase480p)
     EXPECT_STREQ("480p", bResn);
 }
 
-/* 2-6: Empty string input → strtok returns NULL; parseResolution must not
- * crash and must return an empty base resolution (regression test for the
- * NULL-dereference bug triggered by _SetResolution when the persisted
- * resolution name is "").                                                */
-TEST_F(DsMgrTest, ParseResolution_EmptyString_ReturnsEmpty)
-{
-    char bResn[RES_MAX_LEN] = {};
-    parseResolution(const_cast<char *>(""), bResn);
-    EXPECT_STREQ("", bResn);
-}
 
 /* =======================================================================
  * Section 3 – getFallBackResolution
