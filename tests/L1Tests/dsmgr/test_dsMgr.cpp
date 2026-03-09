@@ -227,17 +227,6 @@ void __wrap_g_main_loop_unref(GMainLoop *loop)
  * --------------------------------------------------------------------- */
 #include "dsMgr.c"
 
-/* kPlatformResCount() — returns the number of entries in the kResolutions
- * platform-resolution table defined in dsVideoResolutionSettings.h.
- * Using a sentinel walk (name[0] == '\0' marks end) avoids sizeof() on the
- * array, which fails when the CI runner's header declares kResolutions as an
- * extern incomplete-array type.                                            */
-static int kPlatformResCount()
-{
-    int n = 0;
-    while (kResolutions[n].name[0] != '\0') ++n;
-    return n;
-}
 
 using ::testing::_;
 using ::testing::Invoke;
@@ -1621,15 +1610,18 @@ TEST_F(DsMgrTest, DsmgrLoop_NullLoop_ReturnsImmediately)
 }
 
 /* =======================================================================
- * Section 19a – isResolutionSupported(): EDID × kResolutions lookup
+ * Section 19a – isResolutionSupported(): EDID × platform resolution lookup
  *
  * isResolutionSupported(edidData, numResolutions, pNumResolutions,
  *                       Resn, &index) scans edidData->suppResolutionList
  * [0..numResolutions-1] for Resn, then verifies that entry also exists
- * in kResolutions[0..pNumResolutions-1].  Returns true + index on match.
+ * in the platform list returned by _dsGetVideoPortResolutions().
+ * pNumResolutions is a legacy parameter that is no longer used internally.
+ * Returns true + index on match.
  * ===================================================================== */
 
-/* 19a-1: Resn found in EDID list AND in kResolutions → true + index 0. */
+/* 19a-1: Resn found in EDID list AND in platform resolution list → true +
+ * index 0.  The platform list comes from _dsGetVideoPortResolutions(). */
 TEST_F(DsMgrTest, IsResolutionSupported_FoundInBothLists_ReturnsTrueWithIndex)
 {
     dsDisplayEDID_t edid;
@@ -1637,8 +1629,7 @@ TEST_F(DsMgrTest, IsResolutionSupported_FoundInBothLists_ReturnsTrueWithIndex)
     strncpy(edid.suppResolutionList[0].name, "720p", 31);
 
     int index = -1;
-    int pNum  = kPlatformResCount();
-    EXPECT_TRUE(isResolutionSupported(&edid, 1, pNum, "720p", &index));
+    EXPECT_TRUE(isResolutionSupported(&edid, 1, 0, "720p", &index));
     EXPECT_EQ(index, 0);
 }
 
@@ -1649,11 +1640,10 @@ TEST_F(DsMgrTest, IsResolutionSupported_EmptyEdidList_ReturnsFalse)
     memset(&edid, 0, sizeof(edid));
 
     int index = -1;
-    int pNum  = kPlatformResCount();
-    EXPECT_FALSE(isResolutionSupported(&edid, 0, pNum, "720p", &index));
+    EXPECT_FALSE(isResolutionSupported(&edid, 0, 0, "720p", &index));
 }
 
-/* 19a-3: Resn found in EDID list but NOT in kResolutions → false. */
+/* 19a-3: Resn found in EDID list but NOT in platform resolution list → false. */
 TEST_F(DsMgrTest, IsResolutionSupported_NotInKResolutions_ReturnsFalse)
 {
     dsDisplayEDID_t edid;
@@ -1661,8 +1651,7 @@ TEST_F(DsMgrTest, IsResolutionSupported_NotInKResolutions_ReturnsFalse)
     strncpy(edid.suppResolutionList[0].name, "unknown_res", 31);
 
     int index = -1;
-    int pNum  = kPlatformResCount();
-    EXPECT_FALSE(isResolutionSupported(&edid, 1, pNum, "unknown_res", &index));
+    EXPECT_FALSE(isResolutionSupported(&edid, 1, 0, "unknown_res", &index));
 }
 
 /* 19a-4: Resn not found in EDID list at all → false. */
@@ -1673,8 +1662,7 @@ TEST_F(DsMgrTest, IsResolutionSupported_ResnNotInEdidList_ReturnsFalse)
     strncpy(edid.suppResolutionList[0].name, "1080p60", 31);
 
     int index = -1;
-    int pNum  = kPlatformResCount();
-    EXPECT_FALSE(isResolutionSupported(&edid, 1, pNum, "720p", &index));
+    EXPECT_FALSE(isResolutionSupported(&edid, 1, 0, "720p", &index));
 }
 
 /* =======================================================================
@@ -1695,14 +1683,15 @@ TEST_F(DsMgrTest, SetResolution_NullHandle_ReturnsEarly)
     EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
 }
 
-/* 19b-2: COMPONENT port + presolution name doesn't match any kResolutions
- * entry (stub returns ""); falls back to kDefaultResIndex → _dsSetResolution. */
+/* 19b-2: COMPONENT port + persisted resolution name doesn't match any
+ * platform resolution entry (stub returns ""); falls back to the default
+ * resolution index from _dsGetDefaultResolutionIndex → _dsSetResolution. */
 TEST_F(DsMgrTest, SetResolution_ComponentNoMatch_UsesFallback)
 {
     static char sentinel[4];
     intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
-    /* _dsGetResolution stub: returns empty name "" → no match in kResolutions
-     * → IsValidResolution=false → setResn = kResolutions[kDefaultResIndex].
+    /* _dsGetResolution stub: returns empty name "" → no match in platform
+     * resolution list → IsValidResolution=false → default resolution used.
      * _dsSetResolution stub absorbs the call safely.                     */
     EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_COMPONENT), 0);
 }
