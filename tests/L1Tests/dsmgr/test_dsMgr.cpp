@@ -1614,6 +1614,18 @@ TEST_F(DsMgrTest, DsmgrLoop_NullLoop_ReturnsImmediately)
  * index 0.  The platform list comes from _dsGetVideoPortResolutions(). */
 TEST_F(DsMgrTest, IsResolutionSupported_FoundInBothLists_ReturnsTrueWithIndex)
 {
+    /* Inject a one-entry platform resolution list containing "720p". */
+    static dsVideoPortResolution_t platformRes720p;
+    memset(&platformRes720p, 0, sizeof(platformRes720p));
+    strncpy(platformRes720p.name, "720p", sizeof(platformRes720p.name) - 1);
+
+    ON_CALL(dsHalMock, dsGetVideoPortResolutions(_, _))
+        .WillByDefault(Invoke([](int *outSize, dsVideoPortResolution_t **outRes) {
+            *outSize = 1;
+            *outRes  = &platformRes720p;
+            return dsERR_NONE;
+        }));
+
     dsDisplayEDID_t edid;
     memset(&edid, 0, sizeof(edid));
     strncpy(edid.suppResolutionList[0].name, "720p", 31);
