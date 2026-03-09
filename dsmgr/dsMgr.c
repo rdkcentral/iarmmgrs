@@ -54,9 +54,9 @@
 #include "dsTypes.h"
 #include "dsRpc.h"
 #include "dsVideoPort.h"
-#include "dsVideoResolutionSettings.h"
 #include "dsDisplay.h"
-#include "dsAudioSettings.h"
+#include "dsAudioConfig.h"
+#include "dsVideoPortConfig.h"
 #include "dsAudio.h"
 #include "safec_lib.h"
 #include "rfcapi.h"
@@ -695,14 +695,28 @@ static bool isResolutionSupported(dsDisplayEDID_t *edidData, int numResolutions,
 {
 	bool supported = false;
 	dsVideoPortResolution_t *setResn = NULL;
+
+	int localNumResolutions = 0;
+	dsVideoPortResolution_t *pResolutions = NULL;
+	if (_dsGetVideoPortResolutions(&localNumResolutions, &pResolutions) != dsERR_NONE) {
+		INT_ERROR("Failed to get video port resolutions\n");
+		return supported;
+	}
+
+	if(localNumResolutions < 0 || pResolutions == NULL)
+	{
+		INT_ERROR("_dsGetVideoPortResolutions returned invalid values (localNumResolutions=%d, pResolutions=%p)", localNumResolutions, pResolutions);
+		return supported;
+	}
+
 	for (int i = numResolutions-1; i >= 0; i--)
 	{
 		setResn = &(edidData->suppResolutionList[i]);
 		if(strcmp(setResn->name,Resn) == 0)
 		{
-			for (int j = pNumResolutions-1; j >=0; j--)
+			for (int j = localNumResolutions-1; j >=0; j--)
 			{
-				dsVideoPortResolution_t *pfResolution = &kResolutions[j];
+				dsVideoPortResolution_t *pfResolution = &pResolutions[j];
 				if (0 == (strcmp(pfResolution->name,setResn->name)))
 				{
 				        INT_INFO("[DsMgr] Resolution supported %s \r\n",pfResolution->name);
@@ -745,7 +759,32 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	dsVideoPortResolution_t *setResn = NULL;
 	dsDisplayEDID_t *edidData = NULL;
 	dsDisplayGetEDIDParam_t *Edidparam = NULL;
-	int pNumResolutions = dsUTL_DIM(kResolutions);
+	int resolutionsSize = 0;
+	dsVideoPortResolution_t *pResolutions = NULL;
+
+	if (_dsGetVideoPortResolutions(&resolutionsSize, &pResolutions) != dsERR_NONE) {
+		INT_ERROR("Failed to get video port resolutions\n");
+		return 0;
+	}
+
+	/* Validate default resolution index against available resolutions */
+	if (resolutionsSize <= 0 || pResolutions == NULL) {
+		INT_ERROR("_dsGetVideoPortResolutions returned no resolutions (resolutionsSize=%d)", resolutionsSize);
+		return 0;
+	}
+
+	int defaultResIndex = 0;
+	if (_dsGetDefaultResolutionIndex(&defaultResIndex) != dsERR_NONE) {
+		INT_ERROR("Failed to get default resolution index\n");
+		return 0;
+	}
+
+	if (defaultResIndex < 0 || defaultResIndex >= resolutionsSize) {
+		INT_ERROR("_dsGetDefaultResolutionIndex returned invalid index %d (resolutionsSize=%d). Using index 0 instead.",
+				  defaultResIndex, resolutionsSize);
+		return 0;
+	}
+
 	/*
 		* Default Resolution Compatible check is false - Do not Force compatible resolution on startup
 	*/
@@ -854,7 +893,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 				// get secondary resolution based on presolution
 				if(getSecondaryResolution(presolution->name,secResn))
 				{
-					if(isResolutionSupported(edidData,numResolutions,pNumResolutions,secResn,&resIndex))
+					if(isResolutionSupported(edidData,numResolutions,resolutionsSize,secResn,&resIndex))
 					{
 						setResn = &(edidData->suppResolutionList[resIndex]);
 						INT_INFO("Breaking..Got Secondary Resolution - %s..\r\n",setResn->name);
@@ -882,7 +921,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					if(IsEUPlatform){
 					    getFallBackResolution(fallBackResolutionList[i],fbResn,1); //EU fps
 				            INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
-					    if(isResolutionSupported(edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
+					    if(isResolutionSupported(edidData,numResolutions,resolutionsSize,fbResn,&resIndex))
 					    {
 						IsValidResolution = true;
 					    }
@@ -891,7 +930,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 					{
 						getFallBackResolution(fallBackResolutionList[i],fbResn,0); //default fps
 				                INT_INFO("[DsMgr] Check next resolution: %s\r\n",fbResn);
-						if(isResolutionSupported(edidData,numResolutions,pNumResolutions,fbResn,&resIndex))
+						if(isResolutionSupported(edidData,numResolutions,resolutionsSize,fbResn,&resIndex))
 						{
 							IsValidResolution = true;
 						}
@@ -914,7 +953,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 			{
 				/* Check if the Default platform resolution is supported by Platfrom resolution List i.e 720p */
 				dsVideoPortResolution_t *defaultResn; 
-				defaultResn = &kResolutions[kDefaultResIndex];
+				defaultResn = &pResolutions[defaultResIndex];
 				for (i = 0; i < numResolutions; i++)
 				{
 					setResn = &(edidData->suppResolutionList[i]);
@@ -948,10 +987,9 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
                 for (i = 0; i < numResolutions; i++)
                 {
                     setResn = &(edidData->suppResolutionList[i]);
-                    size_t numResolutions = dsUTL_DIM(kResolutions);
-                    for (size_t j = 0; j < numResolutions; j++)
+                    for (int j = 0; j < resolutionsSize; j++)
 		            {
-		                dsVideoPortResolution_t *pfResolution = &kResolutions[j];
+		                dsVideoPortResolution_t *pfResolution = &pResolutions[j];
 		                if (0 == (strcmp(pfResolution->name,setResn->name)))
 		                {
 		                    INT_INFO("[DsMgr] Boot with TV Supported Resolution %s \r\n",pfResolution->name);
@@ -966,10 +1004,9 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	else if (PortType == dsVIDEOPORT_TYPE_COMPONENT || PortType == dsVIDEOPORT_TYPE_BB || PortType == dsVIDEOPORT_TYPE_RF)
 	{
 		/* Set the Component / Composite  Resolution */	
-		numResolutions = dsUTL_DIM(kResolutions);
-    	for (i = 0; i < numResolutions; i++)
+    	for (i = 0; i < resolutionsSize; i++)
     	{
-    		setResn = &kResolutions[i];
+    		setResn = &pResolutions[i];
     		if ((strcmp(presolution->name,setResn->name) == 0 ))
     		{
 				INT_INFO("Breaking..Got Platform Resolution - %s..\r\n",setResn->name);
@@ -985,7 +1022,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 		*/
 	if(false == IsValidResolution)
 	{
-		setResn = &kResolutions[kDefaultResIndex];
+		setResn = &pResolutions[defaultResIndex];
 	}
 	
 	/* Set The Video Port Resolution in Requested Handle */
@@ -1001,7 +1038,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 		if(0 == strncmp(presolution->name, "2160", 4))
 		{
 			INT_INFO("User persisted 4K resolution. Now limiting to default (720p?) as 4K support is now disabled.\n");
-			setResn = &kResolutions[kDefaultResIndex];
+			setResn = &pResolutions[defaultResIndex];
 		}
 	}
 	
@@ -1114,14 +1151,25 @@ void _setEASAudioMode()
 
 	dsAudioGetHandleParam_t getHandle;
 	dsAudioSetStereoModeParam_t setMode;
+	const dsAudioTypeConfig_t * audioConfigs =NULL;
 	int numPorts, i = 0;
 
-	numPorts = dsUTL_DIM(kSupportedPortTypes);
+	if (_dsGetAudioTypeConfigs(&numPorts, &audioConfigs) != dsERR_NONE) {
+		INT_ERROR("Failed to get audio type configs\n");
+		return;
+	}
+
+	if (numPorts <= 0 || audioConfigs == NULL) {
+		INT_ERROR("_dsGetAudioTypeConfigs returned invalid values (numPorts=%d, audioConfigs=%p)\n", numPorts, audioConfigs);
+		return;
+	}
+
+	INT_INFO("called _dsGetAudioTypeConfigs() numPorts =%d\n", numPorts);
 	for (i=0; i < numPorts; i++)
 	{
-		const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
+		dsAudioPortType_t audioPort = (dsAudioPortType_t)audioConfigs[i].typeId;
 		memset(&getHandle, 0, sizeof(getHandle));
-		getHandle.type = *audioPort;
+		getHandle.type = audioPort;
 		getHandle.index = 0;
 		_dsGetAudioPort (&getHandle);
 
@@ -1158,14 +1206,26 @@ static void _setAudioMode()
 
 	dsAudioGetHandleParam_t getHandle;
 	dsAudioSetStereoModeParam_t setMode;
+	const dsAudioTypeConfig_t * audioConfigs =NULL;
 	int numPorts, i = 0;
 
-	numPorts = dsUTL_DIM(kSupportedPortTypes);
+	if (_dsGetAudioTypeConfigs(&numPorts, &audioConfigs) != dsERR_NONE) {
+		INT_ERROR("Failed to get audio type configs\n");
+		return;
+	}
+
+	if (numPorts <= 0 || audioConfigs == NULL) {
+		INT_ERROR("_dsGetAudioTypeConfigs returned invalid values (numPorts=%d, audioConfigs=%p)\n", numPorts, audioConfigs);
+		return;
+	}
+
+	INT_INFO("called _dsGetAudioTypeConfigs() numPorts =%d\n", numPorts);
+
 	for (i=0; i < numPorts; i++)
 	{
-		const dsAudioPortType_t *audioPort = &kSupportedPortTypes[i];
+		dsAudioPortType_t audioPort = (dsAudioPortType_t)audioConfigs[i].typeId;
 		memset(&getHandle, 0, sizeof(getHandle));
-		getHandle.type = *audioPort;
+		getHandle.type = audioPort;
 		getHandle.index = 0;
 		_dsGetAudioPort (&getHandle);
 			
