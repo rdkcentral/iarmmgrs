@@ -97,6 +97,7 @@ public:
     virtual IARM_Result_t dsGetEDID(dsDisplayGetEDIDParam_t *p)                        = 0;
     virtual IARM_Result_t dsGetEDIDBytes(dsDisplayGetEDIDBytesParam_t *p)              = 0;
     virtual IARM_Result_t dsGetStereoMode(dsAudioSetStereoModeParam_t *p)              = 0;
+    virtual IARM_Result_t dsGetStereoAuto(dsAudioSetStereoAutoParam_t *p)               = 0;
 
     /* ---- Platform configuration functions called directly by dsMgr.c -- */
     virtual dsError_t dsGetVideoPortResolutions(int *outSize,
@@ -140,6 +141,9 @@ public:
                 (override));
     MOCK_METHOD(IARM_Result_t, dsGetStereoMode,
                 (dsAudioSetStereoModeParam_t *p),
+                (override));
+    MOCK_METHOD(IARM_Result_t, dsGetStereoAuto,
+                (dsAudioSetStereoAutoParam_t *p),
                 (override));
     MOCK_METHOD(dsError_t, dsGetVideoPortResolutions,
                 (int *outSize, dsVideoPortResolution_t **outRes),

@@ -131,7 +131,12 @@ IARM_Result_t _dsGetStereoMode(void *arg) {
                 : IARM_RESULT_SUCCESS;
 }
 IARM_Result_t _dsSetStereoMode(void *arg)       { return IARM_RESULT_SUCCESS; }
-IARM_Result_t _dsGetStereoAuto(void *arg)       { return IARM_RESULT_SUCCESS; }
+IARM_Result_t _dsGetStereoAuto(void *arg) {
+    DsHal *impl = DsHal::getInstance();
+    return impl ? impl->dsGetStereoAuto(
+                      static_cast<dsAudioSetStereoAutoParam_t *>(arg))
+                : IARM_RESULT_SUCCESS;
+}
 IARM_Result_t _dsIsDisplaySurround(void *arg)   { return IARM_RESULT_SUCCESS; }
 
 /* ---- Miscellaneous helpers ------------------------------------------ */
@@ -2575,4 +2580,193 @@ TEST_F(DsMgrTest, SetResolution_HdmiEuFallbackFpsMatch)
     static char sentinel[4];
     intptr_t handle = reinterpret_cast<intptr_t>(sentinel);
     EXPECT_EQ(_SetResolution(&handle, dsVIDEOPORT_TYPE_HDMI), 0);
+}
+
+/* =======================================================================
+ * Section 19f – _setEASAudioMode() / _setAudioMode(): loop-body coverage
+ *
+ * Root cause of prior zero-coverage: NiceMock<DsHalMock> default for
+ * dsGetAudioTypeConfigs returns numPorts=0 / audioConfigs=NULL, causing
+ * the guards at dsMgr.c:1155–1157 and 1210–1212 to always fire so the
+ * for-loop body is entirely unreachable in prior tests.
+ *
+ * Strategy
+ * --------
+ * Each test uses ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _)) to either:
+ *   (a) return dsERR_GENERAL  — exercises the early-return error paths, or
+ *   (b) return a valid dsAudioTypeConfig_t array — bypasses the guard and
+ *       drives the for-loop body and all per-port sub-branches.
+ *
+ * The static helpers below (g_19f_spdif / g_19f_hdmi) are namespace-scope
+ * to keep them alive for the duration of each test's ON_CALL lambda.
+ *
+ * Note: dsMgr.c lines 1289-1290 ("if(!(IsSurround)) { setMode.mode =
+ * dsAUDIO_STEREO_STEREO; ...}") are permanently dead code because the
+ * immediately preceding "if(0){...} else { IsSurround = true; }" block
+ * unconditionally sets IsSurround=true.  Those lines cannot be covered.
+ * ===================================================================== */
+
+static dsAudioTypeConfig_t g_19f_spdif;
+static dsAudioTypeConfig_t g_19f_hdmi;
+
+/* 19f-1: _setEASAudioMode — _dsGetAudioTypeConfigs returns an error →
+ * early return (dsMgr.c:1151-1152). */
+TEST_F(DsMgrTest, SetEasAudioMode_GetAudioConfigsFails_EarlyReturn)
+{
+    isEAS = IARM_BUS_SYS_MODE_EAS;
+    ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _))
+        .WillByDefault(Return(dsERR_GENERAL));
+    _setEASAudioMode();
+}
+
+/* 19f-2: _setEASAudioMode — SPDIF port, current mode PASSTHRU → overridden
+ * to STEREO before _dsSetStereoMode (dsMgr.c:1163-1174). */
+TEST_F(DsMgrTest, SetEasAudioMode_SpdifPort_PassthruFallsBackToStereo)
+{
+    isEAS = IARM_BUS_SYS_MODE_EAS;
+    memset(&g_19f_spdif, 0, sizeof(g_19f_spdif));
+    g_19f_spdif.typeId = dsAUDIOPORT_TYPE_SPDIF;
+    ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _))
+        .WillByDefault(Invoke([](int *sz, const dsAudioTypeConfig_t **cfg) {
+            *sz  = 1;
+            *cfg = &g_19f_spdif;
+            return dsERR_NONE;
+        }));
+    ON_CALL(dsHalMock, dsGetStereoMode(_))
+        .WillByDefault(Invoke([](dsAudioSetStereoModeParam_t *p) {
+            p->mode = dsAUDIO_STEREO_PASSTHRU;
+            return IARM_RESULT_SUCCESS;
+        }));
+    /* PASSTHRU is replaced with STEREO; _dsSetStereoMode absorbs the call. */
+    _setEASAudioMode();
+}
+
+/* 19f-3: _setEASAudioMode — SPDIF port, non-PASSTHRU mode → mode left
+ * unchanged (dsMgr.c:1160-1167, 1169-1181). */
+TEST_F(DsMgrTest, SetEasAudioMode_SpdifPort_NonPassthruUnchanged)
+{
+    isEAS = IARM_BUS_SYS_MODE_EAS;
+    memset(&g_19f_spdif, 0, sizeof(g_19f_spdif));
+    g_19f_spdif.typeId = dsAUDIOPORT_TYPE_SPDIF;
+    ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _))
+        .WillByDefault(Invoke([](int *sz, const dsAudioTypeConfig_t **cfg) {
+            *sz  = 1;
+            *cfg = &g_19f_spdif;
+            return dsERR_NONE;
+        }));
+    ON_CALL(dsHalMock, dsGetStereoMode(_))
+        .WillByDefault(Invoke([](dsAudioSetStereoModeParam_t *p) {
+            p->mode = dsAUDIO_STEREO_SURROUND;
+            return IARM_RESULT_SUCCESS;
+        }));
+    /* SURROUND != PASSTHRU; mode passes through to _dsSetStereoMode. */
+    _setEASAudioMode();
+}
+
+/* 19f-4: _setAudioMode — _dsGetAudioTypeConfigs returns an error →
+ * early return (dsMgr.c:1206-1207). */
+TEST_F(DsMgrTest, SetAudioMode_GetAudioConfigsFails_EarlyReturn)
+{
+    isEAS = IARM_BUS_SYS_MODE_NORMAL;
+    ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _))
+        .WillByDefault(Return(dsERR_GENERAL));
+    _setAudioMode();
+}
+
+/* 19f-5: _setAudioMode — SPDIF port → enters the empty SPDIF block then
+ * falls through to _dsSetStereoMode (dsMgr.c:1215-1229, 1293-1295). */
+TEST_F(DsMgrTest, SetAudioMode_SpdifPort_LoopBody)
+{
+    isEAS = IARM_BUS_SYS_MODE_NORMAL;
+    memset(&g_19f_spdif, 0, sizeof(g_19f_spdif));
+    g_19f_spdif.typeId = dsAUDIOPORT_TYPE_SPDIF;
+    ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _))
+        .WillByDefault(Invoke([](int *sz, const dsAudioTypeConfig_t **cfg) {
+            *sz  = 1;
+            *cfg = &g_19f_spdif;
+            return dsERR_NONE;
+        }));
+    /* SPDIF block body is empty ({}); loop continues to _dsSetStereoMode. */
+    _setAudioMode();
+}
+
+/* 19f-6: _setAudioMode — HDMI port, display NOT connected →
+ * "HDMI Not Connected" log + continue (dsMgr.c:1231-1257). */
+TEST_F(DsMgrTest, SetAudioMode_HdmiPort_NotConnected_Continue)
+{
+    isEAS = IARM_BUS_SYS_MODE_NORMAL;
+    memset(&g_19f_hdmi, 0, sizeof(g_19f_hdmi));
+    g_19f_hdmi.typeId = dsAUDIOPORT_TYPE_HDMI;
+    ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _))
+        .WillByDefault(Invoke([](int *sz, const dsAudioTypeConfig_t **cfg) {
+            *sz  = 1;
+            *cfg = &g_19f_hdmi;
+            return dsERR_NONE;
+        }));
+    /* NiceMock defaults: dsGetVideoPort leaves handle=0, dsIsDisplayConnected
+     * leaves connected=false → "HDMI Not Connected" continue fires. */
+    _setAudioMode();
+}
+
+/* 19f-7: _setAudioMode — HDMI port, display connected, autoMode OFF →
+ * autoMode block skipped; if(0)/else forces IsSurround=true;
+ * _dsSetStereoMode called (dsMgr.c:1262-1265, 1285, 1287, 1293-1295). */
+TEST_F(DsMgrTest, SetAudioMode_HdmiPort_Connected_AutoModeOff)
+{
+    isEAS = IARM_BUS_SYS_MODE_NORMAL;
+    memset(&g_19f_hdmi, 0, sizeof(g_19f_hdmi));
+    g_19f_hdmi.typeId = dsAUDIOPORT_TYPE_HDMI;
+    ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _))
+        .WillByDefault(Invoke([](int *sz, const dsAudioTypeConfig_t **cfg) {
+            *sz  = 1;
+            *cfg = &g_19f_hdmi;
+            return dsERR_NONE;
+        }));
+    ON_CALL(dsHalMock, dsGetVideoPort(_))
+        .WillByDefault(Invoke([](dsVideoPortGetHandleParam_t *p) {
+            p->handle = STUB_HANDLE(0);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsIsDisplayConnected(_))
+        .WillByDefault(Invoke([](dsVideoPortIsDisplayConnectedParam_t *p) {
+            p->connected = true;
+            return IARM_RESULT_SUCCESS;
+        }));
+    /* _dsGetStereoAuto stub leaves autoMode=0 (from param memset).
+     * if(0){...} else { IsSurround=true; } forces surround flag.
+     * _dsSetStereoMode is called with the mode from _dsGetStereoMode. */
+    _setAudioMode();
+}
+
+/* 19f-8: _setAudioMode — HDMI port, display connected, autoMode ON →
+ * setMode.mode forced to dsAUDIO_STEREO_SURROUND (dsMgr.c:1270-1272). */
+TEST_F(DsMgrTest, SetAudioMode_HdmiPort_Connected_AutoModeOn_SurroundForced)
+{
+    isEAS = IARM_BUS_SYS_MODE_NORMAL;
+    memset(&g_19f_hdmi, 0, sizeof(g_19f_hdmi));
+    g_19f_hdmi.typeId = dsAUDIOPORT_TYPE_HDMI;
+    ON_CALL(dsHalMock, dsGetAudioTypeConfigs(_, _))
+        .WillByDefault(Invoke([](int *sz, const dsAudioTypeConfig_t **cfg) {
+            *sz  = 1;
+            *cfg = &g_19f_hdmi;
+            return dsERR_NONE;
+        }));
+    ON_CALL(dsHalMock, dsGetVideoPort(_))
+        .WillByDefault(Invoke([](dsVideoPortGetHandleParam_t *p) {
+            p->handle = STUB_HANDLE(0);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsIsDisplayConnected(_))
+        .WillByDefault(Invoke([](dsVideoPortIsDisplayConnectedParam_t *p) {
+            p->connected = true;
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetStereoAuto(_))
+        .WillByDefault(Invoke([](dsAudioSetStereoAutoParam_t *p) {
+            p->autoMode = 1;
+            return IARM_RESULT_SUCCESS;
+        }));
+    /* autoMode=1 → setMode.mode = dsAUDIO_STEREO_SURROUND is set.
+     * IsSurround then forced true; _dsSetStereoMode called with SURROUND. */
+    _setAudioMode();
 }
