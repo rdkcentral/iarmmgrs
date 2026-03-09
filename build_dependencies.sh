@@ -67,9 +67,11 @@ rm -rf telemetry
 git clone https://github.com/rdkcentral/telemetry.git
 export TELEMETRY_PATH=$ROOT/telemetry
 
+#TODO: remove the -b option from clone.
 cd $ROOT
+echo "Cloning devicesettings from GitHub and branch feature/RDKEMW-8587-dlsym"
 rm -rf devicesettings
-git clone https://github.com/rdkcentral/devicesettings.git
+git clone -b feature/RDKEMW-8587-dlsym https://github.com/rdkcentral/devicesettings.git
 export DS_PATH=$ROOT/devicesettings
 
 cd $ROOT
