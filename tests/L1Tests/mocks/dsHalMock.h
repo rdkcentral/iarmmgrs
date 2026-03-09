@@ -181,6 +181,8 @@ extern "C" dsError_t dsGetDisplay(dsVideoPortType_t type,
     return dsERR_NONE;
 }
 
+extern "C" {
+
 dsError_t _dsGetVideoPortResolutions(int *outSize, dsVideoPortResolution_t **outRes)
 {
     DsHal *impl = DsHal::getInstance();
@@ -209,5 +211,7 @@ dsError_t _dsGetAudioTypeConfigs(int *outSize, const dsAudioTypeConfig_t **outCo
     if (outConfigs) *outConfigs = nullptr;
     return dsERR_NONE;
 }
+
+} /* extern "C" */
 
 #endif /* DSHAL_MOCK_DEFINE_BRIDGES */
