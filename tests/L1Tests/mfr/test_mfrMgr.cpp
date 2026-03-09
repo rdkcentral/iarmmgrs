@@ -90,6 +90,111 @@ mfrError_t __wrap_mfrGetSerializedData(mfrSerializedType_t /*type*/,
 } /* extern "C" */
 
 /* -----------------------------------------------------------------------
+ * dlopen / dlsym / dlclose wrap controls
+ *
+ * With RDK_MFRLIB_NAME defined (see Makefile.am) each RPC handler enters
+ * its #else branch and attempts:  dlopen → dlsym → call func.
+ * These wraps intercept those calls so tests can exercise every branch:
+ *
+ *   g_dlopen_fail = true  (default in SetUp)  → dlopen returns NULL
+ *                                               → "Opening … failed" path
+ *   g_dlopen_fail = false, g_dlsym_fail = true → dlopen ok, dlsym NULL
+ *                                               → "not defined" path
+ *   g_dlopen_fail = false, g_dlsym_fail = false→ both ok, stub func called
+ *
+ * A per-test stub result is controlled via g_stub_hal_result.
+ * ----------------------------------------------------------------------- */
+#include <map>
+#include <string>
+
+static void * const g_fake_dllib = reinterpret_cast<void *>(
+                                       static_cast<uintptr_t>(0xDEADBEEF));
+static bool       g_dlopen_fail      = true;   /* safe default: dlopen fails */
+static bool       g_dlsym_fail       = false;
+static mfrError_t g_stub_hal_result  = mfrERR_NONE;
+
+/* ---- Stub HAL implementations ----------------------------------------
+ * Each function has the exact signature that mfrMgr.c casts dlsym's result
+ * to before calling.  Using the right prototype avoids calling-convention UB.
+ * ---------------------------------------------------------------------- */
+extern "C" {
+
+static mfrError_t stub_void(void)
+    { return g_stub_hal_result; }
+
+static mfrError_t stub_writeimage(const char * /*name*/,
+                                   const char * /*path*/,
+                                   mfrImageType_t /*type*/,
+                                   mfrUpgradeStatusNotify_t /*notify*/)
+    { return g_stub_hal_result; }
+
+static mfrError_t stub_mirror(mfrUpgradeStatusNotify_t /*notify*/)
+    { return g_stub_hal_result; }
+
+static mfrError_t stub_pattern(mfrBlPattern_t /*p*/)
+    { return g_stub_hal_result; }
+
+static mfrError_t stub_securetime(IARM_Bus_MFRLib_SecureTime_Param * /*p*/)
+    { return g_stub_hal_result; }
+
+static mfrError_t stub_fsr(uint16_t *p)
+    { if (p) *p = 1u; return g_stub_hal_result; }
+
+static mfrError_t stub_splash(const char * /*path*/)
+    { return g_stub_hal_result; }
+
+static mfrError_t stub_setconfig(unsigned int /*bl*/)
+    { return g_stub_hal_result; }
+
+static mfrError_t stub_getconfig(unsigned int *bl)
+    { if (bl) *bl = 0u; return g_stub_hal_result; }
+
+} /* extern "C" stubs */
+
+/* Symbol-name → stub function-pointer table */
+static const std::map<std::string, void *> g_sym_map {
+    { "mfrSetSerializedData",    reinterpret_cast<void *>(stub_void)        },
+    { "mfrDeletePDRI",           reinterpret_cast<void *>(stub_void)        },
+    { "mfrScrubAllBanks",        reinterpret_cast<void *>(stub_void)        },
+    { "mfrClearBlSplashScreen",  reinterpret_cast<void *>(stub_void)        },
+    { "mfrWriteImage",           reinterpret_cast<void *>(stub_writeimage)  },
+    { "mfrVerifyImage",          reinterpret_cast<void *>(stub_writeimage)  },
+    { "mfrMirrorImage",          reinterpret_cast<void *>(stub_mirror)      },
+    { "mfrSetBootloaderPattern", reinterpret_cast<void *>(stub_pattern)     },
+    { "mfrGetSecureTime",        reinterpret_cast<void *>(stub_securetime)  },
+    { "mfrSetSecureTime",        reinterpret_cast<void *>(stub_securetime)  },
+    { "mfrSetFSRflag",           reinterpret_cast<void *>(stub_fsr)         },
+    { "mfrGetFSRflag",           reinterpret_cast<void *>(stub_fsr)         },
+    { "mfrSetBlSplashScreen",    reinterpret_cast<void *>(stub_splash)      },
+    { "mfr_setConfigData",       reinterpret_cast<void *>(stub_setconfig)   },
+    { "mfr_getConfigData",       reinterpret_cast<void *>(stub_getconfig)   },
+};
+
+extern "C" {
+
+void * __wrap_dlopen(const char * /*filename*/, int /*flags*/)
+{
+    return g_dlopen_fail ? nullptr : g_fake_dllib;
+}
+
+void * __wrap_dlsym(void *handle, const char *name)
+{
+    if (handle == g_fake_dllib) {
+        if (g_dlsym_fail) return nullptr;
+        auto it = g_sym_map.find(name);
+        return (it != g_sym_map.end()) ? it->second : nullptr;
+    }
+    /* No real handles are ever opened in the test build; if somehow reached,
+     * declare __real_dlsym so the linker resolves it but return null safely. */
+    extern void * __real_dlsym(void *, const char *);
+    return __real_dlsym(handle, name);
+}
+
+int __wrap_dlclose(void * /*handle*/) { return 0; }
+
+} /* extern "C" wraps */
+
+/* -----------------------------------------------------------------------
  * Source under test
  * ----------------------------------------------------------------------- */
 extern "C" {
@@ -123,6 +228,14 @@ protected:
         g_mfr_gsd_result  = mfrERR_NONE;
         memset(g_mfr_gsd_buf, 0, sizeof(g_mfr_gsd_buf));
         g_mfr_gsd_bufLen  = 0;
+
+        /* Reset dlopen/dlsym wrap controls.
+         * g_dlopen_fail=true  means all RPC handlers' dlopen calls return NULL
+         * so the existing _DlopenFails_ tests need no special setup, and no
+         * real .so is ever touched during the test run. */
+        g_dlopen_fail     = true;
+        g_dlsym_fail      = false;
+        g_stub_hal_result = mfrERR_NONE;
     }
 
     void TearDown() override
@@ -235,11 +348,14 @@ TEST_F(MfrMgrTest, VerifyImage_RejectsWhenFlashing)
 }
 
 /* ===================================================================== *
- * Functions guarded by #ifndef RDK_MFRLIB_NAME
+ * RPC handlers — dlopen-fails path
  *
- * Without that compile-time define (never set in the test build), every
- * static RPC handler returns IARM_RESULT_INVALID_STATE immediately,
- * before attempting any dlopen.  These tests verify that path.
+ * RDK_MFRLIB_NAME is now defined (see Makefile.am AM_CPPFLAGS), so every
+ * handler enters its #else branch and calls dlopen(RDK_MFRLIB_NAME, ...).
+ * SetUp() leaves g_dlopen_fail=true so __wrap_dlopen returns NULL, which
+ * exercises the "Opening RDK_MFRLIB_NAME failed" early-return inside each
+ * handler.  The expected result is still IARM_RESULT_INVALID_STATE, so
+ * every test below passes unchanged.
  * ===================================================================== */
 
 TEST_F(MfrMgrTest, WriteImage_NoLibName_ReturnsInvalidState)
@@ -402,4 +518,331 @@ TEST_F(MfrMgrTest, Start_AllSucceed_ReturnsSuccessAndSetsConnected)
     /* NiceMock returns IARM_RESULT_SUCCESS for all IARM calls */
     EXPECT_EQ(IARM_RESULT_SUCCESS, MFRLib_Start());
     EXPECT_EQ(1, is_connected);
+}
+/* ===================================================================== *
+ * RPC handlers — dlsym-fails path
+ *
+ * g_dlopen_fail = false  → __wrap_dlopen returns g_fake_dllib
+ * g_dlsym_fail  = true   → __wrap_dlsym returns nullptr
+ *
+ * The handler finds dlsym() returned NULL, calls dlclose(), and returns
+ * IARM_RESULT_INVALID_STATE.  The static func pointer stays 0 so a
+ * subsequent func-success test can still load it.
+ *
+ * IMPORTANT: GTest runs tests in declaration order within a class.  These
+ * dlsym-fails tests are declared after the corresponding dlopen-fails tests
+ * above, so the static func pointer is still 0 when they execute.
+ * ===================================================================== */
+
+TEST_F(MfrMgrTest, SetSerializedData_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, setSerializedData_(nullptr));
+}
+
+TEST_F(MfrMgrTest, DeletePDRI_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, deletePDRI_(nullptr));
+}
+
+TEST_F(MfrMgrTest, ScrubAllBanks_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, scrubAllBanks_(nullptr));
+}
+
+TEST_F(MfrMgrTest, WriteImage_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, writeImage_(&param));
+}
+
+TEST_F(MfrMgrTest, VerifyImage_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, verifyImage_(&param));
+}
+
+TEST_F(MfrMgrTest, MirrorImage_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, mirrorImage(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetBLSplashScreen_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, mfrSetBlSplashScreen_(nullptr));
+}
+
+TEST_F(MfrMgrTest, ClearBLSplashScreen_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, mfrClearBlSplashScreen_(nullptr));
+}
+
+TEST_F(MfrMgrTest, GetSecureTime_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, getSecureTime_(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetSecureTime_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, setSecureTime_(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetFsrFlag_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, setFSRflag_(nullptr));
+}
+
+TEST_F(MfrMgrTest, GetFsrFlag_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, getFSRflag_(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetConfigData_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, setConfigData_(&param));
+}
+
+TEST_F(MfrMgrTest, GetConfigData_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, getConfigData_(&param));
+}
+
+/* ===================================================================== *
+ * RPC handlers — func loaded and called (dlopen + dlsym succeed)
+ *
+ * g_dlopen_fail = false, g_dlsym_fail = false (SetUp reset).
+ * __wrap_dlsym looks up the symbol name in g_sym_map and returns the
+ * matching stub function pointer.  The handler caches it in its static
+ * func variable and calls it; the stub returns g_stub_hal_result.
+ *
+ * These tests declare AFTER the dlsym-fails tests above so the static
+ * func pointers are still 0 when the tests first load the stubs.
+ * ===================================================================== */
+
+TEST_F(MfrMgrTest, SetSerializedData_FuncLoaded_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, setSerializedData_(nullptr));
+}
+
+TEST_F(MfrMgrTest, DeletePDRI_FuncLoaded_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, deletePDRI_(nullptr));
+}
+
+TEST_F(MfrMgrTest, ScrubAllBanks_FuncLoaded_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, scrubAllBanks_(nullptr));
+}
+
+TEST_F(MfrMgrTest, WriteImage_FuncLoaded_HalSucceeds_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    strncpy(param.name, "test_image", sizeof(param.name) - 1);
+    strncpy(param.path, "/tmp/test.bin", sizeof(param.path) - 1);
+    param.type = mfrIMAGE_TYPE_CDL;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, writeImage_(&param));
+}
+
+TEST_F(MfrMgrTest, WriteImage_FuncLoaded_HalFails_ReturnsIpcCoreFail)
+{
+    /* func is already cached from the previous test; this call goes straight
+     * to the cached stub but with a HAL error result. */
+    g_stub_hal_result = mfrERR_GENERAL;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, writeImage_(&param));
+}
+
+TEST_F(MfrMgrTest, VerifyImage_FuncLoaded_HalSucceeds_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    strncpy(param.name, "verify_image", sizeof(param.name) - 1);
+    param.type = mfrIMAGE_TYPE_CDL;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, verifyImage_(&param));
+}
+
+TEST_F(MfrMgrTest, VerifyImage_FuncLoaded_HalFails_ReturnsIpcCoreFail)
+{
+    /* func already cached from previous test */
+    g_stub_hal_result = mfrERR_GENERAL;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, verifyImage_(&param));
+}
+
+TEST_F(MfrMgrTest, MirrorImage_FuncLoaded_HalSucceeds_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_SUCCESS, mirrorImage(&param));
+}
+
+TEST_F(MfrMgrTest, MirrorImage_FuncLoaded_HalFails_ReturnsIpcCoreFail)
+{
+    /* func already cached */
+    g_stub_hal_result = mfrERR_GENERAL;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, mirrorImage(&param));
+}
+
+TEST_F(MfrMgrTest, ClearBLSplashScreen_FuncLoaded_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, mfrClearBlSplashScreen_(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetBLSplashScreen_FuncLoaded_ValidArg_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_SetBLSplashScreen_Param_t param{};
+    strncpy(param.path, "/splash.png", sizeof(param.path) - 1);
+    EXPECT_EQ(IARM_RESULT_SUCCESS, mfrSetBlSplashScreen_(&param));
+}
+
+TEST_F(MfrMgrTest, SetBLSplashScreen_FuncLoaded_NullArg_ReturnsInvalidParam)
+{
+    /* func is already cached; null arg exercises the NULL arg branch */
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, mfrSetBlSplashScreen_(nullptr));
+}
+
+TEST_F(MfrMgrTest, GetSecureTime_FuncLoaded_ValidArg_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_SecureTime_Param param{};
+    EXPECT_EQ(IARM_RESULT_SUCCESS, getSecureTime_(&param));
+}
+
+TEST_F(MfrMgrTest, GetSecureTime_FuncLoaded_NullArg_ReturnsInvalidState)
+{
+    /* func already cached; null arg means if(func && NULL != arg) is false */
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, getSecureTime_(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetSecureTime_FuncLoaded_ValidArg_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_SecureTime_Param param{};
+    EXPECT_EQ(IARM_RESULT_SUCCESS, setSecureTime_(&param));
+}
+
+TEST_F(MfrMgrTest, SetSecureTime_FuncLoaded_NullArg_ReturnsInvalidState)
+{
+    /* func already cached */
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, setSecureTime_(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetFsrFlag_FuncLoaded_ValidArg_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_FsrFlag_Param_t param = 1;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, setFSRflag_(&param));
+}
+
+TEST_F(MfrMgrTest, SetFsrFlag_FuncLoaded_NullArg_ReturnsInvalidParam)
+{
+    /* func already cached */
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, setFSRflag_(nullptr));
+}
+
+TEST_F(MfrMgrTest, GetFsrFlag_FuncLoaded_ValidArg_ReturnsSuccess)
+{
+    /* stub_fsr sets *p=1 (not (uint16_t)-1) so the "success" condition
+     * (err==mfrERR_NONE && param != -1) is met. */
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_FsrFlag_Param_t param = 0;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, getFSRflag_(&param));
+}
+
+TEST_F(MfrMgrTest, GetFsrFlag_FuncLoaded_NullArg_ReturnsInvalidParam)
+{
+    /* func already cached */
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getFSRflag_(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetConfigData_FuncLoaded_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t param{};
+    param.blocklist = 0u;
+    EXPECT_EQ(IARM_RESULT_SUCCESS, setConfigData_(&param));
+}
+
+TEST_F(MfrMgrTest, SetConfigData_FuncLoaded_HalFails_ReturnsInvalidParam)
+{
+    /* func already cached */
+    g_stub_hal_result = mfrERR_GENERAL;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, setConfigData_(&param));
+}
+
+TEST_F(MfrMgrTest, GetConfigData_FuncLoaded_ReturnsSuccess)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_SUCCESS, getConfigData_(&param));
+}
+
+TEST_F(MfrMgrTest, GetConfigData_FuncLoaded_HalFails_ReturnsInvalidParam)
+{
+    /* func already cached */
+    g_stub_hal_result = mfrERR_GENERAL;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getConfigData_(&param));
+}
+
+/* ===================================================================== *
+ * setBootloaderPattern_ — special case: symbol_lookup_complete flag
+ *
+ * setBootloaderPattern_ has a static symbol_lookup_complete guard in
+ * addition to the static func pointer.  Once dlopen is attempted the flag
+ * is set to 1.  A second call with func==0 goes to the else{} branch and
+ * returns INVALID_STATE without retrying dlopen.
+ *
+ * The dlopen-fails test above (SetBootloaderPattern_NoLibName_ReturnsInvalidState)
+ * already set symbol_lookup_complete=1 with func still 0.
+ * The test below exercises the secondary "lookup already done, still no func"
+ * branch that runs on that second call.
+ * ===================================================================== */
+
+TEST_F(MfrMgrTest, SetBootloaderPattern_LookupAlreadyDone_ReturnsInvalidState)
+{
+    /* symbol_lookup_complete was set to 1 by the earlier dlopen-fails test;
+     * func is still 0.  SetUp resets g_dlopen_fail only — not the statics
+     * inside mfrMgr.c.  This call hits:
+     *   if (func == 0) { if (0 == symbol_lookup_complete) { ... }
+     *                    else { return IARM_RESULT_INVALID_STATE; } } */
+    g_dlopen_fail = false; /* wouldn't matter — dlopen is not reached */
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, setBootloaderPattern_(nullptr));
 }

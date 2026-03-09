@@ -53,7 +53,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -I$(DS_IF_DIR)/include \
               -I$(DS_DIR)/rpc/include \
               -I$(DS_DIR)/stubs \
-              $(GLIB_CFLAGS)
+              $(GLIB_CFLAGS) \
+              -DRDK_MFRLIB_NAME='"libmfr_test_stub.so"'
 
 AM_CXXFLAGS = -Wall -std=c++14 -g
 
@@ -69,12 +70,17 @@ AM_CXXFLAGS = -Wall -std=c++14 -g
 #   g_main_loop_new /
 #   g_timeout_add_seconds /
 #   g_main_loop_unref           : DSMgr_Start GLib loop branches
+#   dlopen / dlsym / dlclose    : mfr tests control which library-load branch
+#                                  is taken inside each RPC handler
 AM_LDFLAGS = -Wl,--wrap,fopen \
              -Wl,--wrap,fclose \
              -Wl,--wrap,fgets \
              -Wl,--wrap,setmntent \
              -Wl,--wrap,mfr_init \
              -Wl,--wrap,mfrGetSerializedData \
+             -Wl,--wrap,dlopen \
+             -Wl,--wrap,dlsym \
+             -Wl,--wrap,dlclose \
              -Wl,--wrap,pthread_cond_init \
              -Wl,--wrap,pthread_create \
              -Wl,--wrap,usleep \
