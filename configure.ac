@@ -39,6 +39,7 @@ YOCTO_FLAG=" "
 IS_YOCTO_ENABLED=" "
 
 AM_LDFLAGS="-lpthread -lglib-2.0 -ldbus-1 -lIARMBus"
+AC_ARG_VAR([BREAKPAD_LDFLAGS], [Breakpad linker flags, e.g. '-lbreakpad_client'])
 
 AC_ARG_ENABLE([client],
              AS_HELP_STRING([--enable-client],[enable client profile (default is yes)]),
@@ -90,6 +91,7 @@ AC_SUBST(SUBDIR_MFR)
 AC_SUBST(LDFLAGS_CLIENT)
 AC_SUBST(CFLAGS_CLIENT)
 AC_SUBST(AM_LDFLAGS)
+AC_SUBST(BREAKPAD_LDFLAGS)
 
 AC_CONFIG_FILES([Makefile
                  dsmgr/Makefile
