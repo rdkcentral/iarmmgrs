@@ -33,3 +33,4 @@ AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11
 bin_PROGRAMS = sysMgrMain
 
 sysMgrMain_SOURCES = sysMgrMain.c sysMgr.c sysMgrInternal.h
+sysMgrMain_LDADD = -ltelemetry_msgsender
