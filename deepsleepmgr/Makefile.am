@@ -40,4 +40,4 @@ AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11
 bin_PROGRAMS = deepSleepMgrMain
 
 deepSleepMgrMain_SOURCES = deepSleepMgr.c  deepSleepMgrMain.c deepSleepInternal.h  deepsleeplogger.h
-deepSleepMgrMain_LDADD =
+deepSleepMgrMain_LDADD = -ltelemetry_msgsender
