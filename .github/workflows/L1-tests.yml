@@ -49,6 +49,22 @@ jobs:
         with:
           cmake-version: '3.16.x'
 
+      - name: Install packages
+        run: >
+          sudo apt update
+          &&
+          sudo apt install -y
+          autoconf automake libtool pkg-config
+          libgtest-dev libgmock-dev
+          build-essential g++ cmake
+          valgrind lcov clang ninja-build
+          libglib2.0-dev libdbus-1-dev
+          libdirectfb-dev
+          libsqlite3-dev libcurl4-openssl-dev
+          libsystemd-dev libboost-all-dev libwebsocketpp-dev
+          meson libcunit1 libcunit1-dev curl
+          protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
+
       - name: Install GStreamer
         run: |
            sudo apt update
@@ -63,19 +79,6 @@ jobs:
             meson setup --warnlevel 3 --werror build
             ninja -C build
             sudo ninja -C build install
-
-      - name: Install packages
-        run: >
-          sudo apt update
-          &&
-          sudo apt install -y
-          autoconf automake libtool pkg-config
-          libgtest-dev libgmock-dev
-          build-essential g++ cmake
-          valgrind lcov clang ninja-build
-          libglib2.0-dev libdbus-1-dev
-          libdirectfb-dev
-          libcurl4-openssl-dev
 
       - name: Checkout iarmmgrs
         uses: actions/checkout@v3
