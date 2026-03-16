@@ -225,8 +225,7 @@ jobs:
 
           ./configure --enable-l1tests \
             TESTFRAMEWORK_DIR="$GITHUB_WORKSPACE/entservices-testframework" \
-            DS_IF_DIR="$GITHUB_WORKSPACE/rdk-halif-device_settings" \
-            DS_DIR="$GITHUB_WORKSPACE/devicesettings"
+            DS_IF_DIR="$GITHUB_WORKSPACE/rdk-halif-device_settings"
           make -C tests/L1Tests
 
       - name: Run unit tests without valgrind 

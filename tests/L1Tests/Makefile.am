@@ -51,11 +51,11 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -I$(top_srcdir)/stubs \
               -I$(top_srcdir)/dsmgr \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.h \
+              -UMAX_LANGUAGE_LEN -UdsFPDColor_Make \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.h \
               -I/usr/include/libdrm \
               -I$(DS_IF_DIR)/include \
-              -I$(DS_DIR)/rpc/include \
-              -I$(DS_DIR)/stubs \
+              -I$(top_srcdir)/tests/L1Tests/stubs \
               $(GLIB_CFLAGS) \
               -DRDK_MFRLIB_NAME='"libmfr_test_stub.so"'
 
