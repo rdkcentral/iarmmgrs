@@ -205,6 +205,7 @@ jobs:
           -ftest-coverage
           -DEXCEPTIONS_ENABLE=ON
           -DRDK_SERVICES_L1_TEST
+          -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers
           -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers/rdk/ds
           -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers/rdk/iarmbus
           -I$GITHUB_WORKSPACE/entservices-deviceanddisplay/helpers
