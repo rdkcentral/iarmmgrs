@@ -83,7 +83,7 @@ jobs:
           cmake --build build/googletest -j$(nproc)
           cmake --install build/googletest
 
-       - name: Generate external headers
+      - name: Generate external headers
         # Empty headers to mute errors
         run: >
           cd "$GITHUB_WORKSPACE/entservices-testframework/Tests/"
