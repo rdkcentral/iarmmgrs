@@ -33,6 +33,27 @@ jobs:
           cmake-version: '3.16.x'
           github-api-token: ''
 
+      - name: Set up Python
+        uses: actions/setup-python@v4
+        with:
+          python-version: '3.x'
+      - run: pip install jsonref
+
+      - name: ACK External Trigger
+        run: |
+           echo "Message: External Trigger Received for L1 Tests"
+           echo "Trigger Source: ${{ inputs.caller_source }}"
+
+      - name: Set up CMake
+        uses: jwlawson/actions-setup-cmake@v1.13
+        with:
+          cmake-version: '3.16.x'
+
+      - name: Install GStreamer
+        run: |
+           sudo apt update
+           sudo apt install -y libunwind-dev libgstreamer1.0-dev libgstreamer-plugins-base1.0-dev
+
       - name: Install packages
         run: >
           sudo apt update
