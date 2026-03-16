@@ -50,6 +50,9 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -I$(top_srcdir)/sysmgr/include \
               -I$(top_srcdir)/stubs \
               -I$(top_srcdir)/dsmgr \
+              -include $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.h \
+              -include $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.h \
+              -I/usr/include/libdrm \
               -I$(DS_IF_DIR)/include \
               -I$(DS_DIR)/rpc/include \
               -I$(DS_DIR)/stubs \
@@ -99,7 +102,9 @@ run_L1Tests_SOURCES = \
     mfr/test_mfrMgr.cpp \
     dsmgr/test_dsMgr.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Iarm.cpp \
-    $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp
+    $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp \
+    $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.cpp \
+    $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.cpp
 
 run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS)
 
