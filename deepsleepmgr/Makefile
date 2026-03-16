@@ -40,7 +40,8 @@ INCLUDE     =	-I.\
 		-I$(GLIB_HEADER_PATH)/ \
 		-I$(GLIB_HEADER_PATH)/glib/ \
 		-I$(GLIB_CONFIG_PATH)/../lib/glib-2.0/include/ \
-		-I$(RF4CE_PATH)/include 
+		-I$(RF4CE_PATH)/include \
+		-I$(TELEMETRY_PATH)/include 
 
 
 CFLAGS      += $(INCLUDE) 
@@ -55,6 +56,7 @@ LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 
 LDFLAGS += -L$(DS_PATH)/install/lib -lds -ldshalcli
 LDFLAGS += -lIARMBus -L$(IARM_MGRS)/install/lib -lDeepSleepMgr
+LDFLAGS += -ltelemetry_msgsender
 
 
 
