@@ -65,12 +65,6 @@ jobs:
           repository: rdkcentral/rdk-halif-device_settings
           path: rdk-halif-device_settings
 
-      - name: Checkout devicesettings
-        uses: actions/checkout@v3
-        with:
-          repository: rdkcentral/devicesettings
-          path: devicesettings
-
       - name: Checkout googletest
         uses: actions/checkout@v3
         with:
@@ -88,6 +82,62 @@ jobs:
             -DCMAKE_POSITION_INDEPENDENT_CODE=ON
           cmake --build build/googletest -j$(nproc)
           cmake --install build/googletest
+        
+      - name: Build mocks
+        run: >
+          cmake
+          -S "$GITHUB_WORKSPACE/entservices-testframework/Tests/mocks"
+          -B build/mocks
+          -DBUILD_SHARED_LIBS=ON
+          -DRDK_SERVICES_L1_TEST=ON
+          -DUSE_THUNDER_R4=ON
+          -DCMAKE_TOOLCHAIN_FILE="${{ env.TOOLCHAIN_FILE }}"
+          -DCMAKE_INSTALL_PREFIX="$GITHUB_WORKSPACE/install/usr"
+          -DCMAKE_MODULE_PATH="$GITHUB_WORKSPACE/install/tools/cmake"
+          -DCMAKE_BUILD_TYPE=${{env.BUILD_TYPE}}
+          -DCMAKE_CXX_FLAGS="
+          -fprofile-arcs
+          -ftest-coverage
+          -DEXCEPTIONS_ENABLE=ON
+          -DUSE_THUNDER_R4=ON
+          -DTHUNDER_VERSION=4
+          -DTHUNDER_VERSION_MAJOR=4
+          -DTHUNDER_VERSION_MINOR=4
+          -DRDK_SERVICES_L1_TEST
+          -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers
+          -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers/audiocapturemgr
+          -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers/rdk/ds
+          -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers/rdk/iarmbus
+          -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers/network
+          -I$GITHUB_WORKSPACE/entservices-testframework/Tests
+          -I$GITHUB_WORKSPACE/entservices-deviceanddisplay/helpers
+          -I$GITHUB_WORKSPACE/install/usr/include
+          -I ./usr/include/libdrm
+          -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/devicesettings.h
+          -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/Iarm.h
+          -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/Rfc.h
+          -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/RBus.h
+          -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/Telemetry.h
+          --coverage
+          -Wall -Wno-unused-result -Wno-deprecated-declarations -Wno-error=format=
+          -Wl,-wrap,syslog -Wl,-wrap,v_secure_system -Wl,-wrap,v_secure_popen -Wl,-wrap,v_secure_pclose -Wl,-wrap,unlink -Wl,-wrap,v_secure_system -Wl,-wrap,setmntent -Wl,-wrap,getmntent
+          -DENABLE_TELEMETRY_LOGGING
+          -DUSE_IARMBUS
+          -DENABLE_SYSTEM_GET_STORE_DEMO_LINK
+          -DENABLE_DEEP_SLEEP
+          -DENABLE_SET_WAKEUP_SRC_CONFIG
+          -DENABLE_THERMAL_PROTECTION
+          -DUSE_DRM_SCREENCAPTURE
+          -DHAS_API_SYSTEM
+          -DHAS_API_POWERSTATE
+          -DHAS_RBUS
+          -D_DRM_MODE_H
+          -DENABLE_DEVICE_MANUFACTURER_INFO"
+          -D_DRM_MODE_H=ON
+          &&
+          cmake --build build/mocks -j8
+          &&
+          cmake --install build/mocks
 
       - name: Generate empty stub headers
         # Headers required by #include directives in the source under test but
@@ -101,6 +151,8 @@ jobs:
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBusDaemon.h"
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/iarmUtil.h"
           touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIARMCore.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/telemetry_busmessage_sender.h"
+
 
       - name: Build iarmmgrs L1 tests
         run: |
