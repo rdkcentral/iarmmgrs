@@ -187,6 +187,12 @@ jobs:
           gdialservicecommon.h
           &&
           cp -r /usr/include/gstreamer-1.0/gst /usr/include/glib-2.0/* /usr/lib/x86_64-linux-gnu/glib-2.0/include/* /usr/local/include/trower-base64/base64.h /usr/include/libdrm/drm.h /usr/include/libdrm/drm_mode.h /usr/include/xf86drm.h .
+          &&
+          mkdir -p core plugins
+          &&
+          printf '#pragma once\n#define MODULE_NAME_DECLARATION(x)\n' > core/core.h
+          &&
+          touch plugins/plugins.h
 
         
       - name: Build mocks
