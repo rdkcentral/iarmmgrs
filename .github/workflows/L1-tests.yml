@@ -209,7 +209,7 @@ jobs:
           -I$GITHUB_WORKSPACE/entservices-testframework/Tests/headers/rdk/iarmbus
           -I$GITHUB_WORKSPACE/entservices-deviceanddisplay/helpers
           -I$GITHUB_WORKSPACE/install/usr/include
-          -I ./usr/include/libdrm
+          -I/usr/include/libdrm
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/devicesettings.h
           -include $GITHUB_WORKSPACE/entservices-testframework/Tests/mocks/Telemetry.h
           --coverage
