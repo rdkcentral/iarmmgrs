@@ -194,6 +194,20 @@ jobs:
           &&
           touch plugins/plugins.h
 
+      - name: Generate empty stub headers
+        # Empty stubs for headers that iarmutilslogger.h / source files
+        # pull in via "include" but are not committed to the repo.
+        # Real declarations come from Iarm.h (testframework) which is
+        # included explicitly before the source under test.
+        run: |
+          mkdir -p "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBus.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIARM.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBusDaemon.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/iarmUtil.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIARMCore.h"
+          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/telemetry_busmessage_sender.h"
+
       - name: Build iarmmgrs L1 tests
         run: |
           cd "$GITHUB_WORKSPACE/iarmmgrs"
