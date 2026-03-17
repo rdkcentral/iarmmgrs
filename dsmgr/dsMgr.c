@@ -47,6 +47,7 @@
 
 
 #include "sysMgr.h"
+#include "mfrMgr.h"
 
 #include "dsMgr.h"
 #include "dsUtl.h"
@@ -61,6 +62,7 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
+#include "videoOutputPortConfig.hpp"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
 extern IARM_Result_t _dsGetResolution(void *arg);
@@ -96,6 +98,8 @@ void _setEASAudioMode();
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
+static pthread_mutex_t gHDCPEnableThreadMutex = PTHREAD_MUTEX_INITIALIZER;
+static bool gHDCPEnableThreadRunning = false;
 IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal Mode
 
 #define RES_MAX_LEN 10
@@ -335,6 +339,7 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
+	_enableHDCPAsync();
     return IARM_RESULT_SUCCESS;
 }
 
@@ -554,6 +559,123 @@ static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data,
 				break;
 			}
 	}
+}
+
+static void _enableHDCPAsync()
+{
+    pthread_t hdcpThreadId;
+    pthread_attr_t attr;
+
+    pthread_mutex_lock(&gHDCPEnableThreadMutex);
+
+    if (gHDCPEnableThreadRunning) {
+        INT_INFO("HDCP enable thread already running");
+        pthread_mutex_unlock(&gHDCPEnableThreadMutex);
+        return;
+    }
+
+    gHDCPEnableThreadRunning = true;
+    pthread_mutex_unlock(&gHDCPEnableThreadMutex);
+
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    if (pthread_create(&hdcpThreadId, &attr, _HDCPEnableThreadFunc, NULL) != 0) {
+        INT_ERROR("Failed to create HDCP enable thread");
+        pthread_mutex_lock(&gHDCPEnableThreadMutex);
+        gHDCPEnableThreadRunning = false;
+        pthread_mutex_unlock(&gHDCPEnableThreadMutex);
+    }
+
+    pthread_attr_destroy(&attr);
+}
+
+static void* _HDCPEnableThreadFunc(void *arg)
+{
+    (void)arg;
+	_hdcpenable();
+
+    pthread_mutex_lock(&gHDCPEnableThreadMutex);
+    gHDCPEnableThreadRunning = false;
+    pthread_mutex_unlock(&gHDCPEnableThreadMutex);
+    return NULL;
+}
+
+bool _hdcpenable()
+{
+    INT_INFO("Enter function");
+    int keySize = 0;
+    char *hdcpKey = 0;
+	int IsMfrDataRead = false;
+
+    IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
+
+	do
+	{	
+		IsMfrDataRead = false;
+		/*Initialize the struct */
+		memset(param, 0, sizeof(*param));
+
+		/* Get Key */
+		param->type = mfrSERIALIZED_TYPE_HDMIHDCP;
+		param->bufLen = MAX_SERIALIZED_BUF;
+		
+		int ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME,IARM_BUS_MFRLIB_API_GetSerializedData,
+			(void *)param, sizeof(IARM_Bus_MFRLib_GetSerializedData_Param_t));
+
+		if(ret != IARM_RESULT_SUCCESS)
+		{
+			INT_ERROR("Call failed for %s: error code:%d\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP",ret);
+			/**Sleep for 4 sec - wait for MFR data to be ready*/
+			sleep(4);
+		}
+		else
+		{
+			keySize = param->bufLen;
+			hdcpKey = param->buffer;
+
+			if(0 == keySize){
+			    break;
+			}
+			
+			if ((hdcpKey[0] == 0) &&
+				(hdcpKey[1] == 0) &&
+				(hdcpKey[2] == 0) &&
+				(hdcpKey[3] == 0) &&
+				(hdcpKey[4] == 0) &&
+				(hdcpKey[5] == 0) 
+				)
+			{
+				INT_ERROR("Invalid MFR Data !! Wait for MFR data to be ready..Retry after 10 sec");
+				/**Sleep for 10 sec - wait for MFR data to be ready*/
+				sleep(10);
+			}
+			else
+			{
+				INT_INFO("Call succeed for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP", param->bufLen);
+				IsMfrDataRead = true;
+			}
+						
+			#if 1
+			    INT_INFO(" HDCP Key: ");
+				for (int i = 0; i < keySize; i++) {
+				INT_INFO(" %02X", (unsigned char)hdcpKey[i]);
+				}
+				INT_INFO("\r");
+			#endif
+		}
+	}while(false == IsMfrDataRead);	
+
+	INT_INFO("Setting HDCP true");
+	if(0 == keySize){
+		INT_ERROR("Ignoring request, invalid parameters ");
+	}else{
+		device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
+		INT_INFO("Setting  HDCP done");
+	}
+   
+    INT_INFO("Exit function");
+    return true;
 }
 
 /* Set Video resolution on HDMI Hot Plug or Tune Ready events  */
