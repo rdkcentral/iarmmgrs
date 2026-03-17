@@ -61,6 +61,8 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
+#include "videoOutputPortType.hpp"
+#include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
 extern IARM_Result_t _dsGetResolution(void *arg);
@@ -93,9 +95,14 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
+bool _hdcpenable();
+static void* _HDCPEnableThreadFunc(void *arg);
+static void _enableHDCPAsync();
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
+static pthread_mutex_t gHDCPEnableThreadMutex = PTHREAD_MUTEX_INITIALIZER;
+static bool gHDCPEnableThreadRunning = false;
 IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal Mode
 
 #define RES_MAX_LEN 10
@@ -112,7 +119,7 @@ IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal
 #define EU_INTERLACED_FPS   "25"
 
 static bool IsEUPlatform = false;
-
+static profile_t profileType = PROFILE_INVALID;
 
 static char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
 
@@ -213,6 +220,66 @@ static bool isHDMIConnected()
     ConParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
     _dsIsDisplayConnected(&ConParam);
     return ConParam.connected; 
+}
+
+bool _hdcpenable()
+{
+#define HDCP14_PARAM_KEY_SIZE 288
+
+    INT_INFO("Enter function \n");
+	int keySize = HDCP14_PARAM_KEY_SIZE;
+    char hdcpKey[HDCP14_PARAM_KEY_SIZE] = {0};
+
+	INT_INFO("Setting HDCP true \n");
+	if(0 == keySize){
+		INT_ERROR("Ignoring request, invalid parameters \n");
+	}else{
+		device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
+		INT_INFO("Setting  HDCP done \n");
+	}
+   
+    INT_INFO("Exit function \n");
+    return true;
+}
+
+static void* _HDCPEnableThreadFunc(void *arg)
+{
+    (void)arg;
+	_hdcpenable();
+
+    pthread_mutex_lock(&gHDCPEnableThreadMutex);
+    gHDCPEnableThreadRunning = false;
+    pthread_mutex_unlock(&gHDCPEnableThreadMutex);
+    return NULL;
+}
+
+static void _enableHDCPAsync()
+{
+    pthread_t hdcpThreadId;
+    pthread_attr_t attr;
+
+    pthread_mutex_lock(&gHDCPEnableThreadMutex);
+
+    if (gHDCPEnableThreadRunning) {
+        INT_INFO("HDCP enable thread already running");
+        pthread_mutex_unlock(&gHDCPEnableThreadMutex);
+        return;
+    }
+
+    gHDCPEnableThreadRunning = true;
+    pthread_mutex_unlock(&gHDCPEnableThreadMutex);
+
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    if (pthread_create(&hdcpThreadId, &attr, _HDCPEnableThreadFunc, NULL) != 0) {
+        INT_ERROR("Failed to create HDCP enable thread");
+        pthread_mutex_lock(&gHDCPEnableThreadMutex);
+        gHDCPEnableThreadRunning = false;
+        pthread_mutex_unlock(&gHDCPEnableThreadMutex);
+    }
+
+    pthread_attr_destroy(&attr);
 }
 
 IARM_Result_t DSMgr_Start()
@@ -335,6 +402,15 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
+
+	if (PROFILE_INVALID == profileType){
+        profileType = searchRdkProfile();
+    }
+	if(PROFILE_STB == profileType)
+	{
+    	_enableHDCPAsync();
+	}
+
     return IARM_RESULT_SUCCESS;
 }
 

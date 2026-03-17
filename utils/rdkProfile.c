@@ -136,12 +136,12 @@ profile_t searchRdkProfile(void) {
         if(0 == strncmp(rdkProfile, PROFILE_STR_TV, strlen(PROFILE_STR_TV)))
         {
             ret = PROFILE_TV;
-            INT_DEBUG("[%s]: Found RDK_PROFILE is TV", __FUNCTION__);
+            INT_DEBUG("[%s]: Found RDK_PROFILE is TV \n", __FUNCTION__);
         }
         else if (0 == strncmp(rdkProfile, PROFILE_STR_STB, strlen(PROFILE_STR_STB)))
         {
             ret = PROFILE_STB;
-            INT_DEBUG("[%s]: Found RDK_PROFILE is STB", __FUNCTION__);
+            INT_DEBUG("[%s]: Found RDK_PROFILE is STB \n", __FUNCTION__);
         }
     }
     else
