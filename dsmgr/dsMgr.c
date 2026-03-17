@@ -48,6 +48,7 @@
 
 #include "sysMgr.h"
 #include "mfrMgr.h"
+#include "mfrMgr.h"
 
 #include "dsMgr.h"
 #include "dsUtl.h"
@@ -62,6 +63,7 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
+#include "videoOutputPortType.hpp"
 #include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
@@ -96,6 +98,7 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
+static bool _hdcpenable();
 static void* _HDCPEnableThreadFunc(void *arg);
 static void _enableHDCPAsync();
 static int iResnCount = 5;
@@ -220,20 +223,14 @@ static bool isHDMIConnected()
     return ConParam.connected; 
 }
 
-static void* _HDCPEnableThreadFunc(void *arg)
+static bool _hdcpenable()
 {
-    (void)arg;
     INT_INFO("Enter function \n");
-	errno_t rc = EOK;
-    int IsMfrDataRead = false;
-	dsEnableHDCPParam_t hdcpParam;
+	errno_t rc = -1;
+	int keySize = HDCP_KEY_MAX_SIZE;
+    char hdcpKey[HDCP_KEY_MAX_SIZE] = {0};
 
 	IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
-
-	rc = memset_s(&hdcpParam, sizeof(hdcpParam), 0, sizeof(hdcpParam));
-	if (rc != EOK) {
-		INT_ERROR("Failed to reset HDCP Param: error code:%d\n", rc);
-	}
 
 	do
 	{	
@@ -264,29 +261,34 @@ static void* _HDCPEnableThreadFunc(void *arg)
 		}
 		else
 		{
-			hdcpParam.keySize = param->bufLen;
-			if (hdcpParam.keySize < 0 || hdcpParam.keySize > HDCP_KEY_MAX_SIZE) {
-				INT_ERROR("Incorrect HDCP key size %d maxsize %d\n", hdcpParam.keySize, HDCP_KEY_MAX_SIZE);
-				rc = EINVAL;
-				break;
-			}
+				//Reset the HDCP key buffer before copying the key read from MFR to avoid any garbage value in case of failure in memcpy_s.
+				rc = memset_s(hdcpKey, sizeof(hdcpKey), 0, sizeof(hdcpKey));
+				if (rc != EOK) {
+					INT_ERROR("Failed to reset HDCP key buffer: error code:%d\n", rc);
+					break;
+				}
 
-			rc = memcpy_s(hdcpParam.hdcpKey, sizeof(hdcpParam.hdcpKey), param->buffer, hdcpParam.keySize);
-			if (rc != EOK) {
-				INT_ERROR("Failed to copy HDCP key: error code:%d\n", rc);
-				break;
-			}
+				keySize = param->bufLen;
+				if (keySize > HDCP_KEY_MAX_SIZE) {
+					INT_ERROR("HDCP key size %d exceeds max buffer size %d\n", keySize, HDCP_KEY_MAX_SIZE);
+					break;
+				}
+				rc = memcpy_s(hdcpKey, sizeof(hdcpKey), param->buffer, keySize);
+				if (rc != EOK) {
+					INT_ERROR("Failed to copy HDCP key: error code:%d\n", rc);
+					break;
+				}
 
-			if(0 == hdcpParam.keySize){
-				break;
-			}
+				if(0 == keySize){
+					break;
+				}
 			
-			if ((hdcpParam.hdcpKey[0] == 0) &&
-				(hdcpParam.hdcpKey[1] == 0) &&
-				(hdcpParam.hdcpKey[2] == 0) &&
-				(hdcpParam.hdcpKey[3] == 0) &&
-				(hdcpParam.hdcpKey[4] == 0) &&
-				(hdcpParam.hdcpKey[5] == 0) 
+			if ((hdcpKey[0] == 0) &&
+				(hdcpKey[1] == 0) &&
+				(hdcpKey[2] == 0) &&
+				(hdcpKey[3] == 0) &&
+				(hdcpKey[4] == 0) &&
+				(hdcpKey[5] == 0) 
 				)
 			{
 				INT_ERROR("Invalid MFR Data !! Wait for MFR data to be ready..Retry after 10 sec\n");
@@ -295,45 +297,32 @@ static void* _HDCPEnableThreadFunc(void *arg)
 			}
 			else
 			{
-				INT_INFO("Call succeeded for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP", param->bufLen);
+				INT_INFO("Call succeeded for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP\n", param->bufLen);
 				IsMfrDataRead = true;
 			}
+						
+			#if 0
+				INT_INFO("\n");
+				for (int i = 0; i < keySize; i++) {
+				INT_INFO(" %02X", (unsigned char)hdcpKey[i]);
+				}
+				INT_INFO("\n");
+			#endif
 		}
 	}while(false == IsMfrDataRead);	
-	
-	if(rc == EOK)
-	{
-		INT_INFO("Setting HDCP true \n");
-		int hdcpRetry = 0;
-		const int HDCP_MAX_RETRIES = 3;
-		bool hdcpEnabled = false;
-		hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
-		hdcpParam.contentProtect = true;
-		hdcpParam.rpcResult = dsERR_NONE;
 
-		while (hdcpRetry < HDCP_MAX_RETRIES && !hdcpEnabled)
-		{
-			if(_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS)
-			{
-				hdcpRetry++;
-				INT_ERROR("enabledHDCP failed, retry %d/%d\n", hdcpRetry, HDCP_MAX_RETRIES);
-				if (hdcpRetry < HDCP_MAX_RETRIES) {
-					sleep(4);
-				}
-			}
-			else
-			{
-				hdcpEnabled = true;
-				INT_INFO("Setting HDCP done \n");
-			}
-
-		}
-		if (!hdcpEnabled) {
-			INT_ERROR("enabledHDCP failed after %d retries\n", HDCP_MAX_RETRIES);
-		}
-	}
+	INT_INFO("Setting HDCP true \n");
+	device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
+	INT_INFO("Setting  HDCP done \n");
    
     INT_INFO("Exit function \n");
+    return true;
+}
+
+static void* _HDCPEnableThreadFunc(void *arg)
+{
+    (void)arg;
+	_hdcpenable();
     return NULL;
 }
 
@@ -472,6 +461,15 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
+
+	if (PROFILE_INVALID == profileType){
+        profileType = searchRdkProfile();
+    }
+	if(PROFILE_STB == profileType)
+	{
+    	_enableHDCPAsync();
+	}
+
 
 	if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
