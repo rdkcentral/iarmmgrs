@@ -73,21 +73,22 @@ extern "C" {
 IARM_Result_t dsMgr_init(void);
 IARM_Result_t dsMgr_term(void);
 
-/* ---- Audio-port state (used inside IARM_Bus_DSMgr_EventData_t) ---------- */
-#ifndef HAVE_DSAUDIOPORT_STATE_TYPE
-#define HAVE_DSAUDIOPORT_STATE_TYPE
+/* ---- Audio-port state --------------------------------------------------- */
+/* Defined in devicesettings.h when the testframework force-include is active.
+ * DRM_DISPLAY_MODE_LEN is a sentinel macro defined at the top of that file. */
+#ifndef DRM_DISPLAY_MODE_LEN
 typedef enum _dsAudioPortState {
     dsAUDIOPORT_STATE_UNINITIALIZED,
     dsAUDIOPORT_STATE_INITIALIZED,
     dsAUDIOPORT_STATE_MAX
 } dsAudioPortState_t;
-#endif
+#endif /* DRM_DISPLAY_MODE_LEN */
 
 /* ---- DS Manager event data union ----------------------------------------
- * Same layout as devicesettings/rpc/include/dsMgr.h.
- * _DSMgr_EventId_t and IARM_BUS_DSMGR_NAME are deliberately absent here;
- * Iarm.h (included before this stub) already provides them.
+ * Defined in devicesettings.h when the testframework force-include is active.
+ * DRM_DISPLAY_MODE_LEN is a sentinel macro defined at the top of that file.
  * ----------------------------------------------------------------------- */
+#ifndef DRM_DISPLAY_MODE_LEN
 typedef struct _DSMgr_EventData_t {
     union {
         struct _RESOLUTION_DATA {
@@ -232,6 +233,7 @@ typedef struct _DSMgr_EventData_t {
         } DisplayFrameRateChange;
     } data;
 } IARM_Bus_DSMgr_EventData_t;
+#endif /* DRM_DISPLAY_MODE_LEN */
 
 #ifdef __cplusplus
 }

@@ -33,15 +33,16 @@
 #include "dsTypes.h"
 
 /* ---- Sleep mode --------------------------------------------------------- */
-/* Already defined in entservices-testframework/Tests/mocks/devicesettings.h
- * which is force-included via -include in AM_CPPFLAGS. */
-#ifndef dsHOST_SLEEP_MODE_LIGHT
+/* Defined in devicesettings.h (force-included via -include in AM_CPPFLAGS).
+ * DRM_DISPLAY_MODE_LEN is a sentinel macro defined at the top of that file;
+ * its presence means devicesettings.h has already supplied dsSleepMode_t. */
+#ifndef DRM_DISPLAY_MODE_LEN
 typedef enum _dsSleepMode_t {
     dsHOST_SLEEP_MODE_LIGHT,
     dsHOST_SLEEP_MODE_DEEP,
     dsHOST_SLEEP_MODE_MAX
 } dsSleepMode_t;
-#endif
+#endif /* DRM_DISPLAY_MODE_LEN */
 
 /* ---- Video-port RPC param structs --------------------------------------- */
 typedef struct _dsVideoPortGetHandleParam_t {
@@ -70,6 +71,7 @@ typedef struct _dsVideoPortSetResolutionParam_t {
     intptr_t                 handle;
     dsVideoPortResolution_t  resolution;
     bool                     toPersist;
+    bool                     forceCompatible; /**< dsMgr.c sets this on resolution change */
 } dsVideoPortSetResolutionParam_t;
 
 typedef struct _dsForceDisable4KParam_t {
@@ -84,7 +86,7 @@ typedef struct _dsSetBackgroundColorParam_t {
 
 typedef struct _dsEdidIgnoreParam_t {
     intptr_t handle;
-    bool     ignore;
+    bool     ignoreEDID; /**< dsMgr.c accesses this field as ignoreEDID */
 } dsEdidIgnoreParam_t;
 
 /* ---- Display / EDID RPC param structs ----------------------------------- */
@@ -115,6 +117,13 @@ typedef struct _dsEDIData_t {
     dsVideoPortResolution_t suppResolutionList[64];
     char          monitorName[14];
 } dsEDIData_t;
+
+/* Compatibility alias: test code written against an older HAL revision uses
+ * numOfSupportedResolution; the canonical field name in this struct is
+ * numSupportedResolution.  The #define makes both names resolve identically. */
+#ifndef numOfSupportedResolution
+#define numOfSupportedResolution numSupportedResolution
+#endif
 
 typedef struct _dsDisplayGetEDIDParam_t {
     intptr_t   handle;

@@ -140,11 +140,6 @@ jobs:
           ccec/drivers/CecIARMBusMgr.h
           rdk/ds/audioOutputPort.hpp
           rdk/ds/compositeIn.hpp
-          rdk/ds/dsDisplay.h
-          rdk/ds/dsError.h
-          rdk/ds/dsMgr.h
-          rdk/ds/dsTypes.h
-          rdk/ds/dsUtl.h
           rdk/ds/exception.hpp
           rdk/ds/hdmiIn.hpp
           rdk/ds/host.hpp
@@ -194,19 +189,36 @@ jobs:
           &&
           touch plugins/plugins.h
 
-      - name: Generate empty stub headers
-        # Empty stubs for headers that iarmutilslogger.h / source files
-        # pull in via "include" but are not committed to the repo.
-        # Real declarations come from Iarm.h (testframework) which is
-        # included explicitly before the source under test.
+      - name: Generate stub headers
+        # All stub content lives in tests/L1Tests/stubs/iarmmgrs_test_stubs.h
+        # (committed to the repo).  The individual shadow headers that source
+        # files #include are generated here as thin wrappers so they never
+        # need to be committed.  Truly empty stubs (IARM, telemetry, …) are
+        # created with touch.
         run: |
-          mkdir -p "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs"
-          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBus.h"
-          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIARM.h"
-          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIBusDaemon.h"
-          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/iarmUtil.h"
-          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/libIARMCore.h"
-          touch "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs/telemetry_busmessage_sender.h"
+          STUBS="$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs"
+          WRAPPER='#pragma once\n#include "iarmmgrs_test_stubs.h"'
+
+          # Shadow headers: block the real HAL headers and redirect to the
+          # combined stub.  Each name matches what the source under test
+          # includes directly.
+          for f in \
+              dsTypes.h dsError.h dsDisplay.h \
+              dsAudioConfig.h dsVideoPortConfig.h \
+              dsRpc.h dsMgr.h \
+              mfrMgr.h plat_power.h rfcapi.h; do
+            printf "$WRAPPER\n" > "$STUBS/$f"
+          done
+
+          # Empty stubs: headers pulled in transitively whose declarations
+          # come from Iarm.h (testframework) or are unused in the test paths.
+          touch \
+            "$STUBS/libIBus.h" \
+            "$STUBS/libIARM.h" \
+            "$STUBS/libIBusDaemon.h" \
+            "$STUBS/iarmUtil.h" \
+            "$STUBS/libIARMCore.h" \
+            "$STUBS/telemetry_busmessage_sender.h"
 
       - name: Build iarmmgrs L1 tests
         run: |
