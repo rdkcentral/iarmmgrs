@@ -1546,9 +1546,10 @@ TEST_F(DsMgrTest, SetVPR_HdmiNotConnected_AllNull_LogsAndReturns)
 class DsMgrStopTest : public ::testing::Test
 {
 protected:
-    ::testing::NiceMock<IarmBusImplMock> iarmMock;
-    ::testing::NiceMock<DsHalMock>       dsHalMock;
-    ::testing::NiceMock<WrapsImplMock>   wrapsMock;
+    ::testing::NiceMock<IarmBusImplMock>   iarmMock;
+    ::testing::NiceMock<DsHalMock>         dsHalMock;
+    ::testing::NiceMock<WrapsImplMock>     wrapsMock;
+    ::testing::NiceMock<TelemetryTestMock> telemetryMock;
     bool mutexOwnedByTest = true;
 
     void SetUp() override
@@ -1556,6 +1557,7 @@ protected:
         IarmBus::setImpl(&iarmMock);
         DsHal::setImpl(&dsHalMock);
         Wraps::setImpl(&wrapsMock);
+        TelemetryApi::setImpl(&telemetryMock);
 
         /* Ensure wrapped pthread calls fall through to real implementations. */
         g_stub_pthread_cond_init_ret = 0;
@@ -1578,9 +1580,11 @@ protected:
         ::testing::Mock::VerifyAndClearExpectations(&iarmMock);
         ::testing::Mock::VerifyAndClearExpectations(&dsHalMock);
         ::testing::Mock::VerifyAndClearExpectations(&wrapsMock);
+        ::testing::Mock::VerifyAndClearExpectations(&telemetryMock);
         IarmBus::setImpl(nullptr);
         DsHal::setImpl(nullptr);
         Wraps::setImpl(nullptr);
+        TelemetryApi::setImpl(nullptr);
     }
 };
 
