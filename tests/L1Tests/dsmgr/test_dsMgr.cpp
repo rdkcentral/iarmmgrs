@@ -263,6 +263,20 @@ static IARM_Bus_DSMgr_EventData_t makeHpdEvent(dsDisplayEvent_t event)
 }
 
 /* -----------------------------------------------------------------------
+ * Minimal Telemetry2 mock — only TelemetryApiImpl, no WPEFramework ITelemetry
+ * dependency.  dsMgr.c calls t2_event_s() from dumpHdmiEdidInfo; without a
+ * registered impl TelemetryApi asserts impl != nullptr and then crashes.
+ * --------------------------------------------------------------------- */
+class TelemetryTestMock : public TelemetryApiImpl {
+public:
+    MOCK_METHOD(void,    t2_init,    (char *),                          (override));
+    MOCK_METHOD(void,    t2_uninit,  (),                                (override));
+    MOCK_METHOD(T2ERROR, t2_event_s, (const char *, const char *),      (override));
+    MOCK_METHOD(T2ERROR, t2_event_d, (const char *, int),               (override));
+    MOCK_METHOD(T2ERROR, t2_event_f, (char *, double),                  (override));
+};
+
+/* -----------------------------------------------------------------------
  * Fixture
  *
  * A NiceMock<IarmBusImplMock> is installed for each test so that
@@ -280,12 +294,14 @@ protected:
     ::testing::NiceMock<IarmBusImplMock> iarmMock;
     ::testing::NiceMock<DsHalMock>       dsHalMock;
     ::testing::NiceMock<WrapsImplMock>   wrapsMock;
+    ::testing::NiceMock<TelemetryTestMock> telemetryMock;
 
     void SetUp() override
     {
         IarmBus::setImpl(&iarmMock);
         DsHal::setImpl(&dsHalMock);
         Wraps::setImpl(&wrapsMock);
+        TelemetryApi::setImpl(&telemetryMock);
 
         /* Default: any fopen call not matched by a specific EXPECT_CALL
          * returns nullptr.  Without this, setting EXPECT_CALL for one
@@ -329,9 +345,11 @@ protected:
         ::testing::Mock::VerifyAndClearExpectations(&iarmMock);
         ::testing::Mock::VerifyAndClearExpectations(&dsHalMock);
         ::testing::Mock::VerifyAndClearExpectations(&wrapsMock);
+        ::testing::Mock::VerifyAndClearExpectations(&telemetryMock);
         IarmBus::setImpl(nullptr);
         DsHal::setImpl(nullptr);
         Wraps::setImpl(nullptr);
+        TelemetryApi::setImpl(nullptr);
     }
 };
 
