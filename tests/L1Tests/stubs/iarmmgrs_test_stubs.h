@@ -200,6 +200,14 @@ typedef struct _dsForceDisable4KParam_t {
     bool     disable;
 } dsForceDisable4KParam_t;
 
+/* ---- Video background color — must precede _dsSetBackgroundColorParam_t */
+typedef enum _dsVideoBackgroundColor_t {
+    dsVIDEO_BGCOLOR_NONE,
+    dsVIDEO_BGCOLOR_BLACK,
+    dsVIDEO_BGCOLOR_WHITE,
+    dsVIDEO_BGCOLOR_MAX
+} dsVideoBackgroundColor_t;
+
 typedef struct _dsSetBackgroundColorParam_t {
     intptr_t                 handle;
     dsVideoBackgroundColor_t color;
@@ -214,14 +222,6 @@ typedef struct _dsEdidIgnoreParam_t {
 #ifndef dsEEDID_MAX_DATA_SIZE
 #define dsEEDID_MAX_DATA_SIZE 512
 #endif
-
-/* ---- Video background color -------------------------------------------- */
-typedef enum _dsVideoBackgroundColor_t {
-    dsVIDEO_BGCOLOR_NONE,
-    dsVIDEO_BGCOLOR_BLACK,
-    dsVIDEO_BGCOLOR_WHITE,
-    dsVIDEO_BGCOLOR_MAX
-} dsVideoBackgroundColor_t;
 
 typedef struct _dsEDIData_t {
     unsigned char           productCode[2];
