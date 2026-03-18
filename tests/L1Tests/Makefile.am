@@ -54,7 +54,6 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -UMAX_LANGUAGE_LEN -UdsFPDColor_Make \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.h \
               -I/usr/include/libdrm \
-              -I$(DS_IF_DIR)/include \
               -I$(top_srcdir)/tests/L1Tests/stubs \
               $(GLIB_CFLAGS) \
               -DRDK_MFRLIB_NAME='"libmfr_test_stub.so"'

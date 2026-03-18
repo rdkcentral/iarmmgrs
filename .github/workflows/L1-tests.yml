@@ -93,12 +93,6 @@ jobs:
           ref: feature/RDKEMW-14961
           token: ${{ secrets.RDKCM_RDKE }}
     
-      - name: Checkout rdk-halif-device_settings
-        uses: actions/checkout@v3
-        with:
-          repository: rdkcentral/rdk-halif-device_settings
-          path: rdk-halif-device_settings
-
       - name: Checkout googletest
         uses: actions/checkout@v3
         with:
@@ -206,7 +200,8 @@ jobs:
               dsTypes.h dsError.h dsDisplay.h \
               dsAudioConfig.h dsVideoPortConfig.h \
               dsRpc.h dsMgr.h \
-              mfrMgr.h plat_power.h rfcapi.h; do
+              mfrMgr.h plat_power.h rfcapi.h \
+              dsVideoPort.h dsAudio.h dsUtl.h; do
             printf "$WRAPPER\n" > "$STUBS/$f"
           done
 
@@ -236,8 +231,7 @@ jobs:
           export LIBRARY_PATH="$GITHUB_WORKSPACE/install/usr/lib:${LIBRARY_PATH:-}"
 
           ./configure --enable-l1tests \
-            TESTFRAMEWORK_DIR="$GITHUB_WORKSPACE/entservices-testframework" \
-            DS_IF_DIR="$GITHUB_WORKSPACE/rdk-halif-device_settings"
+            TESTFRAMEWORK_DIR="$GITHUB_WORKSPACE/entservices-testframework"
           make -C tests/L1Tests
 
       - name: Run unit tests without valgrind 

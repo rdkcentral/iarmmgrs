@@ -100,9 +100,6 @@ AC_ARG_ENABLE([l1tests],
 dnl Path to entservices-testframework checkout (needed when --enable-l1tests)
 AC_ARG_VAR([TESTFRAMEWORK_DIR], [Path to entservices-testframework checkout])
 
-dnl Paths to DS API headers (needed when --enable-l1tests and dsmgr tests are built)
-AC_ARG_VAR([DS_IF_DIR], [Path to rdk-halif-device_settings checkout])
-AC_ARG_VAR([DS_DIR], [Path to devicesettings checkout])
 
 AM_CONDITIONAL([ENABLE_L1TESTS], [test "x$enable_l1tests" = "xyes"])
 
