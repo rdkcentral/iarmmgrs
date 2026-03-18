@@ -223,7 +223,7 @@ typedef struct _dsEdidIgnoreParam_t {
 #define dsEEDID_MAX_DATA_SIZE 512
 #endif
 
-typedef struct _dsEDIData_t {
+typedef struct _dsDisplayEDID_t {
     unsigned char           productCode[2];
     unsigned char           serialNumber[4];
     unsigned char           weekOfManufacture;
@@ -237,7 +237,7 @@ typedef struct _dsEDIData_t {
     int                     numSupportedResolution;
     dsVideoPortResolution_t suppResolutionList[64];
     char                    monitorName[14];
-} dsEDIData_t;
+} dsDisplayEDID_t;
 
 /* Compatibility alias: test code written against an older HAL revision uses
  * numOfSupportedResolution; the canonical field name is numSupportedResolution. */
@@ -246,8 +246,8 @@ typedef struct _dsEDIData_t {
 #endif
 
 typedef struct _dsDisplayGetEDIDParam_t {
-    intptr_t    handle;
-    dsEDIData_t edid;
+    intptr_t        handle;
+    dsDisplayEDID_t edid;
 } dsDisplayGetEDIDParam_t;
 
 typedef struct _dsDisplayGetEDIDBytesParam_t {
