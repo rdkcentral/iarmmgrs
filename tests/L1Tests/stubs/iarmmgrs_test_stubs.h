@@ -312,6 +312,10 @@ typedef struct _dsAudioSetStereoAutoParam_t {
 #ifndef _IARMMGRS_STUB_DSMGR_
 #define _IARMMGRS_STUB_DSMGR_
 
+/* IARM_Result_t comes from Iarm.h (testframework), which is not guaranteed
+ * to be in scope when this stub is pulled in transitively (e.g. via mfrMgr.h
+ * before Iarm.h).  Only emit the declarations when the type is available. */
+#ifdef IARM_RESULT_SUCCESS
 #ifdef __cplusplus
 extern "C" {
 #endif
@@ -322,6 +326,7 @@ IARM_Result_t dsMgr_term(void);
 #ifdef __cplusplus
 }
 #endif
+#endif /* IARM_RESULT_SUCCESS */
 
 /* dsAudioPortState_t and IARM_Bus_DSMgr_EventData_t are already defined by
  * devicesettings.h when it is force-included. */
