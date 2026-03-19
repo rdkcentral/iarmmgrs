@@ -64,7 +64,6 @@ jobs:
           libsystemd-dev libboost-all-dev libwebsocketpp-dev
           meson libcunit1 libcunit1-dev curl
           protobuf-compiler-grpc libgrpc-dev libgrpc++-dev
-          libyajl-dev
 
       - name: Install GStreamer
         run: |

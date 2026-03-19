@@ -111,7 +111,7 @@ run_L1Tests_SOURCES = \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.cpp
 
-run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl
+run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS)
 
 # Run tests on 'make check'
 TESTS = run_L1Tests

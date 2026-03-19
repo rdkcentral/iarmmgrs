@@ -62,10 +62,12 @@
 #define __TIMESTAMP(...)
 #endif
 
-/* Include the three source files that form the deviceUpdateMgr binary.
- * They are found via -I$(top_srcdir)/deviceUpdateMgr in AM_CPPFLAGS. */
+/* Include the source files that form the deviceUpdateMgr binary.
+ * jsonParser_stub.cpp replaces the real jsonParser.cpp to avoid a
+ * yajl v1/v2 API incompatibility — none of the tests exercise JSON
+ * parsing so the stub no-op implementation is sufficient. */
+#include "jsonParser_stub.cpp"
 #include "utils.cpp"
-#include "jsonParser.cpp"
 #include "deviceUpdateMgrMain.cpp"
 
 using ::testing::_;
