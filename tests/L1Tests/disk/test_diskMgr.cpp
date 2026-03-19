@@ -92,12 +92,12 @@ TEST_F(DiskMgrStartTest, DISKMgrStart_AllIarmCallsSucceed_ReturnsSuccess)
 TEST_F(DiskMgrStartTest, DISKMgrStart_IarmInitFails_ReturnsFailureImmediately)
 {
     EXPECT_CALL(iarmMock, IARM_Bus_Init(_))
-        .WillOnce(Return(IARM_RESULT_FAILURE));
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
     /* Connect and RegisterEvent must NOT be called */
     EXPECT_CALL(iarmMock, IARM_Bus_Connect()).Times(0);
     EXPECT_CALL(iarmMock, IARM_Bus_RegisterEvent(_)).Times(0);
 
-    EXPECT_EQ(IARM_RESULT_FAILURE, DISKMgr_Start());
+    EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, DISKMgr_Start());
 }
 
 TEST_F(DiskMgrStartTest, DISKMgrStart_IarmConnectFails_TermsAndReturnsFailure)
@@ -105,12 +105,12 @@ TEST_F(DiskMgrStartTest, DISKMgrStart_IarmConnectFails_TermsAndReturnsFailure)
     EXPECT_CALL(iarmMock, IARM_Bus_Init(_))
         .WillOnce(Return(IARM_RESULT_SUCCESS));
     EXPECT_CALL(iarmMock, IARM_Bus_Connect())
-        .WillOnce(Return(IARM_RESULT_FAILURE));
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
     EXPECT_CALL(iarmMock, IARM_Bus_Term())
         .WillOnce(Return(IARM_RESULT_SUCCESS));
     EXPECT_CALL(iarmMock, IARM_Bus_RegisterEvent(_)).Times(0);
 
-    EXPECT_EQ(IARM_RESULT_FAILURE, DISKMgr_Start());
+    EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, DISKMgr_Start());
 }
 
 TEST_F(DiskMgrStartTest, DISKMgrStart_RegisterEventFails_DisconnectsTermsAndReturnsFailure)
@@ -120,13 +120,13 @@ TEST_F(DiskMgrStartTest, DISKMgrStart_RegisterEventFails_DisconnectsTermsAndRetu
     EXPECT_CALL(iarmMock, IARM_Bus_Connect())
         .WillOnce(Return(IARM_RESULT_SUCCESS));
     EXPECT_CALL(iarmMock, IARM_Bus_RegisterEvent(IARM_BUS_DISKMGR_EVENT_MAX))
-        .WillOnce(Return(IARM_RESULT_FAILURE));
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
     EXPECT_CALL(iarmMock, IARM_Bus_Disconnect())
         .WillOnce(Return(IARM_RESULT_SUCCESS));
     EXPECT_CALL(iarmMock, IARM_Bus_Term())
         .WillOnce(Return(IARM_RESULT_SUCCESS));
 
-    EXPECT_EQ(IARM_RESULT_FAILURE, DISKMgr_Start());
+    EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, DISKMgr_Start());
 }
 
 /* =======================================================================
@@ -173,7 +173,7 @@ TEST_F(DiskMgrStopTest, DISKMgrStop_SetsGRunningToFalse)
 TEST_F(DiskMgrStopTest, DISKMgrStop_DisconnectFails_StillTermsAndReturnsSuccess)
 {
     EXPECT_CALL(iarmMock, IARM_Bus_Disconnect())
-        .WillOnce(Return(IARM_RESULT_FAILURE));
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
     EXPECT_CALL(iarmMock, IARM_Bus_Term())
         .WillOnce(Return(IARM_RESULT_SUCCESS));
 
@@ -185,7 +185,7 @@ TEST_F(DiskMgrStopTest, DISKMgrStop_TermFails_StillReturnsSuccess)
     EXPECT_CALL(iarmMock, IARM_Bus_Disconnect())
         .WillOnce(Return(IARM_RESULT_SUCCESS));
     EXPECT_CALL(iarmMock, IARM_Bus_Term())
-        .WillOnce(Return(IARM_RESULT_FAILURE));
+        .WillOnce(Return(IARM_RESULT_IPCCORE_FAIL));
 
     EXPECT_EQ(IARM_RESULT_SUCCESS, DISKMgr_Stop());
 }
