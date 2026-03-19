@@ -123,7 +123,6 @@ jobs:
           headers/rdk/ds
           headers/rdk/iarmbus
           headers/rdk/halif/
-          headers/rdk/halif/deepsleep-manager
           headers/ccec/drivers
           headers/network
           headers/proc
@@ -155,7 +154,6 @@ jobs:
           rdk/iarmbus/libIARM.h
           rdk/iarmbus/libIBus.h
           rdk/iarmbus/libIBusDaemon.h
-          rdk/halif/deepsleep-manager/deepSleepMgr.h
           network/wifiSrvMgrIarmIf.h
           network/netsrvmgrIarm.h
           edid-parser.hpp
