@@ -50,6 +50,8 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -I$(top_srcdir)/sysmgr/include \
               -I$(top_srcdir)/stubs \
               -I$(top_srcdir)/dsmgr \
+              -I$(top_srcdir)/disk \
+              -I$(top_srcdir)/disk/include \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.h \
               -UMAX_LANGUAGE_LEN -UdsFPDColor_Make \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.h \
@@ -100,6 +102,7 @@ run_L1Tests_SOURCES = \
     sysmgr/test_sysMgr.cpp \
     mfr/test_mfrMgr.cpp \
     dsmgr/test_dsMgr.cpp \
+    disk/test_diskMgr.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Iarm.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.cpp \
