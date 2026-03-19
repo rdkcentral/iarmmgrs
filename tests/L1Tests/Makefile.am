@@ -54,6 +54,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -I$(top_srcdir)/disk/include \
               -I$(top_srcdir)/deviceUpdateMgr \
               -I$(top_srcdir)/deviceUpdateMgr/include \
+              -DUSE_YAJL2 \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.h \
               -UMAX_LANGUAGE_LEN -UdsFPDColor_Make \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.h \
@@ -111,7 +112,7 @@ run_L1Tests_SOURCES = \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.cpp
 
-run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS)
+run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl
 
 # Run tests on 'make check'
 TESTS = run_L1Tests

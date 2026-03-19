@@ -63,11 +63,10 @@
 #endif
 
 /* Include the source files that form the deviceUpdateMgr binary.
- * jsonParser_stub.cpp replaces the real jsonParser.cpp to avoid a
- * yajl v1/v2 API incompatibility — none of the tests exercise JSON
- * parsing so the stub no-op implementation is sufficient. */
-#include "jsonParser_stub.cpp"
+ * jsonParser.cpp is built with USE_YAJL2 defined (see AM_CPPFLAGS) so
+ * it compiles against the yajl 2 API provided by libyajl-dev. */
 #include "utils.cpp"
+#include "jsonParser.cpp"
 #include "deviceUpdateMgrMain.cpp"
 
 using ::testing::_;
