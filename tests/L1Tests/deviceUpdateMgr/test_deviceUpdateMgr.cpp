@@ -64,10 +64,14 @@
 
 /* Include the source files that form the deviceUpdateMgr binary.
  * jsonParser.cpp is built with USE_YAJL2 defined (see AM_CPPFLAGS) so
- * it compiles against the yajl 2 API provided by libyajl-dev. */
+ * it compiles against the yajl 2 API provided by libyajl-dev.
+ * deviceUpdateMgrMain.cpp contains a main() — rename it so it does not
+ * conflict with GTest's main() in test_main.cpp. */
 #include "utils.cpp"
 #include "jsonParser.cpp"
+#define main deviceUpdateMgrMain_unused
 #include "deviceUpdateMgrMain.cpp"
+#undef main
 
 using ::testing::_;
 using ::testing::Return;
