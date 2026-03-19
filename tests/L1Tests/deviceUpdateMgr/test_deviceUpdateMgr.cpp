@@ -50,6 +50,10 @@
 #include <gmock/gmock.h>
 #include <cstring>
 #include <map>
+#include <unistd.h>
+#include <sys/stat.h>
+#include <dirent.h>
+#include <cstdio>
 
 /* Iarm.h / IarmBusMock.h before the sources under test */
 #include "Iarm.h"
@@ -76,6 +80,8 @@
 using ::testing::_;
 using ::testing::Return;
 using ::testing::NiceMock;
+using ::testing::StrEq;
+using ::testing::Invoke;
 
 /* -----------------------------------------------------------------------
  * Helper: reset all file-scope globals to their initial values.
@@ -94,6 +100,14 @@ static void resetGlobals()
     loadDelayType        = 0;
     loadTimeAfterInactive = 0;
     loadBeforeHour       = 4;
+    timeToLoad           = 0;
+    forceUpdate          = false;
+    serverUpdatePath     = "/srv/device_update/";
+    tempFilePath         = "/tmp/devUpdate/";
+    recheckForUpdatesMin = 0;
+    delayTillAnnounceTimeMin = 10;
+    oneAnnouncePerRun    = false;
+    announceCounter      = 10;
 
     for (auto &kv : *updatesInProgress) {
         delete kv.second->acceptParams;
@@ -573,4 +587,589 @@ TEST_F(DeviceUpdateEventHandlerTest, ErrorEvent_SetsErrorCodeAndMessage)
 
     EXPECT_EQ(IMAGE_INVALID, (*updatesInProgress)[sid]->errorCode);
     EXPECT_EQ("bad image", (*updatesInProgress)[sid]->errorMsg);
+}
+
+TEST_F(DeviceUpdateEventHandlerTest, DownloadStatus_100Percent_InteractiveLoad_NoBroadcast)
+{
+    /* When interactiveLoad=true the manager must NOT auto-send LOAD_INITIATE */
+    interactiveLoad = true;
+    int sid = addSession(22);
+
+    IARM_Bus_DeviceUpdate_DownloadStatus_t eventData{};
+    eventData.updateSessionID = sid;
+    eventData.percentComplete = 100;
+
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(_, _, _, _)).Times(0);
+
+    _deviceUpdateEventHandler(IARM_BUS_DEVICE_UPDATE_NAME,
+                              IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
+                              &eventData, sizeof(eventData));
+
+    EXPECT_EQ(100, (*updatesInProgress)[sid]->downloadPercent);
+}
+
+TEST_F(DeviceUpdateEventHandlerTest, LoadStatus_Begin_SetsLoadCompleteFalse)
+{
+    int sid = addSession(31);
+    /* Pre-set to true so we can verify it gets written to false */
+    (*updatesInProgress)[sid]->loadComplete = true;
+
+    _IARM_Bus_DeviceUpdate_LoadStatus_t eventData{};
+    eventData.updateSessionID = sid;
+    eventData.loadStatus = LOAD_STATUS_BEGIN; /* 0 */
+
+    _deviceUpdateEventHandler(IARM_BUS_DEVICE_UPDATE_NAME,
+                              IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_STATUS,
+                              &eventData, sizeof(eventData));
+
+    EXPECT_FALSE((*updatesInProgress)[sid]->loadComplete);
+}
+
+TEST_F(DeviceUpdateEventHandlerTest, ReadyToDownload_UnknownSession_NoCrash)
+{
+    /* Session 999 has never been registered — must not crash */
+    interactiveDownload = false;
+
+    IARM_Bus_DeviceUpdate_ReadyToDownload_t eventData{};
+    eventData.updateSessionID = 999;
+
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(_, _, _, _)).Times(0);
+
+    EXPECT_NO_FATAL_FAILURE(
+        _deviceUpdateEventHandler(IARM_BUS_DEVICE_UPDATE_NAME,
+                                  IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
+                                  &eventData, sizeof(eventData)));
+}
+
+TEST_F(DeviceUpdateEventHandlerTest, DownloadStatus_UnknownSession_NoCrash)
+{
+    IARM_Bus_DeviceUpdate_DownloadStatus_t eventData{};
+    eventData.updateSessionID = 888;
+    eventData.percentComplete = 100;
+
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(_, _, _, _)).Times(0);
+
+    EXPECT_NO_FATAL_FAILURE(
+        _deviceUpdateEventHandler(IARM_BUS_DEVICE_UPDATE_NAME,
+                                  IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_STATUS,
+                                  &eventData, sizeof(eventData)));
+}
+
+TEST_F(DeviceUpdateEventHandlerTest, ErrorEvent_UnknownSession_NoCrash)
+{
+    IARM_Bus_Device_Update_Error_t eventData{};
+    eventData.updateSessionID = 777;
+    eventData.errorType = IMAGE_NOT_FOUND;
+
+    EXPECT_NO_FATAL_FAILURE(
+        _deviceUpdateEventHandler(IARM_BUS_DEVICE_UPDATE_NAME,
+                                  IARM_BUS_DEVICE_UPDATE_EVENT_ERROR,
+                                  &eventData, sizeof(eventData)));
+}
+
+TEST_F(DeviceUpdateEventHandlerTest, DefaultEvent_NoCrash)
+{
+    /* An unrecognised event ID must fall into the default branch without crashing */
+    EXPECT_NO_FATAL_FAILURE(
+        _deviceUpdateEventHandler(IARM_BUS_DEVICE_UPDATE_NAME,
+                                  (IARM_EventId_t)0xDEAD,
+                                  nullptr, 0));
+}
+
+TEST_F(DeviceUpdateEventHandlerTest, ReadyToDownload_InteractiveAndNoSession_NoBroadcast)
+{
+    interactiveDownload = true;
+
+    IARM_Bus_DeviceUpdate_ReadyToDownload_t eventData{};
+    eventData.updateSessionID = 555;
+
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(_, _, _, _)).Times(0);
+
+    _deviceUpdateEventHandler(IARM_BUS_DEVICE_UPDATE_NAME,
+                              IARM_BUS_DEVICE_UPDATE_EVENT_READY_TO_DOWNLOAD,
+                              &eventData, sizeof(eventData));
+}
+
+/* =======================================================================
+ * SendDownLoadInitTest — direct tests for sendDownLoadInit()
+ * ====================================================================== */
+
+class SendDownLoadInitTest : public ::testing::Test
+{
+protected:
+    NiceMock<IarmBusImplMock> iarmMock;
+
+    void SetUp() override
+    {
+        IarmBus::setImpl(&iarmMock);
+        resetGlobals();
+    }
+
+    void TearDown() override
+    {
+        ::testing::Mock::VerifyAndClearExpectations(&iarmMock);
+        IarmBus::setImpl(nullptr);
+        resetGlobals();
+    }
+};
+
+TEST_F(SendDownLoadInitTest, BroadcastsDownloadInitiateEvent)
+{
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        StrEq(IARM_BUS_DEVICE_UPDATE_NAME),
+        (IARM_EventId_t)IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_INITIATE,
+        _, _))
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+
+    sendDownLoadInit(42);
+}
+
+TEST_F(SendDownLoadInitTest, PropagatesBackgroundDownload)
+{
+    backgroundDownload = true;
+    requestedPercentIncrement = 20;
+    loadImageImmediately = true;
+
+    _IARM_Bus_DeviceUpdate_DownloadInitiate_t captured{};
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        _, (IARM_EventId_t)IARM_BUS_DEVICE_UPDATE_EVENT_DOWNLOAD_INITIATE, _, _))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            auto *evt = static_cast<_IARM_Bus_DeviceUpdate_DownloadInitiate_t *>(data);
+            captured = *evt;
+            return IARM_RESULT_SUCCESS;
+        });
+
+    sendDownLoadInit(1);
+
+    EXPECT_TRUE(captured.backgroundDownload);
+    EXPECT_EQ(20, captured.requestedPercentIncrement);
+    EXPECT_TRUE(captured.loadImageImmediately);
+    EXPECT_EQ(1, (int)captured.updateSessionID);
+}
+
+TEST_F(SendDownLoadInitTest, BroadcastFails_NoFatalError)
+{
+    ON_CALL(iarmMock, IARM_Bus_BroadcastEvent(_, _, _, _))
+        .WillByDefault(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_NO_FATAL_FAILURE(sendDownLoadInit(5));
+}
+
+/* =======================================================================
+ * SendLoadInitTest — direct tests for sendLoadInit()
+ * ====================================================================== */
+
+class SendLoadInitTest : public ::testing::Test
+{
+protected:
+    NiceMock<IarmBusImplMock> iarmMock;
+
+    void SetUp() override
+    {
+        IarmBus::setImpl(&iarmMock);
+        resetGlobals();
+    }
+
+    void TearDown() override
+    {
+        ::testing::Mock::VerifyAndClearExpectations(&iarmMock);
+        IarmBus::setImpl(nullptr);
+        resetGlobals();
+    }
+};
+
+TEST_F(SendLoadInitTest, BroadcastsLoadInitiateEvent)
+{
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        StrEq(IARM_BUS_DEVICE_UPDATE_NAME),
+        (IARM_EventId_t)IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_INITIATE,
+        _, _))
+        .WillOnce(Return(IARM_RESULT_SUCCESS));
+
+    sendLoadInit(7);
+}
+
+TEST_F(SendLoadInitTest, PropagatesLoadDelayType)
+{
+    loadDelayType = (int)LOAD_NORMAL;
+
+    _IARM_Bus_DeviceUpdate_LoadInitiate_t captured{};
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        _, (IARM_EventId_t)IARM_BUS_DEVICE_UPDATE_EVENT_LOAD_INITIATE, _, _))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            auto *evt = static_cast<_IARM_Bus_DeviceUpdate_LoadInitiate_t *>(data);
+            captured = *evt;
+            return IARM_RESULT_SUCCESS;
+        });
+
+    sendLoadInit(3);
+
+    EXPECT_EQ(LOAD_NORMAL, captured.loadDelayType);
+    EXPECT_EQ(3, (int)captured.updateSessionID);
+}
+
+TEST_F(SendLoadInitTest, BroadcastFails_NoFatalError)
+{
+    ON_CALL(iarmMock, IARM_Bus_BroadcastEvent(_, _, _, _))
+        .WillByDefault(Return(IARM_RESULT_IPCCORE_FAIL));
+
+    EXPECT_NO_FATAL_FAILURE(sendLoadInit(2));
+}
+
+/* =======================================================================
+ * GetEventDataTest — tests for getEventData()
+ * Creates temporary XML files in /tmp for each test.
+ * ====================================================================== */
+
+static const char *k_testXmlDir = "/tmp/iarmmgrs_test_getEventData/";
+
+class GetEventDataTest : public ::testing::Test
+{
+protected:
+    std::string tmpDir;
+
+    void SetUp() override
+    {
+        resetGlobals();
+        tmpDir = k_testXmlDir;
+        mkdir(tmpDir.c_str(), 0755);
+    }
+
+    void TearDown() override
+    {
+        /* Remove all files we created */
+        DIR *dp = opendir(tmpDir.c_str());
+        if (dp) {
+            struct dirent *de;
+            while ((de = readdir(dp)) != nullptr) {
+                if (de->d_type == DT_REG) {
+                    std::string path = tmpDir + de->d_name;
+                    unlink(path.c_str());
+                }
+            }
+            closedir(dp);
+        }
+        rmdir(tmpDir.c_str());
+        resetGlobals();
+    }
+
+    std::string writeFile(const std::string &name, const std::string &content)
+    {
+        std::string path = tmpDir + name;
+        FILE *f = fopen(path.c_str(), "w");
+        if (f) {
+            fwrite(content.c_str(), 1, content.size(), f);
+            fclose(f);
+        }
+        return path;
+    }
+};
+
+TEST_F(GetEventDataTest, FileNotFound_ReturnsFalse)
+{
+    _IARM_Bus_DeviceUpdate_Announce_t data{};
+    EXPECT_FALSE(getEventData("/tmp/no_such_file_xyz_12345.xml", &data));
+}
+
+TEST_F(GetEventDataTest, MissingSoftwareVersionTag_ReturnsFalse)
+{
+    std::string xml =
+        "<device>"
+        "<image:type>1</image:type>"
+        "<image:productName>TestDevice</image:productName>"
+        "</device>";
+    std::string path = writeFile("missing_ver.xml", xml);
+
+    _IARM_Bus_DeviceUpdate_Announce_t data{};
+    EXPECT_FALSE(getEventData(path, &data));
+}
+
+TEST_F(GetEventDataTest, ValidXml_ReturnsTrue)
+{
+    std::string xml =
+        "<device>"
+        "<image:softwareVersion>3.0.1</image:softwareVersion>"
+        "<image:type>2</image:type>"
+        "<image:productName>XR15</image:productName>"
+        "</device>";
+    std::string path = writeFile("valid.xml", xml);
+
+    _IARM_Bus_DeviceUpdate_Announce_t data{};
+    EXPECT_TRUE(getEventData(path, &data));
+}
+
+TEST_F(GetEventDataTest, ValidXml_PopulatesVersion)
+{
+    std::string xml =
+        "<device>"
+        "<image:softwareVersion>4.2.0</image:softwareVersion>"
+        "<image:type>0</image:type>"
+        "<image:productName>TestDev</image:productName>"
+        "</device>";
+    std::string path = writeFile("ver.xml", xml);
+
+    _IARM_Bus_DeviceUpdate_Announce_t data{};
+    getEventData(path, &data);
+
+    EXPECT_STREQ("4.2.0", data.deviceImageVersion);
+}
+
+TEST_F(GetEventDataTest, ValidXml_PopulatesDeviceType)
+{
+    std::string xml =
+        "<device>"
+        "<image:softwareVersion>1.0</image:softwareVersion>"
+        "<image:type>5</image:type>"
+        "<image:productName>Dev</image:productName>"
+        "</device>";
+    std::string path = writeFile("type.xml", xml);
+
+    _IARM_Bus_DeviceUpdate_Announce_t data{};
+    getEventData(path, &data);
+
+    EXPECT_EQ(5u, data.deviceImageType);
+}
+
+TEST_F(GetEventDataTest, ValidXml_PopulatesDeviceName)
+{
+    std::string xml =
+        "<device>"
+        "<image:softwareVersion>1.0</image:softwareVersion>"
+        "<image:type>0</image:type>"
+        "<image:productName>MyRemote</image:productName>"
+        "</device>";
+    std::string path = writeFile("name.xml", xml);
+
+    _IARM_Bus_DeviceUpdate_Announce_t data{};
+    getEventData(path, &data);
+
+    EXPECT_STREQ("MyRemote", data.deviceName);
+}
+
+TEST_F(GetEventDataTest, ValidXml_PropagatesForceUpdate)
+{
+    forceUpdate = true;
+    std::string xml =
+        "<device>"
+        "<image:softwareVersion>1.0</image:softwareVersion>"
+        "<image:type>0</image:type>"
+        "<image:productName>Dev</image:productName>"
+        "</device>";
+    std::string path = writeFile("force.xml", xml);
+
+    _IARM_Bus_DeviceUpdate_Announce_t data{};
+    getEventData(path, &data);
+
+    EXPECT_TRUE(data.forceUpdate);
+}
+
+/* =======================================================================
+ * LoadConfigTest — tests for loadConfig()
+ * Uses a temporary directory as the CWD so the "current directory"
+ * fallback path is predictable and isolated from real system files.
+ * ====================================================================== */
+
+static const char *k_testConfigDir = "/tmp/iarmmgrs_test_loadConfig/";
+static const char *k_configFileName = "deviceUpdateConfig.json";
+
+class LoadConfigTest : public ::testing::Test
+{
+protected:
+    char savedCwd[4096];
+
+    void SetUp() override
+    {
+        /* Save real CWD and switch into our scratch directory */
+        getcwd(savedCwd, sizeof(savedCwd));
+        mkdir(k_testConfigDir, 0755);
+        chdir(k_testConfigDir);
+        resetGlobals();
+    }
+
+    void TearDown() override
+    {
+        /* Remove the config file if it was created */
+        unlink(k_configFileName);
+        chdir(savedCwd);
+        rmdir(k_testConfigDir);
+        resetGlobals();
+    }
+
+    void writeConfig(const std::string &json)
+    {
+        FILE *f = fopen(k_configFileName, "w");
+        if (f) {
+            fwrite(json.c_str(), 1, json.size(), f);
+            fclose(f);
+        }
+    }
+};
+
+TEST_F(LoadConfigTest, NoFileFound_ReturnsFalse)
+{
+    /* The scratch directory has no deviceUpdateConfig.json and the standard
+     * system paths (/opt, /mnt/nfs/env, /etc) won't have it in CI either */
+    EXPECT_FALSE(loadConfig());
+}
+
+TEST_F(LoadConfigTest, ValidConfig_ReturnsTrue)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "forceUpdate": "false",
+        "interactiveDownload": "false",
+        "interactiveLoad": "false",
+        "loadDelayType": "2",
+        "loadTimeAfterInactive": "30",
+        "timeToLoad": "0",
+        "backgroundDownload": "true",
+        "loadImageImmediately": "false",
+        "loadBeforeHour": "6",
+        "requestedPercentIncrement": "25",
+        "recheckForUpdatesMin": "5",
+        "delayTillAnnounceTimeMin": "15",
+        "oneAnnouncePerRun": "true",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    EXPECT_TRUE(loadConfig());
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsServerUpdatePath)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_EQ("/tmp/test_srv/", serverUpdatePath);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsTempFilePath)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_EQ("/tmp/test_tmp/", tempFilePath);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsLoadDelayType)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "loadDelayType": "2",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_EQ(2, loadDelayType);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsRequestedPercentIncrement)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "requestedPercentIncrement": "25",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_EQ(25, requestedPercentIncrement);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsBackgroundDownload)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "backgroundDownload": "true",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_TRUE(backgroundDownload);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsDelayTillAnnounceTimeMin)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "delayTillAnnounceTimeMin": "20",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_EQ(20, delayTillAnnounceTimeMin);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsLoadBeforeHour)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "loadBeforeHour": "3",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_EQ(3, loadBeforeHour);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsInteractiveDownloadTrue)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "interactiveDownload": "true",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_TRUE(interactiveDownload);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsOneAnnouncePerRun)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "oneAnnouncePerRun": "true",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_TRUE(oneAnnouncePerRun);
+}
+
+TEST_F(LoadConfigTest, ValidConfig_SetsRecheckForUpdatesMin)
+{
+    writeConfig(R"({
+        "serverUpdatePath": "/tmp/test_srv/",
+        "tempFilePath": "/tmp/test_tmp/",
+        "recheckForUpdatesMin": "10",
+        "deviceFoldersToWatch": ["XR11v2"]
+    })");
+
+    loadConfig();
+
+    EXPECT_EQ(10, recheckForUpdatesMin);
 }
