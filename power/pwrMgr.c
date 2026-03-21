@@ -762,6 +762,13 @@ IARM_Result_t _SetPowerState(void *arg)
 #ifdef ENABLE_DEEP_SLEEP
             if(PWRMGR_POWERSTATE_STANDBY_DEEP_SLEEP == newState)
             {
+                IARM_Bus_PWRMgr_WakeupSrcConfig_Param_t wakeupSrcParam;
+                LOG("Entering into DEEPSLEEP\n");
+                LOG("Dumping WakeupSources\n");
+                LOG("==============================\n");
+                LOG("Deep Sleep Wakeup Time for %d Sec and Source type is %d\r\n",deep_sleep_wakeup_timeout_sec,wakeup_event_src);
+                _GetWakeupSrcConfig(&wakeupSrcParam);
+                LOG("==============================\n");
                 HandleDeepSleepStateChange((void *)pwrModeEventData);
             }
             else {
