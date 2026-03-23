@@ -63,6 +63,7 @@
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
 #include "videoOutputPortConfig.hpp"
+#include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
 extern IARM_Result_t _dsGetResolution(void *arg);
@@ -119,7 +120,7 @@ IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal
 #define EU_INTERLACED_FPS   "25"
 
 static bool IsEUPlatform = false;
-
+static profile_t profileType = PROFILE_INVALID;
 
 static char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
 
@@ -224,68 +225,11 @@ static bool isHDMIConnected()
 
 bool _hdcpenable()
 {
+#define HDCP14_PARAM_KEY_SIZE 288
+
     INT_INFO("Enter function");
-    int keySize = 0;
+	int keySize = HDCP14_PARAM_KEY_SIZE;
     char *hdcpKey = 0;
-	int IsMfrDataRead = false;
-
-    IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
-
-	do
-	{	
-		IsMfrDataRead = false;
-		/*Initialize the struct */
-		memset(param, 0, sizeof(*param));
-
-		/* Get Key */
-		param->type = mfrSERIALIZED_TYPE_HDMIHDCP;
-		param->bufLen = MAX_SERIALIZED_BUF;
-		
-		int ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME,IARM_BUS_MFRLIB_API_GetSerializedData,
-			(void *)param, sizeof(IARM_Bus_MFRLib_GetSerializedData_Param_t));
-
-		if(ret != IARM_RESULT_SUCCESS)
-		{
-			INT_ERROR("Call failed for %s: error code:%d\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP",ret);
-			/**Sleep for 4 sec - wait for MFR data to be ready*/
-			sleep(4);
-		}
-		else
-		{
-			keySize = param->bufLen;
-			hdcpKey = param->buffer;
-
-			if(0 == keySize){
-			    break;
-			}
-			
-			if ((hdcpKey[0] == 0) &&
-				(hdcpKey[1] == 0) &&
-				(hdcpKey[2] == 0) &&
-				(hdcpKey[3] == 0) &&
-				(hdcpKey[4] == 0) &&
-				(hdcpKey[5] == 0) 
-				)
-			{
-				INT_ERROR("Invalid MFR Data !! Wait for MFR data to be ready..Retry after 10 sec");
-				/**Sleep for 10 sec - wait for MFR data to be ready*/
-				sleep(10);
-			}
-			else
-			{
-				INT_INFO("Call succeed for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP", param->bufLen);
-				IsMfrDataRead = true;
-			}
-						
-			#if 1
-			    INT_INFO(" HDCP Key: ");
-				for (int i = 0; i < keySize; i++) {
-				INT_INFO(" %02X", (unsigned char)hdcpKey[i]);
-				}
-				INT_INFO("\r");
-			#endif
-		}
-	}while(false == IsMfrDataRead);	
 
 	INT_INFO("Setting HDCP true");
 	if(0 == keySize){
@@ -459,7 +403,15 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
-    _enableHDCPAsync();
+	
+	if (PROFILE_INVALID == profileType){
+        profileType = searchRdkProfile();
+    }
+	if(PROFILE_STB == profileType)
+	{
+    	_enableHDCPAsync();
+	}
+
     return IARM_RESULT_SUCCESS;
 }
 
