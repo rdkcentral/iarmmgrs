@@ -62,7 +62,7 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
-#include "videoOutputPortConfig.hpp"
+#include "videoOutputPortType.hpp"
 #include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
@@ -227,19 +227,19 @@ bool _hdcpenable()
 {
 #define HDCP14_PARAM_KEY_SIZE 288
 
-    INT_INFO("Enter function");
+    INT_INFO("Enter function \n");
 	int keySize = HDCP14_PARAM_KEY_SIZE;
-    char *hdcpKey = 0;
+    char *hdcpKey = NULL;
 
-	INT_INFO("Setting HDCP true");
+	INT_INFO("Setting HDCP true \n");
 	if(0 == keySize){
-		INT_ERROR("Ignoring request, invalid parameters ");
+		INT_ERROR("Ignoring request, invalid parameters \n");
 	}else{
 		device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
-		INT_INFO("Setting  HDCP done");
+		INT_INFO("Setting  HDCP done \n");
 	}
    
-    INT_INFO("Exit function");
+    INT_INFO("Exit function \n");
     return true;
 }
 
@@ -403,7 +403,7 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
-	
+
 	if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
