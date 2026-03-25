@@ -229,7 +229,7 @@ bool _hdcpenable()
 
     INT_INFO("Enter function \n");
 	int keySize = HDCP14_PARAM_KEY_SIZE;
-    char *hdcpKey = NULL;
+    char hdcpKey[HDCP14_PARAM_KEY_SIZE] = {0};
 
 	INT_INFO("Setting HDCP true \n");
 	if(0 == keySize){
