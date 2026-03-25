@@ -346,10 +346,17 @@ IARM_Result_t DSMgr_Start()
      * Broadcast AFTER dsMgr_init(), _SetVideoPortResolution(), and power
      * controller init so the client can immediately call any dsXxx RPC and
      * get a valid response.
+     *
+     * NOTE: IARM_Bus_BroadcastEvent requires a non-NULL data pointer — pass
+     * a zeroed EventData struct even though this event carries no payload.
      */
-    iarmStatus = IARM_Bus_BroadcastEvent(IARM_BUS_DSMGR_NAME,
-                                          (IARM_EventId_t)IARM_BUS_DSMGR_EVENT_RESTARTED,
-                                          NULL, 0);
+    {
+        IARM_Bus_DSMgr_EventData_t eventData;
+        memset(&eventData, 0, sizeof(eventData));
+        iarmStatus = IARM_Bus_BroadcastEvent(IARM_BUS_DSMGR_NAME,
+                                              (IARM_EventId_t)IARM_BUS_DSMGR_EVENT_RESTARTED,
+                                              (void *)&eventData, sizeof(eventData));
+    }
     if (IARM_RESULT_SUCCESS != iarmStatus) {
         INT_ERROR("[DSMgr] Failed to broadcast IARM_BUS_DSMGR_EVENT_RESTARTED (ret=%d)\r\n",
                   iarmStatus);
