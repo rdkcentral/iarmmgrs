@@ -101,8 +101,6 @@ static void _enableHDCPAsync();
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
-static pthread_mutex_t gHDCPEnableThreadMutex = PTHREAD_MUTEX_INITIALIZER;
-static bool gHDCPEnableThreadRunning = false;
 IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal Mode
 
 #define RES_MAX_LEN 10
@@ -242,10 +240,6 @@ static void* _HDCPEnableThreadFunc(void *arg)
 {
     (void)arg;
 	_hdcpenable();
-
-    pthread_mutex_lock(&gHDCPEnableThreadMutex);
-    gHDCPEnableThreadRunning = false;
-    pthread_mutex_unlock(&gHDCPEnableThreadMutex);
     return NULL;
 }
 
@@ -254,25 +248,11 @@ static void _enableHDCPAsync()
     pthread_t hdcpThreadId;
     pthread_attr_t attr;
 
-    pthread_mutex_lock(&gHDCPEnableThreadMutex);
-
-    if (gHDCPEnableThreadRunning) {
-        INT_INFO("HDCP enable thread already running \n");
-        pthread_mutex_unlock(&gHDCPEnableThreadMutex);
-        return;
-    }
-
-    gHDCPEnableThreadRunning = true;
-    pthread_mutex_unlock(&gHDCPEnableThreadMutex);
-
     pthread_attr_init(&attr);
     pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
 
     if (pthread_create(&hdcpThreadId, &attr, _HDCPEnableThreadFunc, NULL) != 0) {
         INT_ERROR("Failed to create HDCP enable thread \n");
-        pthread_mutex_lock(&gHDCPEnableThreadMutex);
-        gHDCPEnableThreadRunning = false;
-        pthread_mutex_unlock(&gHDCPEnableThreadMutex);
     }
 
     pthread_attr_destroy(&attr);
