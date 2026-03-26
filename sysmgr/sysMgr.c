@@ -96,12 +96,15 @@ IARM_Result_t SYSMgr_Start()
         UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterCall(IARM_BUS_SYSMGR_API_GetSystemStates, _GetSystemStates));
         UNLOCK_AND_RETURN_IF_ERROR(IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE, _sysEventHandler));
         initialized = 1;
+		LOG("Entering [%s] - [%s] - Before sd_notifyf\r\n", __FUNCTION__, IARM_BUS_SYSMGR_NAME);
 	#ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
               "STATUS=sysMgr is Successfully Initialized\n"
               "MAINPID=%lu",
               (unsigned long) getpid());
+		LOG("Entering [%s] - [%s] - sd_notifyf completed\r\n", __FUNCTION__, IARM_BUS_SYSMGR_NAME);
         #endif
+		LOG("Entering [%s] - [%s] - After sd_notifyf\r\n", __FUNCTION__, IARM_BUS_SYSMGR_NAME);
 
 #ifdef PID_FILE_PATH
 #define xstr(s) str(s)
