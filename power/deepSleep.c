@@ -184,6 +184,8 @@ static void SetPwrMgrDeepSleepMode(void *data)
                 int status = -1;
                 int retryCount = 0;
                 bool userWakeup = 0;
+		LOG("Update the Deepsleep marker to splunk.\n");
+                system("sh /lib/rdk/alertSystem.sh deepSleepMgrMain SYST_INFO_devicetoDS");
                 while(retryCount< 5) {
                     LOG("Device entering Deep sleep Mode.. \r\n");
                     userWakeup = 0;
