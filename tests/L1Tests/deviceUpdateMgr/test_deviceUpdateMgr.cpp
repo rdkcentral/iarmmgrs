@@ -58,6 +58,15 @@
 /* Iarm.h / IarmBusMock.h before the sources under test */
 #include "Iarm.h"
 #include "IarmBusMock.h"
+#include "WrapsMock.h"
+
+/* Declarations for the real (unwrapped) libc functions used by test helpers
+ * that need actual file I/O while Wraps intercepts all fopen/fclose/fgets. */
+extern "C" {
+    FILE *__real_fopen(const char *pathname, const char *mode);
+    int   __real_fclose(FILE *stream);
+    char *__real_fgets(char *s, int size, FILE *stream);
+}
 
 /* __TIMESTAMP() is used as a no-op logging call throughout the sources.
  * iarmUtil.h is an empty stub in the test build so it is not defined there;
@@ -827,9 +836,14 @@ class GetEventDataTest : public ::testing::Test
 {
 protected:
     std::string tmpDir;
+    ::testing::NiceMock<WrapsImplMock> wrapsMock;
 
     void SetUp() override
     {
+        Wraps::setImpl(&wrapsMock);
+        ON_CALL(wrapsMock, fopen(_, _)).WillByDefault(::testing::Invoke(__real_fopen));
+        ON_CALL(wrapsMock, fclose(_)).WillByDefault(::testing::Invoke(__real_fclose));
+        ON_CALL(wrapsMock, fgets(_, _, _)).WillByDefault(::testing::Invoke(__real_fgets));
         resetGlobals();
         tmpDir = k_testXmlDir;
         mkdir(tmpDir.c_str(), 0755);
@@ -850,6 +864,8 @@ protected:
             closedir(dp);
         }
         rmdir(tmpDir.c_str());
+        ::testing::Mock::VerifyAndClearExpectations(&wrapsMock);
+        Wraps::setImpl(nullptr);
         resetGlobals();
     }
 
@@ -976,9 +992,14 @@ class LoadConfigTest : public ::testing::Test
 {
 protected:
     char savedCwd[4096];
+    ::testing::NiceMock<WrapsImplMock> wrapsMock;
 
     void SetUp() override
     {
+        Wraps::setImpl(&wrapsMock);
+        ON_CALL(wrapsMock, fopen(_, _)).WillByDefault(::testing::Invoke(__real_fopen));
+        ON_CALL(wrapsMock, fclose(_)).WillByDefault(::testing::Invoke(__real_fclose));
+        ON_CALL(wrapsMock, fgets(_, _, _)).WillByDefault(::testing::Invoke(__real_fgets));
         /* Save real CWD and switch into our scratch directory */
         getcwd(savedCwd, sizeof(savedCwd));
         mkdir(k_testConfigDir, 0755);
@@ -992,6 +1013,8 @@ protected:
         unlink(k_configFileName);
         chdir(savedCwd);
         rmdir(k_testConfigDir);
+        ::testing::Mock::VerifyAndClearExpectations(&wrapsMock);
+        Wraps::setImpl(nullptr);
         resetGlobals();
     }
 
