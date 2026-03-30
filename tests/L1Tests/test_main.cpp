@@ -49,30 +49,31 @@ extern "C" {
 class WrapsGlobalEnvironment : public ::testing::Environment
 {
 public:
-    ::testing::NiceMock<WrapsImplMock> globalMock;
-
-    void SetUp() override
-    {
-        /* Configure the passthrough behaviours once; they persist for the
-         * lifetime of globalMock (i.e. the whole test-binary run). */
-        ON_CALL(globalMock, fopen(::testing::_, ::testing::_))
-            .WillByDefault(::testing::Invoke(__real_fopen));
-        ON_CALL(globalMock, fclose(::testing::_))
-            .WillByDefault(::testing::Invoke(__real_fclose));
-        ON_CALL(globalMock, fgets(::testing::_, ::testing::_, ::testing::_))
-            .WillByDefault(::testing::Invoke(__real_fgets));
-        /* Do NOT call Wraps::setImpl here — individual fixtures own the
-         * install/release cycle during test execution. */
-    }
+    void SetUp() override {}
 
     void TearDown() override
     {
+        /* Allocate once, then intentionally leak.  A heap mock that is
+         * never deleted has no destructor races with GMock's internal
+         * registry; the OS reclaims the memory when the process exits.
+         * Mock::AllowLeak() suppresses GMock's "leaked mock" warning. */
+        static ::testing::NiceMock<WrapsImplMock>* s_mock = []() {
+            auto* m = new ::testing::NiceMock<WrapsImplMock>();
+            ON_CALL(*m, fopen(::testing::_, ::testing::_))
+                .WillByDefault(::testing::Invoke(__real_fopen));
+            ON_CALL(*m, fclose(::testing::_))
+                .WillByDefault(::testing::Invoke(__real_fclose));
+            ON_CALL(*m, fgets(::testing::_, ::testing::_, ::testing::_))
+                .WillByDefault(::testing::Invoke(__real_fgets));
+            ::testing::Mock::AllowLeak(m);
+            return m;
+        }();
+
         /* All test fixtures have finished and left impl == nullptr.
          * Reinstall the passthrough so GTest can open the JSON/XML output
-         * file (or perform any other framework-level I/O) without hitting
-         * the EXPECT_NE(impl, nullptr) assertion inside Wraps::fopen. */
-        Wraps::setImpl(nullptr);    /* safe no-op if impl is already null */
-        Wraps::setImpl(&globalMock);
+         * file without hitting EXPECT_NE(impl, nullptr) inside Wraps::fopen. */
+        Wraps::setImpl(nullptr);   /* safe no-op if impl is already null */
+        Wraps::setImpl(s_mock);
     }
 };
 
