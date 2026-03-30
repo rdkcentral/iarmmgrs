@@ -47,6 +47,7 @@
 
 
 #include "sysMgr.h"
+#include "mfrMgr.h"
 
 #include "dsMgr.h"
 #include "dsUtl.h"
@@ -222,11 +223,93 @@ static bool isHDMIConnected()
 
 static bool _hdcpenable()
 {
-#define HDCP14_PARAM_KEY_SIZE 288
+//#define HDCP14_PARAM_KEY_SIZE 288
 
     INT_INFO("Enter function \n");
-	int keySize = HDCP14_PARAM_KEY_SIZE;
-    char hdcpKey[HDCP14_PARAM_KEY_SIZE] = {0};
+	errno_t rc = -1;
+	int keySize = HDCP_KEY_MAX_SIZE;
+    char hdcpKey[HDCP_KEY_MAX_SIZE] = {0};
+
+	IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
+
+	do
+	{	
+		IsMfrDataRead = false;
+		/*Initialize the struct */
+		memset(param, 0, sizeof(*param));
+
+		/* Get Key */
+		param->type = mfrSERIALIZED_TYPE_HDMIHDCP;
+		param->bufLen = MAX_SERIALIZED_BUF;
+		
+		int ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME,IARM_BUS_MFRLIB_API_GetSerializedData,
+			(void *)param, sizeof(IARM_Bus_MFRLib_GetSerializedData_Param_t));
+
+		if(ret != IARM_RESULT_SUCCESS)
+		{
+			//IARM_RESULT_IPCCORE_FAIL means MFR API is not supported in the platform. In that case, we should not retry to read MFR data and should break the loop.
+			//For other errors, we can retry to read MFR data after some delay as it could be transient error.
+			if(ret == IARM_RESULT_IPCCORE_FAIL)
+			{
+				INT_INFO("MFR Read not available in this platform \n");
+				break;
+			}
+
+			INT_ERROR("Call failed for %s: error code:%d\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP",ret);
+			/**Sleep for 2 sec - wait for MFR data to be ready*/
+			sleep(2);
+		}
+		else
+		{
+				//Reset the HDCP key buffer before copying the key read from MFR to avoid any garbage value in case of failure in memcpy_s.
+				rc = memset_s(hdcpKey, sizeof(hdcpKey), 0, sizeof(hdcpKey));
+				if (rc != EOK) {
+					INT_ERROR("Failed to reset HDCP key buffer: error code:%d\n", rc);
+					break;
+				}
+
+				keySize = param->bufLen;
+				if (keySize > HDCP_KEY_MAX_SIZE) {
+					INT_ERROR("HDCP key size %d exceeds max buffer size %d\n", keySize, HDCP_KEY_MAX_SIZE);
+					break;
+				}
+				rc = memcpy_s(hdcpKey, sizeof(hdcpKey), param->buffer, keySize);
+				if (rc != EOK) {
+					INT_ERROR("Failed to copy HDCP key: error code:%d\n", rc);
+					break;
+				}
+
+				if(0 == keySize){
+					break;
+				}
+			
+			if ((hdcpKey[0] == 0) &&
+				(hdcpKey[1] == 0) &&
+				(hdcpKey[2] == 0) &&
+				(hdcpKey[3] == 0) &&
+				(hdcpKey[4] == 0) &&
+				(hdcpKey[5] == 0) 
+				)
+			{
+				INT_ERROR("Invalid MFR Data !! Wait for MFR data to be ready..Retry after 10 sec\n");
+				/**Sleep for 10 sec - wait for MFR data to be ready*/
+				sleep(10);
+			}
+			else
+			{
+				INT_INFO("Call succeeded for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP\n", param->bufLen);
+				IsMfrDataRead = true;
+			}
+						
+			#if 1
+				INT_INFO("\n");
+				for (int i = 0; i < keySize; i++) {
+				INT_INFO(" %02X", (unsigned char)hdcpKey[i]);
+				}
+				INT_INFO("\n");
+			#endif
+		}
+	}while(false == IsMfrDataRead);	
 
 	INT_INFO("Setting HDCP true \n");
 	device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
