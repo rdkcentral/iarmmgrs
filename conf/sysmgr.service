@@ -18,6 +18,7 @@
 ##########################################################################
 [Unit]
 Description=IARM Mgr Daemon SYS MGR
+Requires=iarmbusd.service
 After=lighttpd.service iarmbusd.service
 
 [Service]
