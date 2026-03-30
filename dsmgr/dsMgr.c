@@ -223,12 +223,11 @@ static bool isHDMIConnected()
 
 static bool _hdcpenable()
 {
-//#define HDCP14_PARAM_KEY_SIZE 288
-
     INT_INFO("Enter function \n");
 	errno_t rc = -1;
 	int keySize = HDCP_KEY_MAX_SIZE;
     char hdcpKey[HDCP_KEY_MAX_SIZE] = {0};
+	int IsMfrDataRead = false;
 
 	IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
 
