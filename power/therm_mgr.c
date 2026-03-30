@@ -305,10 +305,6 @@ void initializeThermalProtection()
             LOG("*****Critical*** Fails to set temperature thresholds.. \n");
         }
 
-        if (pthread_create(&thermalThreadId, NULL, _PollThermalLevels, NULL))
-        {
-            LOG("*****Critical*** Fails to Create temperature monitor thread \n");
-        }
     }
     else
     {
