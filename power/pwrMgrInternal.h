@@ -138,6 +138,28 @@
 #include "libIARM.h"
 #include "pwrMgr.h"
 #include "plat_power.h"
+
+#define PADDING_SIZE 32
+
+/*LED settings*/
+typedef struct _PWRMgr_LED_Settings_t {
+    unsigned int brightness;
+    unsigned int color;
+} PWRMgr_LED_Settings_t;
+
+typedef struct _PWRMgr_Settings_t {
+    uint32_t magic;
+    uint32_t version;
+    uint32_t length;
+    volatile PWRMgr_PowerState_t powerState;
+    PWRMgr_LED_Settings_t ledSettings;
+#ifdef ENABLE_DEEP_SLEEP
+    uint32_t deep_sleep_timeout;
+#endif
+    bool nwStandbyMode;
+    char padding[PADDING_SIZE];
+} PWRMgr_Settings_t;
+
 IARM_Result_t PWRMgr_Start(int argc, char *argv[]);
 IARM_Result_t PWRMgr_Loop();
 IARM_Result_t PWRMgr_Stop(void);
