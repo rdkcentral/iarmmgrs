@@ -227,6 +227,7 @@ static bool _hdcpenable()
 	errno_t rc = -1;
 	int keySize = HDCP_KEY_MAX_SIZE;
     char hdcpKey[HDCP_KEY_MAX_SIZE] = {0};
+    int IsMfrDataRead = false;
 
 	IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
 
