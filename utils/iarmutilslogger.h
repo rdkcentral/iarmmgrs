@@ -51,6 +51,7 @@
 #define _IARM_IARMUTILSLOG_INTERNAL_
 #include "libIARM.h"
 #include "libIBusDaemon.h"
+#include <telemetry_busmessage_sender.h>
 
 #include <string.h>
 #if (defined(RDK_LOGGER_ENABLED))
@@ -122,9 +123,35 @@ extern int b_rdk_logger_enabled;
 #define INT_INFO(FORMAT, ...)      do { printf(FORMAT, ##__VA_ARGS__); } while(0)
 #define INT_WARNING(FORMAT, ...)   do { printf(FORMAT, ##__VA_ARGS__); } while(0)
 
+
 #endif
 
 
+
+#define TELEMETRY_INIT(component) \
+    do { \
+        t2_init((char*)component); \
+    } while(0)
+
+#define TELEMETRY_UNINIT() \
+    do { \
+        t2_uninit(); \
+    } while(0)
+
+#define TELEMETRY_EVENT_STRING(marker, value) \
+    do { \
+        t2_event_s((char*)marker, (char*)value); \
+    } while(0)
+
+#define TELEMETRY_EVENT_FLOAT(marker, value) \
+    do { \
+        t2_event_f((char*)marker, (double)value); \
+    } while(0)
+
+#define TELEMETRY_EVENT_INT(marker, value) \
+    do { \
+        t2_event_d((char*)marker, (int)value); \
+    } while(0)
 
 #endif
 

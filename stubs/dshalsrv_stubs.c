@@ -1,6 +1,8 @@
 #include "dsVideoPort.h"
 #include "dsDisplay.h"
 #include "dsInternal.h"
+#include "dsVideoPortConfig.h"
+#include "dsAudioConfig.h"
 
 #include <sys/stat.h>
 #include <unistd.h>
@@ -108,6 +110,26 @@ IARM_Result_t _dsEnableAudioPort(void *arg)
 IARM_Result_t _dsEnableVideoPort(void *arg)
 {
     return IARM_RESULT_SUCCESS;
+}
+
+dsError_t _dsGetVideoPortResolutions(int* outResolutionSize, dsVideoPortResolution_t** outResolutions)
+{
+    if (outResolutionSize) *outResolutionSize = 0;
+    if (outResolutions) *outResolutions = NULL;
+    return dsERR_NONE;
+}
+
+dsError_t _dsGetDefaultResolutionIndex(int* outDefaultIndex)
+{
+    if (outDefaultIndex) *outDefaultIndex = 0;
+    return dsERR_NONE;
+}
+
+dsError_t _dsGetAudioTypeConfigs(int* outConfigSize, const dsAudioTypeConfig_t** outConfigs)
+{
+    if (outConfigSize) *outConfigSize = 0;
+    if (outConfigs) *outConfigs = NULL;
+    return dsERR_NONE;
 }
 
 extern "C" {

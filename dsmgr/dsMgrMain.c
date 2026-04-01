@@ -80,29 +80,6 @@ void dslogCallback(int priority,const char *buff)
   
 #endif
 
-static void dsmgr_signalhandler_thread(int signum)
-{
-  (void)signum; /* signal number unused to keep handler simple and async-signal-safe */
-
-  /* Use only async-signal-safe functions in the signal handler */
-  const char msg[] = "Exiting DSMgr process, calling reboot script\n";
-  write(STDERR_FILENO, msg, sizeof(msg) - 1);
-
-  pid_t pid = fork();
-  if (pid == 0)
-  {
-    /* Child process: execute the reboot script via /bin/sh */
-    char *const argv[] = { (char *)"sh", (char *)"/rebootNow.sh", (char *)"-s", (char *)"dsMgrMain", NULL };
-    const char start_msg[] = "Start the rebootNow.sh script\n";
-    write(STDERR_FILENO, start_msg, sizeof(start_msg) - 1);
-    execve("/bin/sh", argv, NULL);
-    const char done_msg[] = "Completed the rebootNow.sh script\n";
-    write(STDERR_FILENO, done_msg, sizeof(done_msg) - 1);
-    /* If execve fails, exit the child immediately */
-    _exit(127);
-  }
-}
-
 int main(int argc, char *argv[])
 {
     const char* debugConfigFile = NULL;
@@ -156,15 +133,7 @@ int main(int argc, char *argv[])
         INT_ERROR("DSMgr_Start() failed\n");
         return -1;
     }
-    printf("DSMgr Register signal handler\n");
 
-    struct sigaction sa;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    sa.sa_handler = dsmgr_signalhandler_thread;
-
-    sigaction(SIGABRT, &sa, NULL);
-    sigaction(SIGSEGV, &sa, NULL);
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
