@@ -224,7 +224,7 @@ static bool isHDMIConnected()
 static bool _hdcpenable()
 {
     INT_INFO("Enter function \n");
-	errno_t rc = -1;
+	errno_t rc = EOK;
 	int keySize = HDCP_KEY_MAX_SIZE;
     char hdcpKey[HDCP_KEY_MAX_SIZE] = {0};
     int IsMfrDataRead = false;
@@ -268,10 +268,12 @@ static bool _hdcpenable()
 				}
 
 				keySize = param->bufLen;
-				if (keySize > HDCP_KEY_MAX_SIZE) {
-					INT_ERROR("HDCP key size %d exceeds max buffer size %d\n", keySize, HDCP_KEY_MAX_SIZE);
+				if (keySize < 0 || keySize > HDCP_KEY_MAX_SIZE) {
+					INT_ERROR("Incorrect HDCP key size %d maxsize %d\n", keySize, HDCP_KEY_MAX_SIZE);
+					rc = EINVAL;
 					break;
 				}
+
 				rc = memcpy_s(hdcpKey, sizeof(hdcpKey), param->buffer, keySize);
 				if (rc != EOK) {
 					INT_ERROR("Failed to copy HDCP key: error code:%d\n", rc);
@@ -309,10 +311,13 @@ static bool _hdcpenable()
 			#endif
 		}
 	}while(false == IsMfrDataRead);	
-
-	INT_INFO("Setting HDCP true \n");
-	device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
-	INT_INFO("Setting  HDCP done \n");
+	
+	if(rc == EOK)
+	{
+		INT_INFO("Setting HDCP true \n");
+		device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
+		INT_INFO("Setting  HDCP done \n");
+	}
    
     INT_INFO("Exit function \n");
     return true;
