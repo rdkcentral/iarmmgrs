@@ -315,8 +315,26 @@ static bool _hdcpenable()
 	if(rc == EOK)
 	{
 		INT_INFO("Setting HDCP true \n");
-		device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
-		INT_INFO("Setting  HDCP done \n");
+		int hdcpRetry = 0;
+		const int HDCP_MAX_RETRIES = 3;
+		bool hdcpEnabled = false;
+		while (hdcpRetry < HDCP_MAX_RETRIES && !hdcpEnabled)
+		{
+			try {
+				device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
+				hdcpEnabled = true;
+				INT_INFO("Setting HDCP done \n");
+			} catch (...) {
+				hdcpRetry++;
+				INT_ERROR("enabledHDCP failed, retry %d/%d\n", hdcpRetry, HDCP_MAX_RETRIES);
+				if (hdcpRetry < HDCP_MAX_RETRIES) {
+					sleep(4);
+				}
+			}
+		}
+		if (!hdcpEnabled) {
+			INT_ERROR("enabledHDCP failed after %d retries\n", HDCP_MAX_RETRIES);
+		}
 	}
    
     INT_INFO("Exit function \n");
