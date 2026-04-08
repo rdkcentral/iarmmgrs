@@ -75,6 +75,7 @@ extern IARM_Result_t _dsGetEDID(void *arg);
 extern IARM_Result_t _dsGetEDIDBytes(void *arg);
 extern IARM_Result_t _dsGetVideoPort(void *arg);
 extern IARM_Result_t _dsIsDisplayConnected(void *arg);
+extern IARM_Result_t _dsEnableHDCP(void *arg);
 extern IARM_Result_t _dsGetStereoAuto(void *arg);
 extern IARM_Result_t _dsIsDisplaySurround(void *arg);
 extern IARM_Result_t _dsGetForceDisable4K(void *arg);
@@ -320,6 +321,7 @@ static bool _hdcpenable()
 		bool hdcpEnabled = false;
 		while (hdcpRetry < HDCP_MAX_RETRIES && !hdcpEnabled)
 		{
+			/*
 			try {
 				device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
 				hdcpEnabled = true;
@@ -330,7 +332,27 @@ static bool _hdcpenable()
 				if (hdcpRetry < HDCP_MAX_RETRIES) {
 					sleep(4);
 				}
+			}*/
+
+			dsEnableHDCPParam_t hdcpParam;
+			hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
+			hdcpParam.key = hdcpKey;
+			hdcpParam.keySize = keySize;
+			hdcpParam.contentProtect = true;
+			if(_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS)
+			{
+				hdcpRetry++;
+				INT_ERROR("enabledHDCP failed, retry %d/%d\n", hdcpRetry, HDCP_MAX_RETRIES);
+				if (hdcpRetry < HDCP_MAX_RETRIES) {
+					sleep(4);
+				}
 			}
+			else
+			{
+				hdcpEnabled = true;
+				INT_INFO("Setting HDCP done \n");
+			}
+
 		}
 		if (!hdcpEnabled) {
 			INT_ERROR("enabledHDCP failed after %d retries\n", HDCP_MAX_RETRIES);
