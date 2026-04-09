@@ -1279,7 +1279,7 @@ IARM_Result_t getConfigData_(void *arg)
     IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
     IARM_Bus_MFRLib_Platformblockdata_Param_t bl = {0} ;
 
-    err = func(&bl.blocklist);
+    err = func(&bl);
     if(mfrERR_NONE != err)
     {
         LOG("Calling mfr_getConfigData returned error 0x%x\n", err);
