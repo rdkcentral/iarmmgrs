@@ -229,8 +229,15 @@ static bool _hdcpenable()
 	int keySize = HDCP_KEY_MAX_SIZE;
     char hdcpKey[HDCP_KEY_MAX_SIZE] = {0};
     int IsMfrDataRead = false;
+	dsEnableHDCPParam_t hdcpParam;
 
 	IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
+
+	rc = memset_s(&hdcpParam, sizeof(hdcpParam), 0, sizeof(hdcpParam));
+	if (rc != EOK) {
+		INT_ERROR("Failed to reset HDCP Param: error code:%d\n", rc);
+		return false;
+	}
 
 	do
 	{	
@@ -261,36 +268,29 @@ static bool _hdcpenable()
 		}
 		else
 		{
-				//Reset the HDCP key buffer before copying the key read from MFR to avoid any garbage value in case of failure in memcpy_s.
-				rc = memset_s(hdcpKey, sizeof(hdcpKey), 0, sizeof(hdcpKey));
-				if (rc != EOK) {
-					INT_ERROR("Failed to reset HDCP key buffer: error code:%d\n", rc);
-					break;
-				}
+			hdcpParam.keySize = param->bufLen;
+			if (hdcpParam.keySize < 0 || hdcpParam.keySize > HDCP_KEY_MAX_SIZE) {
+				INT_ERROR("Incorrect HDCP key size %d maxsize %d\n", hdcpParam.keySize, HDCP_KEY_MAX_SIZE);
+				rc = EINVAL;
+				break;
+			}
 
-				keySize = param->bufLen;
-				if (keySize < 0 || keySize > HDCP_KEY_MAX_SIZE) {
-					INT_ERROR("Incorrect HDCP key size %d maxsize %d\n", keySize, HDCP_KEY_MAX_SIZE);
-					rc = EINVAL;
-					break;
-				}
+			rc = memcpy_s(hdcpParam.hdcpKey, sizeof(hdcpParam.hdcpKey), param->buffer, hdcpParam.keySize);
+			if (rc != EOK) {
+				INT_ERROR("Failed to copy HDCP key: error code:%d\n", rc);
+				break;
+			}
 
-				rc = memcpy_s(hdcpKey, sizeof(hdcpKey), param->buffer, keySize);
-				if (rc != EOK) {
-					INT_ERROR("Failed to copy HDCP key: error code:%d\n", rc);
-					break;
-				}
-
-				if(0 == keySize){
-					break;
-				}
+			if(0 == hdcpParam.keySize){
+				break;
+			}
 			
-			if ((hdcpKey[0] == 0) &&
-				(hdcpKey[1] == 0) &&
-				(hdcpKey[2] == 0) &&
-				(hdcpKey[3] == 0) &&
-				(hdcpKey[4] == 0) &&
-				(hdcpKey[5] == 0) 
+			if ((hdcpParam.hdcpKey[0] == 0) &&
+				(hdcpParam.hdcpKey[1] == 0) &&
+				(hdcpParam.hdcpKey[2] == 0) &&
+				(hdcpParam.hdcpKey[3] == 0) &&
+				(hdcpParam.hdcpKey[4] == 0) &&
+				(hdcpParam.hdcpKey[5] == 0) 
 				)
 			{
 				INT_ERROR("Invalid MFR Data !! Wait for MFR data to be ready..Retry after 10 sec\n");
@@ -302,14 +302,6 @@ static bool _hdcpenable()
 				INT_INFO("Call succeeded for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP\n", param->bufLen);
 				IsMfrDataRead = true;
 			}
-						
-			#if 0
-				INT_INFO("\n");
-				for (int i = 0; i < keySize; i++) {
-				INT_INFO(" %02X", (unsigned char)hdcpKey[i]);
-				}
-				INT_INFO("\n");
-			#endif
 		}
 	}while(false == IsMfrDataRead);	
 	
@@ -319,26 +311,12 @@ static bool _hdcpenable()
 		int hdcpRetry = 0;
 		const int HDCP_MAX_RETRIES = 3;
 		bool hdcpEnabled = false;
+		hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
+		hdcpParam.contentProtect = true;
+		hdcpParam.rpcResult = dsERR_NONE;
+
 		while (hdcpRetry < HDCP_MAX_RETRIES && !hdcpEnabled)
 		{
-			/*
-			try {
-				device::VideoOutputPortType::getInstance(device::VideoOutputPortType::kHDMI).enabledHDCP(true, hdcpKey, keySize);
-				hdcpEnabled = true;
-				INT_INFO("Setting HDCP done \n");
-			} catch (...) {
-				hdcpRetry++;
-				INT_ERROR("enabledHDCP failed, retry %d/%d\n", hdcpRetry, HDCP_MAX_RETRIES);
-				if (hdcpRetry < HDCP_MAX_RETRIES) {
-					sleep(4);
-				}
-			}*/
-
-			dsEnableHDCPParam_t hdcpParam;
-			hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
-			hdcpParam.key = hdcpKey;
-			hdcpParam.keySize = keySize;
-			hdcpParam.contentProtect = true;
 			if(_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS)
 			{
 				hdcpRetry++;
