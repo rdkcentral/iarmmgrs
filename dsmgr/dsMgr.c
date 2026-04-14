@@ -96,7 +96,6 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
-static bool _hdcpenable();
 static void* _HDCPEnableThreadFunc(void *arg);
 static void _enableHDCPAsync();
 static int iResnCount = 5;
@@ -221,12 +220,11 @@ static bool isHDMIConnected()
     return ConParam.connected; 
 }
 
-static bool _hdcpenable()
+static void* _HDCPEnableThreadFunc(void *arg)
 {
+    (void)arg;
     INT_INFO("Enter function \n");
 	errno_t rc = EOK;
-	int keySize = HDCP_KEY_MAX_SIZE;
-    char hdcpKey[HDCP_KEY_MAX_SIZE] = {0};
     int IsMfrDataRead = false;
 	dsEnableHDCPParam_t hdcpParam;
 
@@ -235,7 +233,6 @@ static bool _hdcpenable()
 	rc = memset_s(&hdcpParam, sizeof(hdcpParam), 0, sizeof(hdcpParam));
 	if (rc != EOK) {
 		INT_ERROR("Failed to reset HDCP Param: error code:%d\n", rc);
-		return false;
 	}
 
 	do
@@ -337,13 +334,6 @@ static bool _hdcpenable()
 	}
    
     INT_INFO("Exit function \n");
-    return true;
-}
-
-static void* _HDCPEnableThreadFunc(void *arg)
-{
-    (void)arg;
-	_hdcpenable();
     return NULL;
 }
 
