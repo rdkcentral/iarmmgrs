@@ -62,7 +62,6 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
-#include "videoOutputPortType.hpp"
 #include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
@@ -299,7 +298,7 @@ static bool _hdcpenable()
 			}
 			else
 			{
-				INT_INFO("Call succeeded for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP\n", param->bufLen);
+				INT_INFO("Call succeeded for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP", param->bufLen);
 				IsMfrDataRead = true;
 			}
 		}
