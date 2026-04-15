@@ -120,7 +120,7 @@
 #define IARM_BUS_MFRLIB_API_Shutdown "mfrShutdown"
 
 #define MAX_BUF 255
-#define MAX_SERIALIZED_BUF 1280
+#define MAX_SERIALIZED_BUF (10*1024)
 typedef struct _IARM_Bus_MFRLib_SerializedData_Param_t{
     mfrSerializedType_t type;                        /*!< [in] Type of data to be queried*/	 
     char crypto[64];
