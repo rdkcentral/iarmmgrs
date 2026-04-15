@@ -126,7 +126,7 @@
 #define IARM_BUS_MFRLIB_API_GetConfigData       "mfr_getConfigData"   /*!< Method to get the BL Run time config data */
 
 /*! Data size management need to be improved */
-#define MAX_SERIALIZED_BUF 2048
+#define MAX_SERIALIZED_BUF (10*1024)
 #define MAX_BUF 255
 
 typedef enum _IARM_Bus_MFRLib_ThermalState_t{
