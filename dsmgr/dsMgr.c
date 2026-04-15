@@ -335,6 +335,35 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
+
+    /* Notify all libds clients (e.g. DisplaySettings plugin) that dsmgr has
+     * fully restarted and all HAL handles are now valid.
+     *
+     * Clients that registered for IARM_BUS_DSMGR_EVENT_RESTARTED will call
+     * refreshAllHandles() on their local config singletons to replace any
+     * stale intptr_t handles left over from the previous dsmgr process.
+     *
+     * Broadcast AFTER dsMgr_init(), _SetVideoPortResolution(), and power
+     * controller init so the client can immediately call any dsXxx RPC and
+     * get a valid response.
+     *
+     * NOTE: IARM_Bus_BroadcastEvent requires a non-NULL data pointer — pass
+     * a zeroed EventData struct even though this event carries no payload.
+     */
+    {
+        IARM_Bus_DSMgr_EventData_t eventData;
+        memset(&eventData, 0, sizeof(eventData));
+        iarmStatus = IARM_Bus_BroadcastEvent(IARM_BUS_DSMGR_NAME,
+                                              (IARM_EventId_t)IARM_BUS_DSMGR_EVENT_RESTARTED,
+                                              (void *)&eventData, sizeof(eventData));
+    }
+    if (IARM_RESULT_SUCCESS != iarmStatus) {
+        INT_ERROR("[DSMgr] Failed to broadcast IARM_BUS_DSMGR_EVENT_RESTARTED (ret=%d)\r\n",
+                  iarmStatus);
+    } else {
+        INT_INFO("[DSMgr] IARM_BUS_DSMGR_EVENT_RESTARTED broadcast OK\r\n");
+    }
+
     return IARM_RESULT_SUCCESS;
 }
 
