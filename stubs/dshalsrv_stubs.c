@@ -27,6 +27,11 @@ IARM_Result_t _dsIsDisplayConnected(void *arg)
     return IARM_RESULT_SUCCESS;
 }
 
+IARM_Result_t _dsEnableHDCP(void *arg)
+{
+    return IARM_RESULT_SUCCESS;
+}
+
 IARM_Result_t _dsGetIgnoreEDIDStatus(void* arg)
 {
     return IARM_RESULT_SUCCESS;
