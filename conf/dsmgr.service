@@ -18,13 +18,13 @@
 ##########################################################################
 [Unit]
 Description=IARM Mgr Daemon DS MGR
-Requires=iarmbusd.service
 After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager.service
 
 [Service]
 Type=notify
 ExecStartPre=/bin/mkdir -p /opt/persistent/ds
 ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
+ExecStopPost=/bin/sh /lib/rdk/ds-reboot.sh
 
 [Install]
 WantedBy=multi-user.target
