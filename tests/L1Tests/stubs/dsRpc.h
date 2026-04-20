@@ -160,10 +160,11 @@ typedef struct _dsAudioSetStereoAutoParam_t {
 #endif
 
 typedef struct _dsEnableHDCPParam_t {
-    int  keySize;
-    char key[HDCP_KEY_MAX_SIZE];
-    char hdcpKey[HDCP_KEY_MAX_SIZE];
-    char hdcpkey[HDCP_KEY_MAX_SIZE];
+    intptr_t  handle;
+    bool      contentProtect;
+    dsError_t rpcResult;
+    int       keySize;
+    char      key[HDCP_KEY_MAX_SIZE];
 } dsEnableHDCPParam_t;
 
 /* ---- API string macros (subset used by dsMgr.c) ------------------------- */
