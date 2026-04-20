@@ -60,7 +60,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.h \
               -I/usr/include/libdrm \
               -I$(top_srcdir)/tests/L1Tests/stubs \
-              $(GLIB_CFLAGS)"'
+              $(GLIB_CFLAGS)
 
 AM_CXXFLAGS = -Wall -std=c++14 -g
 
