@@ -399,7 +399,7 @@ static void writeImageCb(mfrUpgradeStatus_t * status)
 
     IARM_Result_t retVal;
     memcpy(&param.status, status, sizeof(mfrUpgradeStatus_t));
-    strncpy(param.cbData, (const char*)notifyStruct.cbData, MAX_BUF);
+    strncpy(param.cbData, notifyStruct.cbData, MAX_BUF);
     param.cbData[MAX_BUF-1] = '\0'; 
     LOG("In writeImage callback: cbData=%s, progress=%d, error = %d, error_str=%s, percentage = %d\n", param.cbData, param.status.progress, param.status.error, param.status.error_string, param.status.percentage/100);
 
@@ -1277,16 +1277,16 @@ IARM_Result_t getConfigData_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_SUCCESS;
     mfrError_t err = mfrERR_NONE;
     IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
-    unsigned int blocklist_value = 0;
+    IARM_Bus_MFRLib_Platformblockdata_Param_t bl = {0} ;
 
-    err = func(&blocklist_value);
+    err = func(&bl);
     if(mfrERR_NONE != err)
     {
         LOG("Calling mfr_getConfigData returned error 0x%x\n", err);
         retCode = IARM_RESULT_INVALID_PARAM;
     }
     else {
-        memcpy(&bl_rt_blocklist->blocklist, &blocklist_value, sizeof(unsigned int));
+        memcpy(bl_rt_blocklist, &bl,sizeof(IARM_Bus_MFRLib_Platformblockdata_Param_t));
         LOG(" BL runtime blocklist value is 0x%x\n",(unsigned int) bl_rt_blocklist->blocklist);
 	// handle the blocklist version set
     }
