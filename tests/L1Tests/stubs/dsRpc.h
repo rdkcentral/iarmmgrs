@@ -165,6 +165,7 @@ typedef struct _dsEnableHDCPParam_t {
     dsError_t rpcResult;
     int       keySize;
     char      key[HDCP_KEY_MAX_SIZE];
+    char      hdcpKey[HDCP_KEY_MAX_SIZE];
 } dsEnableHDCPParam_t;
 
 /* ---- API string macros (subset used by dsMgr.c) ------------------------- */
