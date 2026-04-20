@@ -1277,16 +1277,16 @@ IARM_Result_t getConfigData_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_SUCCESS;
     mfrError_t err = mfrERR_NONE;
     IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
-    IARM_Bus_MFRLib_Platformblockdata_Param_t bl = {0} ;
+    unsigned int blocklist_value = 0;
 
-    err = func(&bl);
+    err = func(&blocklist_value);
     if(mfrERR_NONE != err)
     {
         LOG("Calling mfr_getConfigData returned error 0x%x\n", err);
         retCode = IARM_RESULT_INVALID_PARAM;
     }
     else {
-        memcpy(bl_rt_blocklist, &bl,sizeof(IARM_Bus_MFRLib_Platformblockdata_Param_t));
+        memcpy(&bl_rt_blocklist->blocklist, &blocklist_value, sizeof(unsigned int));
         LOG(" BL runtime blocklist value is 0x%x\n",(unsigned int) bl_rt_blocklist->blocklist);
 	// handle the blocklist version set
     }
