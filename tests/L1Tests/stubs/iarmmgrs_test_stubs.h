@@ -274,6 +274,18 @@ typedef struct _dsAudioSetStereoAutoParam_t {
     bool     autoMode;
 } dsAudioSetStereoAutoParam_t;
 
+/* ---- HDCP RPC param structs -------------------------------------------- */
+#ifndef HDCP_KEY_MAX_SIZE
+#define HDCP_KEY_MAX_SIZE 4096
+#endif
+
+typedef struct _dsEnableHDCPParam_t {
+    int  keySize;
+    char key[HDCP_KEY_MAX_SIZE];
+    char hdcpKey[HDCP_KEY_MAX_SIZE];
+    char hdcpkey[HDCP_KEY_MAX_SIZE];
+} dsEnableHDCPParam_t;
+
 /* ---- API string macros (subset used by dsMgr.c) ------------------------ */
 #ifndef IARM_BUS_DSMGR_API_dsGetVideoPort
 #define IARM_BUS_DSMGR_API_dsGetVideoPort              "dsGetVideoPort"
