@@ -98,6 +98,7 @@ public:
     virtual IARM_Result_t dsGetEDIDBytes(dsDisplayGetEDIDBytesParam_t *p)              = 0;
     virtual IARM_Result_t dsGetStereoMode(dsAudioSetStereoModeParam_t *p)              = 0;
     virtual IARM_Result_t dsGetStereoAuto(dsAudioSetStereoAutoParam_t *p)               = 0;
+    virtual IARM_Result_t dsEnableHDCP(dsEnableHDCPParam_t *p)                         = 0;
 
     /* ---- Platform configuration functions called directly by dsMgr.c -- */
     virtual dsError_t dsGetVideoPortResolutions(int *outSize,
@@ -144,6 +145,9 @@ public:
                 (override));
     MOCK_METHOD(IARM_Result_t, dsGetStereoAuto,
                 (dsAudioSetStereoAutoParam_t *p),
+                (override));
+    MOCK_METHOD(IARM_Result_t, dsEnableHDCP,
+                (dsEnableHDCPParam_t *p),
                 (override));
     MOCK_METHOD(dsError_t, dsGetVideoPortResolutions,
                 (int *outSize, dsVideoPortResolution_t **outRes),
@@ -214,6 +218,18 @@ dsError_t _dsGetAudioTypeConfigs(int *outSize, const dsAudioTypeConfig_t **outCo
     if (outSize)    *outSize    = 0;
     if (outConfigs) *outConfigs = nullptr;
     return dsERR_NONE;
+}
+
+IARM_Result_t _dsEnableHDCP(void *arg)
+{
+    DsHal *impl = DsHal::getInstance();
+    if (impl)
+        return impl->dsEnableHDCP(static_cast<dsEnableHDCPParam_t *>(arg));
+    if (arg) {
+        dsEnableHDCPParam_t *p = static_cast<dsEnableHDCPParam_t *>(arg);
+        p->rpcResult = dsERR_NONE;
+    }
+    return IARM_RESULT_SUCCESS;
 }
 
 } /* extern "C" */

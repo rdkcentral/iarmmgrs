@@ -279,6 +279,14 @@ typedef struct _dsAudioSetStereoAutoParam_t {
 #define HDCP_KEY_MAX_SIZE 4096
 #endif
 
+#ifdef __cplusplus
+extern "C" {
+#endif
+IARM_Result_t _dsEnableHDCP(void *arg);
+#ifdef __cplusplus
+}
+#endif
+
 typedef struct _dsEnableHDCPParam_t {
     intptr_t  handle;
     bool      contentProtect;
