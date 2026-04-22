@@ -33,9 +33,20 @@
 # Only trigger a device reboot when the exit was abnormal.  A clean
 # systemctl stop (SERVICE_RESULT=success) does NOT reboot.
 
-SERVICE_RESULT="${SERVICE_RESULT:-unknown}"
 EXIT_CODE="${EXIT_CODE:-0}"
 EXIT_STATUS="${EXIT_STATUS:-}"
+
+# $SERVICE_RESULT is only injected by systemd >= v232.  On older systemd (this
+# platform runs v230) it is empty, so query the result from systemd directly.
+# NOTE: --value flag was added in v230; use Result=xxx parse as primary to be safe.
+if [ -z "${SERVICE_RESULT}" ] || [ "${SERVICE_RESULT}" = "unknown" ]; then
+    _raw=$(systemctl show dsmgr --property=Result 2>/dev/null)
+    # _raw is "Result=success" / "Result=timeout" etc.
+    SERVICE_RESULT=$(echo "${_raw}" | sed 's/^Result=//')
+    # If sed left it unchanged (no match) or empty, flag as unknown
+    [ "${SERVICE_RESULT}" = "${_raw}" ] && SERVICE_RESULT=""
+    SERVICE_RESULT="${SERVICE_RESULT:-unknown}"
+fi
 
 echo "[ds-reboot] dsMgrMain exited: SERVICE_RESULT=${SERVICE_RESULT}" \
      "EXIT_CODE=${EXIT_CODE} EXIT_STATUS=${EXIT_STATUS}" >&2
@@ -46,6 +57,34 @@ case "${SERVICE_RESULT}" in
         # No reboot needed.
         echo "[ds-reboot] Clean exit — no reboot triggered." >&2
         exit 0
+        ;;
+    unknown)
+        # systemctl show could not determine the result (very old systemd or
+        # dbus not available).  Last resort: use EXIT_CODE + EXIT_STATUS.
+        #
+        # Start-timeout case: systemd kills dsMgrMain with SIGTERM, so
+        #   EXIT_CODE=0  but  EXIT_STATUS=TERM (or 15).
+        # Clean systemctl stop: also SIGTERM, indistinguishable here.
+        # We therefore check the sentinel created by ExecStartPost:
+        #   sentinel present  → process had fully started → clean stop → no reboot
+        #   sentinel absent   → never reached ready       → start-timeout → reboot
+        SENTINEL="/tmp/dsmgr.ready"
+        if [ "${EXIT_CODE}" = "0" ]; then
+            if [ -f "${SENTINEL}" ]; then
+                echo "[ds-reboot] Result unknown; EXIT_CODE=0; sentinel present" \
+                     "— treating as clean exit, no reboot." >&2
+                rm -f "${SENTINEL}"
+                exit 0
+            else
+                echo "[ds-reboot] Result unknown; EXIT_CODE=0; sentinel absent" \
+                     "— dsMgrMain never fully started (start-timeout or early failure)" \
+                     "— triggering reboot." >&2
+            fi
+        else
+            echo "[ds-reboot] Result unknown; EXIT_CODE=${EXIT_CODE}" \
+                 "— treating as abnormal exit, triggering reboot." >&2
+        fi
+        rm -f "${SENTINEL}"
         ;;
     signal|core-dump)
         # Crashed by an unhandled signal (SIGSEGV=11, SIGABRT=6, etc.)
