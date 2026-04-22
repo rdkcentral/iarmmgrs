@@ -24,6 +24,12 @@ After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager
 Type=notify
 ExecStartPre=/bin/mkdir -p /opt/persistent/ds
 ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
+# ExecStartPost runs only after dsMgrMain has successfully started (sent READY=1
+# for Type=notify, or simply started for Type=simple).  The sentinel file is used
+# by ds-reboot.sh as a last resort (when systemctl show is also unavailable) to
+# distinguish a clean stop from a start-timeout where SERVICE_RESULT is not set.
+ExecStartPost=/bin/touch /tmp/dsmgr.ready
+ExecStop=/bin/rm -f /tmp/dsmgr.ready
 ExecStopPost=/bin/sh /usr/lib/ds-reboot.sh
 
 [Install]
