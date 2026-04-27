@@ -33,6 +33,7 @@
 extern "C" {
 #endif
 #include <stdio.h>
+
 #include <signal.h>
 #include <stdlib.h>
 #include <sys/types.h>
@@ -135,11 +136,41 @@ int main(int argc, char *argv[])
     }
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
+
+#ifdef DSMGR_TEST_NOTIFY_TIMEOUT
+    /*
+     * DSMGR_TEST_NOTIFY_TIMEOUT — instrumentation build flag.
+     *
+     * When defined, sd_notify(READY=1) is intentionally withheld so that
+     * systemd's TimeoutStartSec fires and ExecStopPost/ds-reboot.sh can be
+     * validated against the 'timeout' SERVICE_RESULT path.
+     *
+     * DSMgr_Loop() is still entered so the process stays alive long enough
+     * for the timeout to trigger naturally (it will be killed by systemd).
+     *
+     * DO NOT enable in production builds.
+     */
+    INT_WARN("[TEST] DSMGR_TEST_NOTIFY_TIMEOUT enabled — "
+             "skipping sd_notify(READY=1) to trigger systemd start-timeout.\n");
+#else
+    /* Runtime test hook: if trigger file exists, skip sd_notify(READY=1)
+     * to simulate a start-timeout without needing a special build.
+     * Usage on device:  touch /tmp/dsmgr_test_notify_timeout
+     *                   systemctl restart dsmgr
+     * The file is automatically removed after use (one-shot).
+     */
+    if (access("/tmp/dsmgr_notimeout", F_OK) == 0) {
+        INT_WARN("[TEST] /tmp/dsmgr_notimeout present — "
+                 "skipping sd_notify(READY=1) to trigger systemd start-timeout.\n");
+        remove("/tmp/dsmgr_notimeout"); /* one-shot: remove after use */
+    } else {
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
               "MAINPID=%lu", (unsigned long) getpid());
     #endif
+    }
+#endif /* DSMGR_TEST_NOTIFY_TIMEOUT */
 
 #ifdef PID_FILE_PATH
 #define xstr(s) str(s)
