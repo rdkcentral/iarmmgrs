@@ -107,19 +107,27 @@ static IARM_Result_t getSerializedData_(void *arg)
     if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
           (PROFILE_STB == profileType)){
         LOG(" Querying for sky model name ");
+        LOG("[%s:%s:%d] Calling mfrGetSerializedData\r\n", __FILE__, __func__, __LINE__);
         err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
+        LOG("[%s:%s:%d] Returned from mfrGetSerializedData err:%d \r\n", __FILE__, __func__, __LINE__, err);
     } else {
+        LOG("[%s:%s:%d] Calling mfrGetSerializedData\r\n", __FILE__, __func__, __LINE__);
          err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
+         LOG("[%s:%s:%d] Returned from mfrGetSerializedData err:%d \r\n", __FILE__, __func__, __LINE__, err);
     }
+    
     if(mfrERR_NONE == err)
     {
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);
+    LOG("[%s:%s:%d] Returned from memcpy_s safec_rc:%d \r\n", __FILE__, __func__, __LINE__, safec_rc);
     	if(safec_rc != EOK)
         {
                 ERR_CHK(safec_rc);
                 if(data.freeBuf)
                 {
+                    LOG("[%s:%s:%d] Freeing buffer\r\n", __FILE__, __func__, __LINE__);
                     data.freeBuf(data.buf);
+                    LOG("[%s:%s:%d] Successfully freed buffer \r\n", __FILE__, __func__, __LINE__);
                 }
                 return IARM_RESULT_INVALID_PARAM;
          }
@@ -127,7 +135,9 @@ static IARM_Result_t getSerializedData_(void *arg)
       
 	if(data.freeBuf)
         {
+            LOG("[%s:%s:%d] Freeing buffer\r\n", __FILE__, __func__, __LINE__);
              data.freeBuf(data.buf);
+             LOG("[%s:%s:%d] Successfully freed buffer \r\n", __FILE__, __func__, __LINE__);
         }
 	retCode=IARM_RESULT_SUCCESS;
     }
