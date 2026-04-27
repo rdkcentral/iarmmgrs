@@ -43,6 +43,7 @@ extern "C"
 #include <unistd.h>
 #include "pwrMgr.h"
 #include "plat_power.h"
+#include "pwrMgrInternal.h"
 #include "therm_mon.h"
 #include "pwrlogger.h"
 #include "libIBus.h"
@@ -175,6 +176,7 @@ static int thermal_poll_interval        = POLL_INTERVAL; //in seconds
  
 #endif //MFR_TEMP_CLOCK_READ
 
+extern PWRMgr_Settings_t m_settings;
 
 //Did we already read config params once ?
 static bool read_config_param           = FALSE;
@@ -304,11 +306,11 @@ void initializeThermalProtection()
         {
             LOG("*****Critical*** Fails to set temperature thresholds.. \n");
         }
-
         if (pthread_create(&thermalThreadId, NULL, _PollThermalLevels, NULL))
         {
             LOG("*****Critical*** Fails to Create temperature monitor thread \n");
         }
+
     }
     else
     {
@@ -517,6 +519,12 @@ static void *_PollThermalLevels(void *)
 
     while(TRUE)
     {
+        sleep(thermal_poll_interval);
+        if( m_settings.powerState == PWRMGR_POWERSTATE_STANDBY_DEEP_SLEEP )
+        {
+            LOG("[%s]  - Ignoring Thermal polling in DEEPSLEEP  m_settings.powerState -> %d :  \n", __FUNCTION__,m_settings.powerState);
+            continue;
+        }
         int result = PLAT_API_GetTemperature(&state, &current_Temp, &current_WifiTemp);//cur_Thermal_Level
         if(result)
         {
@@ -561,7 +569,6 @@ static void *_PollThermalLevels(void *)
         {
             LOG("Warning [%s]  - Failed to retrieve temperature from OEM\n", __FUNCTION__);
         }
-        sleep(thermal_poll_interval);
         pollCount++;
     }
 }
