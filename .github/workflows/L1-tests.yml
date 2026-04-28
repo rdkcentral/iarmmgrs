@@ -91,7 +91,7 @@ jobs:
         with:
           repository: rdkcentral/entservices-testframework
           path: entservices-testframework
-          ref: feature/RDKEMW-14961-2
+          ref: 1.0.5
     
       - name: Checkout googletest
         uses: actions/checkout@v3
