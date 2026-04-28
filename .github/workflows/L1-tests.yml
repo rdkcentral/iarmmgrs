@@ -182,13 +182,13 @@ jobs:
           touch plugins/plugins.h
 
       - name: Generate stub headers
-        # All stub content lives in tests/L1Tests/stubs/iarmmgrs_test_stubs.h
+        # All stub content lives in unit_tests/L1Tests/stubs/iarmmgrs_test_stubs.h
         # (committed to the repo).  The individual shadow headers that source
         # files #include are generated here as thin wrappers so they never
         # need to be committed.  Truly empty stubs (IARM, telemetry, …) are
         # created with touch.
         run: |
-          STUBS="$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests/stubs"
+          STUBS="$GITHUB_WORKSPACE/iarmmgrs/unit_tests/L1Tests/stubs"
           WRAPPER='#pragma once\n#include "iarmmgrs_test_stubs.h"'
 
           # Shadow headers: block the real HAL headers and redirect to the
@@ -230,11 +230,11 @@ jobs:
 
           ./configure --enable-l1tests \
             TESTFRAMEWORK_DIR="$GITHUB_WORKSPACE/entservices-testframework"
-          make -C tests/L1Tests
+          make -C unit_tests/L1Tests
 
       - name: Run unit tests without valgrind 
         run: |
-          cd "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests"
+          cd "$GITHUB_WORKSPACE/iarmmgrs/unit_tests/L1Tests"
           ./run_L1Tests --gtest_output="json:$GITHUB_WORKSPACE/iarmmgrsL1TestResults.json"
           cp "$GITHUB_WORKSPACE/iarmmgrsL1TestResults.json" \
              "$GITHUB_WORKSPACE/iarmmgrsL1TestResultsWithoutValgrind.json"
@@ -242,7 +242,7 @@ jobs:
       - name: Run unit tests with valgrind
         if: ${{ !env.ACT }}
         run: |
-          cd "$GITHUB_WORKSPACE/iarmmgrs/tests/L1Tests"
+          cd "$GITHUB_WORKSPACE/iarmmgrs/unit_tests/L1Tests"
           valgrind \
             --tool=memcheck \
             --log-file="$GITHUB_WORKSPACE/valgrind_log" \
@@ -264,7 +264,7 @@ jobs:
             '*/install/usr/include/*' \
             '*/googletest/*' \
             '*/entservices-testframework/*' \
-            '*/tests/*' \
+            '*/unit_tests/*' \
             '*/mocks/*' \
             '*/stubs/*' \
             -o filtered_coverage.info

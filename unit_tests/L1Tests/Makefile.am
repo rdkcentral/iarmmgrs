@@ -18,7 +18,7 @@
 ##########################################################################
 
 # Include paths:
-#   - tests/L1Tests/stubs          : stub headers for the test build.
+#   - unit_tests/L1Tests/stubs          : stub headers for the test build.
 #                                    libIBus.h, libIARM.h, libIBusDaemon.h,
 #                                    iarmUtil.h and libIARMCore.h are generated
 #                                    empty at CI time (touch).  mfrMgr.h is a
@@ -40,8 +40,8 @@
 # TESTFRAMEWORK_DIR is set by ./configure (AC_ARG_VAR) and points to the
 # entservices-testframework checkout.
 
-AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
-              -I$(top_srcdir)/tests/L1Tests/mocks \
+AM_CPPFLAGS = -I$(top_srcdir)/unit_tests/L1Tests/stubs \
+              -I$(top_srcdir)/unit_tests/L1Tests/mocks \
               -I$(top_srcdir)/mfr/include \
               -I$(top_srcdir)/mfr \
               -I$(TESTFRAMEWORK_DIR)/Tests/mocks \
@@ -59,7 +59,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/tests/L1Tests/stubs \
               -UMAX_LANGUAGE_LEN -UdsFPDColor_Make \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.h \
               -I/usr/include/libdrm \
-              -I$(top_srcdir)/tests/L1Tests/stubs \
+              -I$(top_srcdir)/unit_tests/L1Tests/stubs \
               $(GLIB_CFLAGS)
 
 AM_CXXFLAGS = -Wall -std=c++14 -g

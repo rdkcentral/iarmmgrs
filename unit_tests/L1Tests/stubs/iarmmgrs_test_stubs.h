@@ -18,7 +18,7 @@
  */
 
 /**
- * @file tests/L1Tests/stubs/iarmmgrs_test_stubs.h
+ * @file unit_tests/L1Tests/stubs/iarmmgrs_test_stubs.h
  *
  * Single combined stub header for the iarmmgrs L1 unit-test build.
  *

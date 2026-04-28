@@ -18,7 +18,7 @@
  */
 
 /**
- * @file tests/L1Tests/stubs/dsRpc.h
+ * @file unit_tests/L1Tests/stubs/dsRpc.h
  *
  * Minimal stub for devicesettings/rpc/include/dsRpc.h used in the L1 test
  * build.  Provides only the RPC parameter structs and the dsSleepMode_t
