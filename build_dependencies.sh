@@ -85,11 +85,6 @@ git clone https://github.com/rdkcentral/rdk-halif-power_manager.git
 export POWER_IF_PATH=$ROOT/rdk-halif-power_manager
 
 cd $ROOT
-rm -rf rdk-halif-deepsleep_manager
-git clone https://github.com/rdkcentral/rdk-halif-deepsleep_manager.git
-export DEEPSLEEP_IF_PATH=$ROOT/rdk-halif-deepsleep_manager
-
-cd $ROOT
 rm -rf rdkvhal-devicesettings-raspberrypi4
 git clone https://github.com/rdkcentral/rdkvhal-devicesettings-raspberrypi4.git
 export DS_HAL_PATH=$ROOT/rdkvhal-devicesettings-raspberrypi4

@@ -91,12 +91,24 @@ AC_SUBST(LDFLAGS_CLIENT)
 AC_SUBST(CFLAGS_CLIENT)
 AC_SUBST(AM_LDFLAGS)
 
+dnl Optional L1 unit tests support
+AC_ARG_ENABLE([l1tests],
+    AS_HELP_STRING([--enable-l1tests], [Enable L1 unit tests (requires gtest)]),
+    [enable_l1tests=$enableval],
+    [enable_l1tests=no])
+
+dnl Path to entservices-testframework checkout (needed when --enable-l1tests)
+AC_ARG_VAR([TESTFRAMEWORK_DIR], [Path to entservices-testframework checkout])
+
+
+AM_CONDITIONAL([ENABLE_L1TESTS], [test "x$enable_l1tests" = "xyes"])
+
 AC_CONFIG_FILES([Makefile
                  dsmgr/Makefile
                  sysmgr/Makefile
                  disk/Makefile
                  deviceUpdateMgr/Makefile
-                 ir/Makefile
-                 test/Makefile
+                 unit_tests/Makefile
+                 unit_tests/L1Tests/Makefile
                  mfr/Makefile])
 AC_OUTPUT

@@ -18,8 +18,12 @@
 ##########################################################################
 #
 
-SUBDIRS = dsmgr sysmgr deviceUpdateMgr receiver test $(SUBDIR_MFR)
-DIST_SUBDIRS = dsmgr sysmgr deviceUpdateMgr receiver test $(SUBDIR_MFR)
+SUBDIRS = dsmgr sysmgr deviceUpdateMgr receiver $(SUBDIR_MFR)
+DIST_SUBDIRS = dsmgr sysmgr deviceUpdateMgr receiver unit_tests $(SUBDIR_MFR)
+
+if ENABLE_L1TESTS
+SUBDIRS += unit_tests
+endif
 
 IPK_GEN_PATH = $(abs_top_builddir)/ipk
 IPK_GEN_STAGING_DIR=$(abs_top_builddir)/staging_dir
