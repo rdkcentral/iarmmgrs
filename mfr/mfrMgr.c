@@ -100,34 +100,59 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrError_t err = mfrERR_NONE;
     mfrSerializedData_t data = {0};
     errno_t safec_rc = -1;
-    int i;
+    size_t copy_len = 0;
+
+    if (NULL == param) {
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
+    LOG(" Querying for parameter type %d \n", param->type);
+
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
     if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
           (PROFILE_STB == profileType)){
         LOG(" Querying for sky model name ");
+        LOG("[%s:%s:%d] Calling mfrGetSerializedData\r\n", __FILE__, __func__, __LINE__);
         err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
+        LOG("[%s:%s:%d] Returned from mfrGetSerializedData err:%d \r\n", __FILE__, __func__, __LINE__, err);
     } else {
+        LOG("[%s:%s:%d] Calling mfrGetSerializedData\r\n", __FILE__, __func__, __LINE__);
          err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
+         LOG("[%s:%s:%d] Returned from mfrGetSerializedData err:%d \r\n", __FILE__, __func__, __LINE__, err);
     }
     if(mfrERR_NONE == err)
     {
-	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);
+        copy_len = data.bufLen;
+        if (copy_len > sizeof(param->buffer)) {
+            copy_len = sizeof(param->buffer);
+        }
+
+	if ((0 != copy_len) && (NULL == data.buf)) {
+	    return IARM_RESULT_INVALID_PARAM;
+	}
+
+	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, copy_len);
+    LOG("[%s:%s:%d] Returned from memcpy_s safec_rc:%d \r\n", __FILE__, __func__, __LINE__, safec_rc);
     	if(safec_rc != EOK)
         {
                 ERR_CHK(safec_rc);
                 if(data.freeBuf)
                 {
+                    LOG("[%s:%s:%d] Freeing buffer\r\n", __FILE__, __func__, __LINE__);
                     data.freeBuf(data.buf);
+                    LOG("[%s:%s:%d] Successfully freed buffer \r\n", __FILE__, __func__, __LINE__);
                 }
                 return IARM_RESULT_INVALID_PARAM;
          }
-         param->bufLen = data.bufLen;
+         param->bufLen = copy_len;
       
 	if(data.freeBuf)
         {
+            LOG("[%s:%s:%d] Freeing buffer\r\n", __FILE__, __func__, __LINE__);
              data.freeBuf(data.buf);
+             LOG("[%s:%s:%d] Successfully freed buffer \r\n", __FILE__, __func__, __LINE__);
         }
 	retCode=IARM_RESULT_SUCCESS;
     }

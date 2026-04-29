@@ -96,8 +96,14 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
+
+//#define TEST_MFR_CORRUPTION_HANDLING
+
+#if defined(TEST_MFR_CORRUPTION_HANDLING)
 static void* _HDCPEnableThreadFunc(void *arg);
 static void _enableHDCPAsync();
+#endif
+
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
@@ -220,6 +226,7 @@ static bool isHDMIConnected()
     return ConParam.connected; 
 }
 
+#if defined(TEST_MFR_CORRUPTION_HANDLING)
 static void* _HDCPEnableThreadFunc(void *arg)
 {
     (void)arg;
@@ -351,6 +358,7 @@ static void _enableHDCPAsync()
 
     pthread_attr_destroy(&attr);
 }
+#endif
 
 IARM_Result_t DSMgr_Start()
 {
@@ -478,7 +486,10 @@ IARM_Result_t DSMgr_Start()
     }
 	if(PROFILE_STB == profileType)
 	{
+		INT_INFO(" Its STB profile type .. \r\n");
+		#if defined(TEST_MFR_CORRUPTION_HANDLING)
     	_enableHDCPAsync();
+		#endif
 	}
 
     return IARM_RESULT_SUCCESS;
