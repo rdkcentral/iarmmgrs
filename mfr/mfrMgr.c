@@ -31,12 +31,17 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
 
 #include "mfrMgrInternal.h"
 #include "mfrMgr.h"
 #include "libIARMCore.h"
 #include "safec_lib.h"
 #include "rdkProfile.h"
+#include "mfrTypes.h"
+#include "dsRpc.h"
+
+extern IARM_Result_t _dsEnableHDCP(void *arg);
 
 /**
 * IARM call to set the FSR flag
@@ -1324,6 +1329,123 @@ IARM_Result_t getConfigData_(void *arg)
 #endif
 }
 
+static void* _HDCPEnableThreadFunc(void *arg)
+{
+    (void)arg;
+    LOG("_HDCPEnableThreadFunc: Enter\n");
+
+    mfrSerializedData_t data;
+    mfrError_t mfrErr;
+    int IsMfrDataRead = 0;
+    errno_t safec_rc = EOK;
+    dsEnableHDCPParam_t hdcpParam;
+
+    memset(&hdcpParam, 0, sizeof(hdcpParam));
+
+    do {
+        IsMfrDataRead = 0;
+        memset(&data, 0, sizeof(data));
+
+        LOG("[%s:%s:%d] Calling mfrGetSerializedData\r\n", __FILE__, __func__, __LINE__);
+        mfrErr = mfrGetSerializedData(mfrSERIALIZED_TYPE_HDMIHDCP, &data);
+        LOG("[%s:%s:%d] mfrGetSerializedData returned err:%d\r\n", __FILE__, __func__, __LINE__, mfrErr);
+
+        if (mfrERR_INVALID_PARAM == mfrErr) {
+            LOG("_HDCPEnableThreadFunc: mfrGetSerializedData Read not available for mfrSERIALIZED_TYPE_HDMIHDCP in this platform \n\n");
+            LOG("_HDCPEnableThreadFunc: Exit\n");
+            return NULL;
+        }
+
+        if (mfrERR_NONE != mfrErr) {
+            sleep(2); // Sleep before retrying to avoid busy loop in case of persistent errors
+            continue;
+        }
+
+        hdcpParam.keySize = (int)data.bufLen;
+        if (hdcpParam.keySize < 0 || hdcpParam.keySize > HDCP_KEY_MAX_SIZE) {
+            LOG("_HDCPEnableThreadFunc: Invalid HDCP key size %d max %d\n",
+                hdcpParam.keySize, HDCP_KEY_MAX_SIZE);
+            safec_rc = EINVAL;
+            if (data.freeBuf) data.freeBuf(data.buf);
+            break;
+        }
+
+        if (hdcpParam.keySize == 0) {
+            if (data.freeBuf) data.freeBuf(data.buf);
+            break;
+        }
+
+        if (data.buf == NULL) {
+            LOG("_HDCPEnableThreadFunc: NULL buffer returned\n");
+            break;
+        }
+
+        safec_rc = memcpy_s(hdcpParam.hdcpKey, sizeof(hdcpParam.hdcpKey),
+                            data.buf, hdcpParam.keySize);
+        if (data.freeBuf) data.freeBuf(data.buf);
+
+        if (safec_rc != EOK) {
+            ERR_CHK(safec_rc);
+            break;
+        }
+
+        if ((hdcpParam.hdcpKey[0] == 0) && (hdcpParam.hdcpKey[1] == 0) &&
+            (hdcpParam.hdcpKey[2] == 0) && (hdcpParam.hdcpKey[3] == 0) &&
+            (hdcpParam.hdcpKey[4] == 0) && (hdcpParam.hdcpKey[5] == 0)) {
+            LOG("_HDCPEnableThreadFunc: Invalid MFR data, retry after 10 sec\n");
+            sleep(10);
+        } else {
+            LOG("_HDCPEnableThreadFunc: Valid HDCP key retrieved bufLen:%d\n",
+                hdcpParam.keySize);
+            IsMfrDataRead = 1;
+        }
+    } while (!IsMfrDataRead);
+
+    if (safec_rc == EOK && IsMfrDataRead) {
+        int hdcpRetry = 0;
+        const int HDCP_MAX_RETRIES = 3;
+        int hdcpEnabled = 0;
+
+        hdcpParam.contentProtect = 1;
+        hdcpParam.rpcResult = dsERR_NONE;
+
+        while (hdcpRetry < HDCP_MAX_RETRIES && !hdcpEnabled) {
+            if (_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS) {
+                hdcpRetry++;
+                LOG("_HDCPEnableThreadFunc: enableHDCP failed, retry %d/%d\n",
+                    hdcpRetry, HDCP_MAX_RETRIES);
+                if (hdcpRetry < HDCP_MAX_RETRIES) sleep(4);
+            } else {
+                hdcpEnabled = 1;
+                LOG("_HDCPEnableThreadFunc: HDCP enabled successfully\n");
+            }
+        }
+        if (!hdcpEnabled) {
+            LOG("_HDCPEnableThreadFunc: enableHDCP failed after %d retries\n",
+                HDCP_MAX_RETRIES);
+        }
+    }
+
+    LOG("_HDCPEnableThreadFunc: Exit\n");
+    return NULL;
+}
+
+static void _enableHDCPAsync(void)
+{
+    pthread_t hdcpThreadId;
+    pthread_attr_t attr;
+
+    pthread_attr_init(&attr);
+    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+
+    if (pthread_create(&hdcpThreadId, &attr, _HDCPEnableThreadFunc, NULL) != 0) {
+        LOG("_enableHDCPAsync: Failed to create HDCP enable thread\n");
+    }
+
+    pthread_attr_destroy(&attr);
+    LOG("_enableHDCPAsync: Created HDCP enable thread\n");
+}
+
 IARM_Result_t MFRLib_Start(void)
 {
     IARM_Result_t err = IARM_RESULT_SUCCESS;
@@ -1558,6 +1680,18 @@ IARM_Result_t MFRLib_Start(void)
 		LOG("Warning: IARM_Bus_Term failed during error cleanup\n");
 	}
      }
+
+    /* Enable HDCP on STB platforms now that the MFR library is initialised.
+     * mfrGetSerializedData is called directly (no IARM roundtrip needed). */
+    if (IARM_RESULT_SUCCESS == err) {
+        if (PROFILE_INVALID == profileType) {
+            profileType = searchRdkProfile();
+        }
+        if (PROFILE_STB == profileType) {
+            LOG("MFRLib_Start: STB profile detected, spawning HDCP enable thread\n");
+            _enableHDCPAsync();
+        }
+    }
 
     return err;
 
