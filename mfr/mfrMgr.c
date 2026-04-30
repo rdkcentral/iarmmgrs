@@ -1329,6 +1329,7 @@ IARM_Result_t getConfigData_(void *arg)
 #endif
 }
 
+#if 0
 static void* _HDCPEnableThreadFunc(void *arg)
 {
     (void)arg;
@@ -1429,9 +1430,11 @@ static void* _HDCPEnableThreadFunc(void *arg)
     LOG("_HDCPEnableThreadFunc: Exit\n");
     return NULL;
 }
+#endif
 
 static void _enableHDCPAsync(void)
 {
+	#if 0
     pthread_t hdcpThreadId;
     pthread_attr_t attr;
 
@@ -1443,6 +1446,7 @@ static void _enableHDCPAsync(void)
     }
 
     pthread_attr_destroy(&attr);
+	#endif
     LOG("_enableHDCPAsync: Created HDCP enable thread\n");
 }
 
