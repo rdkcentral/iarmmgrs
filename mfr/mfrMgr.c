@@ -88,6 +88,9 @@ static IARM_Result_t setCPUClockSpeed_(void *arg);
 static IARM_Result_t getCPUClockSpeed_(void *arg);
 #endif
 
+
+void _enableHDCPAsync(void);
+
 static int is_connected = 0;
 
 static char writeImageCbModule[MAX_BUF] = "";
@@ -1329,7 +1332,6 @@ IARM_Result_t getConfigData_(void *arg)
 #endif
 }
 
-#if 0
 static void* _HDCPEnableThreadFunc(void *arg)
 {
     (void)arg;
@@ -1430,11 +1432,10 @@ static void* _HDCPEnableThreadFunc(void *arg)
     LOG("_HDCPEnableThreadFunc: Exit\n");
     return NULL;
 }
-#endif
 
-static void _enableHDCPAsync(void)
+void _enableHDCPAsync(void)
 {
-	#if 0
+    #if 0
     pthread_t hdcpThreadId;
     pthread_attr_t attr;
 
@@ -1446,7 +1447,7 @@ static void _enableHDCPAsync(void)
     }
 
     pthread_attr_destroy(&attr);
-	#endif
+    #endif
     LOG("_enableHDCPAsync: Created HDCP enable thread\n");
 }
 
