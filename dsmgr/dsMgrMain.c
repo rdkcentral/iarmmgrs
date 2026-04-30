@@ -137,9 +137,25 @@ int main(int argc, char *argv[])
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
 
+    /* --- INSTRUMENTED BUILD: reboot count test ---
+     * Sends READY=1 so systemd marks service active (SERVICE_RESULT=signal,
+     * not timeout), sleeps 5s, then crashes with SIGABRT.
+     * This validates the ds-reboot.sh signal path + reboot counter logic.
+     * DO NOT use in production builds.
+     */
+#ifdef ENABLE_SD_NOTIFY
+    sd_notifyf(0, "READY=1\n"
+               "STATUS=DsMgr TEST: raising SIGABRT to test reboot count\n"
+               "MAINPID=%lu", (unsigned long) getpid());
+#endif
+    INT_INFO("raise SIGABRT to check reboot count case\n");
+    sleep(5);
+    raise(SIGABRT);
+
+
     /* Runtime test hook: if trigger file exists, skip sd_notify(READY=1)
      * to simulate a start-timeout without needing a special build.
-     * Usage on device:  touch /tmp/dsmgr_test_notify_timeout
+     * Usage on device:  touch /tmp/dsmgr_notimeout
      *                   systemctl restart dsmgr
      * The file is automatically removed after use (one-shot).
      */
