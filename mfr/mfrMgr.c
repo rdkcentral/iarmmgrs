@@ -1350,7 +1350,7 @@ static void* _HDCPEnableThreadFunc(void *arg)
         mfrErr = mfrGetSerializedData(mfrSERIALIZED_TYPE_HDMIHDCP, &data);
         LOG("[%s:%s:%d] mfrGetSerializedData returned err:%d\r\n", __FILE__, __func__, __LINE__, mfrErr);
 
-        if (mfrERR_INVALID_PARAM == mfrErr) {
+        if (mfrERR_OPERATION_NOT_SUPPORTED == mfrErr) {
             LOG("_HDCPEnableThreadFunc: mfrGetSerializedData Read not available for mfrSERIALIZED_TYPE_HDMIHDCP in this platform \n\n");
             LOG("_HDCPEnableThreadFunc: Exit\n");
             return NULL;
