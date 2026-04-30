@@ -41,7 +41,7 @@
 #include "mfrTypes.h"
 #include "dsRpc.h"
 
-extern IARM_Result_t _dsEnableHDCP(void *arg);
+extern IARM_Result_t dsEnableHDCP(dsEnableHDCPParam_t *arg);
 
 /**
 * IARM call to set the FSR flag
@@ -1410,7 +1410,7 @@ static void* _HDCPEnableThreadFunc(void *arg)
         hdcpParam.rpcResult = dsERR_NONE;
 
         while (hdcpRetry < HDCP_MAX_RETRIES && !hdcpEnabled) {
-            if (_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS) {
+            if (dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS) {
                 hdcpRetry++;
                 LOG("_HDCPEnableThreadFunc: enableHDCP failed, retry %d/%d\n",
                     hdcpRetry, HDCP_MAX_RETRIES);
