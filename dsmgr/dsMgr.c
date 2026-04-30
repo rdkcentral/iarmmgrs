@@ -45,7 +45,6 @@
 #include "iarmUtil.h"
 #include "iarmutilslogger.h"
 
-
 #include "sysMgr.h"
 #include "mfrMgr.h"
 
@@ -97,12 +96,8 @@ static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
 
-//#define TEST_MFR_CORRUPTION_HANDLING
-
-#if defined(TEST_MFR_CORRUPTION_HANDLING)
-static void* _HDCPEnableThreadFunc(void *arg);
 static void _enableHDCPAsync();
-#endif
+static void* _HDCPEnableThreadFunc(void *arg);
 
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
@@ -226,11 +221,11 @@ static bool isHDMIConnected()
     return ConParam.connected; 
 }
 
-#if defined(TEST_MFR_CORRUPTION_HANDLING)
 static void* _HDCPEnableThreadFunc(void *arg)
 {
     (void)arg;
     INT_INFO("Enter function \n");
+	#if 0
 	errno_t rc = EOK;
     int IsMfrDataRead = false;
 	dsEnableHDCPParam_t hdcpParam;
@@ -339,13 +334,14 @@ static void* _HDCPEnableThreadFunc(void *arg)
 			INT_ERROR("enabledHDCP failed after %d retries\n", HDCP_MAX_RETRIES);
 		}
 	}
-   
+    #endif
     INT_INFO("Exit function \n");
     return NULL;
 }
 
 static void _enableHDCPAsync()
 {
+
     pthread_t hdcpThreadId;
     pthread_attr_t attr;
 
@@ -357,8 +353,11 @@ static void _enableHDCPAsync()
     }
 
     pthread_attr_destroy(&attr);
+
+
+	INT_INFO("Created HDCP enable thread \n");
 }
-#endif
+
 
 IARM_Result_t DSMgr_Start()
 {
@@ -487,9 +486,9 @@ IARM_Result_t DSMgr_Start()
 	if(PROFILE_STB == profileType)
 	{
 		INT_INFO(" Its STB profile type .. \r\n");
-		#if defined(TEST_MFR_CORRUPTION_HANDLING)
+		//#if defined(TEST_MFR_CORRUPTION_HANDLING)
     	_enableHDCPAsync();
-		#endif
+		//#endif
 	}
 
     return IARM_RESULT_SUCCESS;

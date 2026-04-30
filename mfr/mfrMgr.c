@@ -103,6 +103,7 @@ static IARM_Result_t getSerializedData_(void *arg)
     size_t copy_len = 0;
 
     if (NULL == param) {
+        LOG(" NULL parameter passed \n");
         return IARM_RESULT_INVALID_PARAM;
     }
 
@@ -111,6 +112,7 @@ static IARM_Result_t getSerializedData_(void *arg)
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
+    LOG(" profileType is %d \n", profileType);
     if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
           (PROFILE_STB == profileType)){
         LOG(" Querying for sky model name ");
@@ -120,7 +122,7 @@ static IARM_Result_t getSerializedData_(void *arg)
     } else {
         LOG("[%s:%s:%d] Calling mfrGetSerializedData\r\n", __FILE__, __func__, __LINE__);
          err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
-         LOG("[%s:%s:%d] Returned from mfrGetSerializedData err:%d \r\n", __FILE__, __func__, __LINE__, err);
+         LOG("[%s:%s:%d] Returned from mfrGetSerializedData err:%d data.buf:%p data.bufLen:%zu\r\n", __FILE__, __func__, __LINE__, err, data.buf, data.bufLen);
     }
     if(mfrERR_NONE == err)
     {
@@ -128,8 +130,10 @@ static IARM_Result_t getSerializedData_(void *arg)
         if (copy_len > sizeof(param->buffer)) {
             copy_len = sizeof(param->buffer);
         }
-
+        LOG("[%s:%s:%d] copy_len:%zu \r\n", __FILE__, __func__, __LINE__, copy_len);
+        
 	if ((0 != copy_len) && (NULL == data.buf)) {
+	    LOG(" NULL buffer returned \n");
 	    return IARM_RESULT_INVALID_PARAM;
 	}
 
