@@ -100,8 +100,57 @@ esac
 
 # Invoke the platform reboot script.
 # -s <component>  identifies the rebooting component in the reboot log.
+
+# ---------------------------------------------------------------------------
+# Reboot storm protection — mirrors reboot-count-checker.sh from RDK-v.
+#
+# RDK-v logic (reboot-count-checker.sh / rebootCounterCheck dsmgr):
+#   - Counter file: /opt/.dsmgr_restart_count  (persists across reboots)
+#   - Increment counter on every abnormal exit
+#   - count > 10  → log warning, suppress reboot (no more reboot loop)
+#   - count ≤ 10  → check dependency failure, then call rebootNow.sh
+#   - Reset counter: done on clean successful start via ExecStartPost in
+#     dsmgr.service (removes the counter file)
+#
+# RDK-v also waits for coredump upload before rebooting.  On RDK-e that
+# is handled asynchronously by breakpad, so the wait is intentionally skipped.
+# ---------------------------------------------------------------------------
+COUNTER_FILE="/opt/.dsmgr_restart_count"
+LOG_FILE="/opt/logs/uimgr_log.txt"
+MAX_REBOOTS=10
+
+# Read and increment counter (matches RDK-v: expr $count + 1 logic)
+if [ ! -f "${COUNTER_FILE}" ]; then
+    count=1
+else
+    count=$(cat "${COUNTER_FILE}" 2>/dev/null)
+    count=$(expr $count + 1)
+fi
+echo "${count}" > "${COUNTER_FILE}"
+
+echo "[ds-reboot] dsMgrMain restart count: ${count}/${MAX_REBOOTS}" >&2
+echo "[ds-reboot] dsMgrMain restart count: ${count}/${MAX_REBOOTS}" >> "${LOG_FILE}"
+
+if [ "${count}" -gt "${MAX_REBOOTS}" ]; then
+    # Mirrors: "-----Box has rebooted 10 times.. no more reboot----"
+    echo "[ds-reboot] Box has rebooted ${MAX_REBOOTS} times — no more reboot." >&2
+    echo "[ds-reboot] Box has rebooted ${MAX_REBOOTS} times — no more reboot." >> "${LOG_FILE}"
+    exit 1
+fi
+
+# Mirrors: check "Dependency failed" then pick -s or -c flag for rebootNow.sh
+if systemctl -l status dsmgr 2>/dev/null | grep -qi "Dependency failed"; then
+    echo "[ds-reboot] Dependency failure detected." >&2
+    REBOOT_ARGS="-s dsMgrMain -o due_to_service_dependency_failure"
+else
+    # -c indicates a crash reboot (mirrors RDK-v: /rebootNow.sh -c dsMgrMain)
+    REBOOT_ARGS="-c dsMgrMain"
+fi
+
+echo "[ds-reboot] Triggering: /rebootNow.sh ${REBOOT_ARGS}" >&2
+
 if [ -x /rebootNow.sh ]; then
-    exec /rebootNow.sh -s dsMgrMain
+    exec /rebootNow.sh ${REBOOT_ARGS}
 else
     echo "[ds-reboot] ERROR: /rebootNow.sh not found or not executable" >&2
     # Fall back to a hard reboot if the script is missing.
