@@ -31,6 +31,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
 
 #include "mfrMgrInternal.h"
 #include "mfrMgr.h"
@@ -84,6 +85,7 @@ static IARM_Result_t getCPUClockSpeed_(void *arg);
 #endif
 
 static int is_connected = 0;
+static pthread_mutex_t serialized_data_mutex = PTHREAD_MUTEX_INITIALIZER;
 
 static char writeImageCbModule[MAX_BUF] = "";
 static mfrUpgradeStatusNotify_t notifyStruct;
@@ -91,6 +93,11 @@ static mfrUpgradeStatusNotify_t notifyStruct;
 static mfrUpgradeStatus_t lastStatus;
 
 static profile_t profileType = PROFILE_INVALID;
+
+static unsigned long getThreadId_(void)
+{
+    return (unsigned long)pthread_self();
+}
 
 static IARM_Result_t getSerializedData_(void *arg)
 {
@@ -100,36 +107,82 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrError_t err = mfrERR_NONE;
     mfrSerializedData_t data = {0};
     errno_t safec_rc = -1;
-    int i;
+    size_t copy_len = 0;
+    unsigned long thread_id = getThreadId_();
+    int is_locked = 0;
+
+    if (NULL == param) {
+        LOG("[tid:%lu] NULL parameter passed\n", thread_id);
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
+    LOG("[tid:%lu] Querying for parameter type %d\n", thread_id, param->type);
+
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
+    LOG("[tid:%lu] profileType is %d\n", thread_id, profileType);
+
+    pthread_mutex_lock(&serialized_data_mutex);
+    is_locked = 1;
+    LOG("[tid:%lu] Locked serialized data mutex\n", thread_id);
+
     if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
           (PROFILE_STB == profileType)){
-        LOG(" Querying for sky model name ");
+        LOG("[tid:%lu] Querying for sky model name\n", thread_id);
+        LOG("[tid:%lu] [%s:%s:%d] Calling mfrGetSerializedData\r\n", thread_id, __FILE__, __func__, __LINE__);
         err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
+        LOG("[tid:%lu] [%s:%s:%d] Returned from mfrGetSerializedData err:%d\r\n", thread_id, __FILE__, __func__, __LINE__, err);
     } else {
+        LOG("[tid:%lu] [%s:%s:%d] Calling mfrGetSerializedData\r\n", thread_id, __FILE__, __func__, __LINE__);
          err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
+         LOG("[tid:%lu] [%s:%s:%d] Returned from mfrGetSerializedData err:%d data.buf:%p data.bufLen:%zu\r\n", thread_id, __FILE__, __func__, __LINE__, err, data.buf, data.bufLen);
     }
     if(mfrERR_NONE == err)
     {
-	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);
+        copy_len = data.bufLen;
+        if (copy_len > sizeof(param->buffer)) {
+            copy_len = sizeof(param->buffer);
+        }
+        LOG("[tid:%lu] [%s:%s:%d] copy_len:%zu\r\n", thread_id, __FILE__, __func__, __LINE__, copy_len);
+        
+	if ((0 != copy_len) && (NULL == data.buf)) {
+	    LOG("[tid:%lu] NULL buffer returned\n", thread_id);
+	    pthread_mutex_unlock(&serialized_data_mutex);
+	    LOG("[tid:%lu] Unlocked serialized data mutex\n", thread_id);
+	    return IARM_RESULT_INVALID_PARAM;
+	}
+
+	LOG("[tid:%lu] [%s:%s:%d] Going to memcpy_s sizeof param->buffer:%zu copy_len:%zu\r\n", thread_id, __FILE__, __func__, __LINE__, sizeof(param->buffer), copy_len);
+	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, copy_len);
+	LOG("[tid:%lu] [%s:%s:%d] Returned from memcpy_s safec_rc:%d sizeof(param->buffer):%zu\r\n", thread_id, __FILE__, __func__, __LINE__, safec_rc, sizeof(param->buffer));
     	if(safec_rc != EOK)
         {
                 ERR_CHK(safec_rc);
                 if(data.freeBuf)
                 {
+                    LOG("[tid:%lu] [%s:%s:%d] Freeing buffer\r\n", thread_id, __FILE__, __func__, __LINE__);
                     data.freeBuf(data.buf);
+                    LOG("[tid:%lu] [%s:%s:%d] Successfully freed buffer\r\n", thread_id, __FILE__, __func__, __LINE__);
                 }
+                pthread_mutex_unlock(&serialized_data_mutex);
+                LOG("[tid:%lu] Unlocked serialized data mutex\n", thread_id);
                 return IARM_RESULT_INVALID_PARAM;
          }
-         param->bufLen = data.bufLen;
+         param->bufLen = copy_len;
       
 	if(data.freeBuf)
         {
+            LOG("[tid:%lu] [%s:%s:%d] Freeing buffer\r\n", thread_id, __FILE__, __func__, __LINE__);
              data.freeBuf(data.buf);
+             LOG("[tid:%lu] [%s:%s:%d] Successfully freed buffer\r\n", thread_id, __FILE__, __func__, __LINE__);
         }
 	retCode=IARM_RESULT_SUCCESS;
+    }
+
+    if (is_locked) {
+        pthread_mutex_unlock(&serialized_data_mutex);
+        LOG("[tid:%lu] Unlocked serialized data mutex\n", thread_id);
     }
     return retCode;
 }
