@@ -145,8 +145,9 @@ static IARM_Result_t getSerializedData_(void *arg)
 	    return IARM_RESULT_INVALID_PARAM;
 	}
 
+    LOG("[%s:%s:%d] Going to memcpy_s sizeof param->buffer:%zu copy_len:%zu\r\n", __FILE__, __func__, __LINE__, sizeof(param->buffer), copy_len);
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, copy_len);
-    LOG("[%s:%s:%d] Returned from memcpy_s safec_rc:%d \r\n", __FILE__, __func__, __LINE__, safec_rc);
+    LOG("[%s:%s:%d] Returned from memcpy_s safec_rc:%d sizeof(param->buffer):%zu\r\n", __FILE__, __func__, __LINE__, safec_rc, sizeof(param->buffer));
     	if(safec_rc != EOK)
         {
                 ERR_CHK(safec_rc);
@@ -1435,7 +1436,6 @@ static void* _HDCPEnableThreadFunc(void *arg)
 
 void _enableHDCPAsync(void)
 {
-    #if 0
     pthread_t hdcpThreadId;
     pthread_attr_t attr;
 
@@ -1447,7 +1447,6 @@ void _enableHDCPAsync(void)
     }
 
     pthread_attr_destroy(&attr);
-    #endif
     LOG("_enableHDCPAsync: Created HDCP enable thread\n");
 }
 
