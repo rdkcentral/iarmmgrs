@@ -226,6 +226,7 @@ static bool _hdcpenable()
 {
     INT_INFO("Enter function \n");
 	errno_t rc = -1;
+	int IsMfrDataRead = false;
 	int keySize = HDCP_KEY_MAX_SIZE;
     char hdcpKey[HDCP_KEY_MAX_SIZE] = {0};
 
