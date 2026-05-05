@@ -474,10 +474,11 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
-#if 0
+
 	if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
+#if 0
 	if(PROFILE_STB == profileType)
 	{
     	_enableHDCPAsync();
