@@ -47,7 +47,7 @@
 
 
 #include "sysMgr.h"
-//#include "mfrMgr.h"
+#include "mfrMgr.h"
 
 #include "dsMgr.h"
 #include "dsUtl.h"
@@ -62,7 +62,7 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
-//#include "rdkProfile.h"
+#include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
 extern IARM_Result_t _dsGetResolution(void *arg);
@@ -95,12 +95,12 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
-#if 0
+
 static void* _HDCPEnableThreadFunc(void *arg);
 static void _enableHDCPAsync();
 extern IARM_Result_t _dsEnableHDCP(void *arg);
 static profile_t profileType = PROFILE_INVALID;
-#endif
+
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
@@ -222,7 +222,7 @@ static bool isHDMIConnected()
     _dsIsDisplayConnected(&ConParam);
     return ConParam.connected; 
 }
-#if 0
+
 static void* _HDCPEnableThreadFunc(void *arg)
 {
     (void)arg;
@@ -354,7 +354,7 @@ static void _enableHDCPAsync()
 
     pthread_attr_destroy(&attr);
 }
-#endif
+
 IARM_Result_t DSMgr_Start()
 {
 	FILE *fDSCtrptr = NULL;
@@ -475,7 +475,7 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
-#if 0
+
 	if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
@@ -484,7 +484,7 @@ IARM_Result_t DSMgr_Start()
 	{
     	_enableHDCPAsync();
 	}
-#endif
+
     return IARM_RESULT_SUCCESS;
 }
 
