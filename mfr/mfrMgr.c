@@ -101,22 +101,50 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrSerializedData_t data = {0};
     errno_t safec_rc = -1;
     int i;
+
+    LOG("[mfrMgr] getSerializedData_ enter: param=%p type=%d bufLen=%d\n",
+        param, param ? param->type : -1, param ? param->bufLen : -1);
+
+    if (!param) {
+        LOG("[mfrMgr] getSerializedData_ ERROR: NULL param\n");
+        return IARM_RESULT_IPCCORE_FAIL;
+    }
+
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
+    LOG("[mfrMgr] getSerializedData_ profileType=%d param->type=%d\n", profileType, param->type);
+
     if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
           (PROFILE_STB == profileType)){
         LOG(" Querying for sky model name ");
         err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
     } else {
-         err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
+        LOG("[mfrMgr] getSerializedData_ calling mfrGetSerializedData type=%d\n", param->type);
+        err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
     }
+
+    LOG("[mfrMgr] getSerializedData_ mfrGetSerializedData returned err=%d data.bufLen=%d data.buf=%p\n",
+        err, data.bufLen, data.buf);
+
     if(mfrERR_NONE == err)
     {
+        if (data.buf == NULL || data.bufLen == 0) {
+            LOG("[mfrMgr] getSerializedData_ ERROR: mfrGetSerializedData returned empty data (buf=%p bufLen=%d)\n",
+                data.buf, data.bufLen);
+            return IARM_RESULT_IPCCORE_FAIL;
+        }
+        if (data.bufLen > (int)sizeof(param->buffer)) {
+            LOG("[mfrMgr] getSerializedData_ ERROR: data.bufLen=%d exceeds param->buffer size=%zu\n",
+                data.bufLen, sizeof(param->buffer));
+            if(data.freeBuf) data.freeBuf(data.buf);
+            return IARM_RESULT_INVALID_PARAM;
+        }
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);
     	if(safec_rc != EOK)
         {
                 ERR_CHK(safec_rc);
+                LOG("[mfrMgr] getSerializedData_ ERROR: memcpy_s failed rc=%d\n", safec_rc);
                 if(data.freeBuf)
                 {
                     data.freeBuf(data.buf);
@@ -124,13 +152,20 @@ static IARM_Result_t getSerializedData_(void *arg)
                 return IARM_RESULT_INVALID_PARAM;
          }
          param->bufLen = data.bufLen;
-      
+         LOG("[mfrMgr] getSerializedData_ key copied OK bufLen=%d\n", param->bufLen);
+
 	if(data.freeBuf)
         {
              data.freeBuf(data.buf);
         }
 	retCode=IARM_RESULT_SUCCESS;
     }
+    else
+    {
+        LOG("[mfrMgr] getSerializedData_ ERROR: mfrGetSerializedData failed err=%d\n", err);
+    }
+
+    LOG("[mfrMgr] getSerializedData_ exit retCode=%d\n", retCode);
     return retCode;
 }
 

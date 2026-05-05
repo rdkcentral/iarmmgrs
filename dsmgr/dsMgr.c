@@ -491,7 +491,8 @@ IARM_Result_t DSMgr_Start()
     }
 	if(PROFILE_STB == profileType)
 	{
-    	_enableHDCPAsync();
+    	INT_INFO("calling _enableHDCPAsync()\n");
+		_enableHDCPAsync();
 	}
 
     return IARM_RESULT_SUCCESS;
