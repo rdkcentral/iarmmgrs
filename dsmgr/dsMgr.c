@@ -62,7 +62,7 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
-#include "rdkProfile.h"
+//#include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
 extern IARM_Result_t _dsGetResolution(void *arg);
@@ -74,7 +74,6 @@ extern IARM_Result_t _dsGetEDID(void *arg);
 extern IARM_Result_t _dsGetEDIDBytes(void *arg);
 extern IARM_Result_t _dsGetVideoPort(void *arg);
 extern IARM_Result_t _dsIsDisplayConnected(void *arg);
-extern IARM_Result_t _dsEnableHDCP(void *arg);
 extern IARM_Result_t _dsGetStereoAuto(void *arg);
 extern IARM_Result_t _dsIsDisplaySurround(void *arg);
 extern IARM_Result_t _dsGetForceDisable4K(void *arg);
@@ -99,6 +98,8 @@ void _setEASAudioMode();
 #if 0
 static void* _HDCPEnableThreadFunc(void *arg);
 static void _enableHDCPAsync();
+extern IARM_Result_t _dsEnableHDCP(void *arg);
+static profile_t profileType = PROFILE_INVALID;
 #endif
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
@@ -119,7 +120,7 @@ IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal
 #define EU_INTERLACED_FPS   "25"
 
 static bool IsEUPlatform = false;
-static profile_t profileType = PROFILE_INVALID;
+
 
 static char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
 
@@ -474,11 +475,11 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
-
+#if 0
 	if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
-#if 0
+
 	if(PROFILE_STB == profileType)
 	{
     	_enableHDCPAsync();
