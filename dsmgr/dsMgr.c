@@ -96,8 +96,10 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
+#if 0
 static void* _HDCPEnableThreadFunc(void *arg);
 static void _enableHDCPAsync();
+#endif
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
@@ -219,7 +221,7 @@ static bool isHDMIConnected()
     _dsIsDisplayConnected(&ConParam);
     return ConParam.connected; 
 }
-
+#if 0
 static void* _HDCPEnableThreadFunc(void *arg)
 {
     (void)arg;
@@ -351,7 +353,7 @@ static void _enableHDCPAsync()
 
     pthread_attr_destroy(&attr);
 }
-
+#endif
 IARM_Result_t DSMgr_Start()
 {
 	FILE *fDSCtrptr = NULL;
@@ -472,7 +474,7 @@ IARM_Result_t DSMgr_Start()
     INT_INFO("Set resolution during dsMgr init .. \r\n");
     _SetVideoPortResolution(); 
     setupPlatformConfig();
-
+#if 0
 	if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
@@ -480,7 +482,7 @@ IARM_Result_t DSMgr_Start()
 	{
     	_enableHDCPAsync();
 	}
-
+#endif
     return IARM_RESULT_SUCCESS;
 }
 
