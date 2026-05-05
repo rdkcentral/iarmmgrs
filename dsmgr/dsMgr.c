@@ -228,8 +228,12 @@ static void* _HDCPEnableThreadFunc(void *arg)
     int IsMfrDataRead = false;
 	dsEnableHDCPParam_t hdcpParam;
 
-	IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
-
+	IARM_Bus_MFRLib_GetSerializedData_Param_t *param = 
+    	(IARM_Bus_MFRLib_GetSerializedData_Param_t *)malloc(sizeof(*param));
+	if (!param) {
+    	INT_ERROR("Failed to allocate IARM_Bus_MFRLib_GetSerializedData_Param_t\n");
+    	return NULL;
+	}
 	rc = memset_s(&hdcpParam, sizeof(hdcpParam), 0, sizeof(hdcpParam));
 	if (rc != EOK) {
 		INT_ERROR("Failed to reset HDCP Param: error code:%d\n", rc);
@@ -264,8 +268,14 @@ static void* _HDCPEnableThreadFunc(void *arg)
 		}
 		else
 		{
+			/* Validate bufLen before using it - guard against corrupt/unexpected MFR response */
+			if (param->bufLen == 0 || param->bufLen > MAX_SERIALIZED_BUF) {
+				INT_ERROR("Invalid bufLen from MFR: %d, expected 0 < bufLen <= %d\n", param->bufLen, MAX_SERIALIZED_BUF);
+				sleep(2);
+				continue;
+			}
 			hdcpParam.keySize = param->bufLen;
-			if (hdcpParam.keySize < 0 || hdcpParam.keySize > HDCP_KEY_MAX_SIZE) {
+			if (hdcpParam.keySize > HDCP_KEY_MAX_SIZE) {
 				INT_ERROR("Incorrect HDCP key size %d maxsize %d\n", hdcpParam.keySize, HDCP_KEY_MAX_SIZE);
 				rc = EINVAL;
 				break;
@@ -299,8 +309,11 @@ static void* _HDCPEnableThreadFunc(void *arg)
 				IsMfrDataRead = true;
 			}
 		}
-	}while(false == IsMfrDataRead);	
-	
+	}while(false == IsMfrDataRead);
+
+	free(param);
+	param = NULL;
+
 	if(rc == EOK)
 	{
 		INT_INFO("Setting HDCP true \n");
