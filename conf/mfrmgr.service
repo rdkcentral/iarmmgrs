@@ -23,6 +23,9 @@ After=iarmbusd.service mfrlibapp.service
 
 [Service]
 Type=notify
+LimitCORE=infinity
+ExecStartPre=/bin/mkdir -p /tmp/persistent
+ExecStartPre=/bin/sh -c 'echo "/tmp/persistent/%%e.%%s.core" > /proc/sys/kernel/core_pattern'
 ExecStart=/bin/sh -c '/usr/bin/mfrMgrMain'
 Restart=always
 
