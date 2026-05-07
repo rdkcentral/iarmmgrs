@@ -230,12 +230,6 @@ static void* _HDCPEnableThreadFunc(void *arg)
 	if (rc != EOK) {
 		INT_ERROR("Failed to reset HDCP Param: error code:%d\n", rc);
 	}
-
-	hdcpParam.keySize = (int)sizeof(hdcpParam.hdcpKey);
-	if (hdcpParam.keySize <= 0 || hdcpParam.keySize > HDCP_KEY_MAX_SIZE) {
-		INT_ERROR("Incorrect HDCP key size %d maxsize %d\n", hdcpParam.keySize, HDCP_KEY_MAX_SIZE);
-		rc = EINVAL;
-	}
 	
 	if(rc == EOK)
 	{
@@ -246,7 +240,7 @@ static void* _HDCPEnableThreadFunc(void *arg)
 		hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
 		hdcpParam.contentProtect = true;
 		hdcpParam.rpcResult = dsERR_NONE;
-		
+
 		_dsEnableHDCP(&hdcpParam);
 
 		if(hdcpParam.rpcResult != dsERR_NONE)
