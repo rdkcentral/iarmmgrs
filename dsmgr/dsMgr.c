@@ -246,26 +246,16 @@ static void* _HDCPEnableThreadFunc(void *arg)
 		hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
 		hdcpParam.contentProtect = true;
 		hdcpParam.rpcResult = dsERR_NONE;
+		
+		_dsEnableHDCP(&hdcpParam);
 
-		while (hdcpRetry < HDCP_MAX_RETRIES && !hdcpEnabled)
+		if(hdcpParam.rpcResult != dsERR_NONE)
 		{
-			if(_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS)
-			{
-				hdcpRetry++;
-				INT_ERROR("enabledHDCP failed, retry %d/%d\n", hdcpRetry, HDCP_MAX_RETRIES);
-				if (hdcpRetry < HDCP_MAX_RETRIES) {
-					sleep(4);
-				}
-			}
-			else
-			{
-				hdcpEnabled = true;
-				INT_INFO("Setting HDCP done \n");
-			}
-
+			INT_ERROR("enabledHDCP failed err:%d \n", hdcpParam.rpcResult);
 		}
-		if (!hdcpEnabled) {
-			INT_ERROR("enabledHDCP failed after %d retries\n", HDCP_MAX_RETRIES);
+		else
+		{
+			INT_INFO("Setting HDCP done \n");
 		}
 	}
    
