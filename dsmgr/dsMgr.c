@@ -95,7 +95,6 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
-static void* _HDCPEnableThreadFunc(void *arg);
 static void _enableHDCPAsync();
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
@@ -219,10 +218,9 @@ static bool isHDMIConnected()
     return ConParam.connected; 
 }
 
-static void* _HDCPEnableThreadFunc(void *arg)
+static void _enableHDCPAsync()
 {
-    (void)arg;
-    INT_INFO("Enter function \n");
+	INT_INFO("Enter function \n");
 	errno_t rc = EOK;
 	dsEnableHDCPParam_t hdcpParam;
 
@@ -234,9 +232,6 @@ static void* _HDCPEnableThreadFunc(void *arg)
 	if(rc == EOK)
 	{
 		INT_INFO("Setting HDCP true \n");
-		int hdcpRetry = 0;
-		const int HDCP_MAX_RETRIES = 3;
-		bool hdcpEnabled = false;
 		hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
 		hdcpParam.contentProtect = true;
 		hdcpParam.rpcResult = dsERR_NONE;
@@ -254,22 +249,6 @@ static void* _HDCPEnableThreadFunc(void *arg)
 	}
    
     INT_INFO("Exit function \n");
-    return NULL;
-}
-
-static void _enableHDCPAsync()
-{
-    pthread_t hdcpThreadId;
-    pthread_attr_t attr;
-
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
-    if (pthread_create(&hdcpThreadId, &attr, _HDCPEnableThreadFunc, NULL) != 0) {
-        INT_ERROR("Failed to create HDCP enable thread \n");
-    }
-
-    pthread_attr_destroy(&attr);
 }
 
 IARM_Result_t DSMgr_Start()
