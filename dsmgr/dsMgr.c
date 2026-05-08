@@ -95,7 +95,7 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
-static void _enableHDCPAsync();
+static void _enableHDCP();
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
@@ -218,7 +218,7 @@ static bool isHDMIConnected()
     return ConParam.connected; 
 }
 
-static void _enableHDCPAsync()
+static void _enableHDCP()
 {
 	INT_INFO("Enter function \n");
 	errno_t rc = EOK;
@@ -236,15 +236,20 @@ static void _enableHDCPAsync()
 		hdcpParam.contentProtect = true;
 		hdcpParam.rpcResult = dsERR_NONE;
 
-		_dsEnableHDCP(&hdcpParam);
-
-		if(hdcpParam.rpcResult != dsERR_NONE)
+		if(_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS)
 		{
-			INT_ERROR("enabledHDCP failed err:%d \n", hdcpParam.rpcResult);
+			INT_ERROR("Failed to enable HDCP \r\n");
 		}
 		else
 		{
-			INT_INFO("Setting HDCP done \n");
+			if(hdcpParam.rpcResult != dsERR_NONE)
+			{
+				INT_ERROR("Failed to enable HDCP with error code %d \r\n", hdcpParam.rpcResult);
+			}
+			else
+			{
+				INT_INFO("Setting HDCP done \n");
+			}
 		}
 	}
    
@@ -377,7 +382,7 @@ IARM_Result_t DSMgr_Start()
     }
 	if(PROFILE_STB == profileType)
 	{
-    	_enableHDCPAsync();
+    	_enableHDCP();
 	}
 
     return IARM_RESULT_SUCCESS;
