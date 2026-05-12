@@ -136,7 +136,7 @@ int main(int argc, char *argv[])
     }
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
-
+#if 0
     /* --- INSTRUMENTED BUILD: reboot count test ---
      * Sends READY=1 so systemd marks service active (SERVICE_RESULT=signal,
      * not timeout), sleeps 5s, then crashes with SIGABRT.
@@ -151,7 +151,7 @@ int main(int argc, char *argv[])
     INT_INFO("raise SIGABRT to check reboot count case\n");
     sleep(5);
     raise(SIGABRT);
-
+#endif
 
     /* Runtime test hook: if trigger file exists, skip sd_notify(READY=1)
      * to simulate a start-timeout without needing a special build.
@@ -159,10 +159,10 @@ int main(int argc, char *argv[])
      *                   systemctl restart dsmgr
      * The file is automatically removed after use (one-shot).
      */
-    if (access("/tmp/dsmgr_notimeout", F_OK) == 0) {
+    if (access("/opt/dsmgr_notimeout", F_OK) == 0) {
         INT_ERROR("[TEST] /tmp/dsmgr_notimeout present — "
                  "skipping sd_notify(READY=1) to trigger systemd start-timeout.\n");
-        remove("/tmp/dsmgr_notimeout"); /* one-shot: remove after use */
+        remove("/opt/dsmgr_notimeout"); /* one-shot: remove after use */
     } else {
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
