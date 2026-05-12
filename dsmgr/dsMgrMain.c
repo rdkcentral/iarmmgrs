@@ -135,11 +135,29 @@ int main(int argc, char *argv[])
     }
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
+    if (access("/opt/dsmgr_rebootcount", F_OK) == 0) {
+    INT_INFO("raise SIGABRT to check reboot count case\n");
+    sleep(5);
+    raise(SIGABRT);
+    }
+    /* Runtime test hook: if trigger file exists, skip sd_notify(READY=1)
+     * to simulate a start-timeout without needing a special build.
+     * Usage on device:  touch /tmp/dsmgr_notimeout
+     *                   systemctl restart dsmgr
+     * The file is automatically removed after use (one-shot).
+     */
+    if (access("/opt/dsmgr_notimeout", F_OK) == 0) {
+        INT_ERROR("[TEST] /tmp/dsmgr_notimeout present — "
+                 "skipping sd_notify(READY=1) to trigger systemd start-timeout.\n");
+        remove("/opt/dsmgr_notimeout"); /* one-shot: remove after use */
+    } else {
     #ifdef ENABLE_SD_NOTIFY
            sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
               "MAINPID=%lu", (unsigned long) getpid());
     #endif
+    }
+
 
 #ifdef PID_FILE_PATH
 #define xstr(s) str(s)
