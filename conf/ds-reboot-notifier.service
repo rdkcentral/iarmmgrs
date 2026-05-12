@@ -16,25 +16,17 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 ##########################################################################
+
+# ds-reboot-notifier.service
+#
+# Triggered via OnFailure=ds-reboot-notifier.service in dsmgr.service.
+# Fires ONLY when systemd marks dsmgr as failed (crash/timeout/exit-code).
+# Does NOT fire on clean systemctl stop/restart.
+
 [Unit]
-Description=IARM Mgr Daemon DS MGR
-Requires=iarmbusd.service
-After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager.service
-# OnFailure= fires ONLY when systemd marks the service as failed:
-#   - crash (signal/core-dump)
-#   - start timeout
-#   - non-zero exit code
-# It does NOT fire on clean systemctl stop/restart (Result=success).
-# This eliminates the race condition with ExecStopPost+systemctl show Result
-# seen on systemd v230.
-OnFailure=ds-reboot-notifier.service
+Description=DS MGR Reboot Notifier
+After=local-fs.target
 
 [Service]
-Type=notify
-ExecStartPre=/bin/mkdir -p /opt/persistent/ds
-ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
-# Reset crash counter on every successful start.
-ExecStartPost=/bin/rm -f /opt/.dsmgr_restart_count
-
-[Install]
-WantedBy=multi-user.target
+Type=oneshot
+ExecStart=/bin/sh /usr/lib/ds-reboot.sh
