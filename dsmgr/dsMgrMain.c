@@ -136,38 +136,50 @@ int main(int argc, char *argv[])
     }
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
-#if 0
-    /* --- INSTRUMENTED BUILD: reboot count test ---
-     * Sends READY=1 so systemd marks service active (SERVICE_RESULT=signal,
-     * not timeout), sleeps 5s, then crashes with SIGABRT.
-     * This validates the ds-reboot.sh signal path + reboot counter logic.
-     * DO NOT use in production builds.
-     */
-#ifdef ENABLE_SD_NOTIFY
-    sd_notifyf(0, "READY=1\n"
-               "STATUS=DsMgr TEST: raising SIGABRT to test reboot count\n"
-               "MAINPID=%lu", (unsigned long) getpid());
-#endif
-    INT_INFO("raise SIGABRT to check reboot count case\n");
-    sleep(5);
-    raise(SIGABRT);
-#endif
 
-    /* Runtime test hook: if trigger file exists, skip sd_notify(READY=1)
-     * to simulate a start-timeout without needing a special build.
-     * Usage on device:  touch /tmp/dsmgr_notimeout
-     *                   systemctl restart dsmgr
-     * The file is automatically removed after use (one-shot).
+    /* --- Runtime test hooks (one-shot, trigger-file based) ---
+     *
+     * TEST 1 — Timeout scenario (Result=timeout):
+     *   touch /tmp/dsmgr_notimeout && systemctl restart dsmgr
+     *   sd_notify(READY=1) is skipped → process hangs → systemd fires
+     *   TimeoutStartSec → kills dsMgrMain → Result=timeout → OnFailure= triggers
+     *
+     * TEST 2 — Crash/signal scenario (Result=signal):
+     *   touch /tmp/dsmgr_crash && systemctl restart dsmgr
+     *   READY=1 is sent first (service marked active), then SIGABRT is raised
+     *   → Result=signal → OnFailure= triggers → reboot count validated
+     *
+     * Both files are removed after first use (one-shot).
      */
-    if (access("/opt/dsmgr_notimeout", F_OK) == 0) {
-        INT_ERROR("[TEST] /tmp/dsmgr_notimeout present — "
-                 "skipping sd_notify(READY=1) to trigger systemd start-timeout.\n");
-        remove("/opt/dsmgr_notimeout"); /* one-shot: remove after use */
+    if (access("/tmp/dsmgr_notimeout", F_OK) == 0) {
+        INT_ERROR("[TEST] /tmp/dsmgr_notimeout — skipping sd_notify(READY=1) "
+                  "to trigger systemd start-timeout (Result=timeout).\n");
+        remove("/tmp/dsmgr_notimeout");
+        /* Hang so systemd TimeoutStartSec fires and kills this process */
+        pause();
+    } else if (access("/opt/dsmgr_crash", F_OK) == 0) {
+        /* /opt persists across reboots — so this fires on every boot until
+         * the file is manually removed. Use this to validate the reboot-count
+         * limit (reboot-count-checker.sh stops rebooting after count > 10).
+         * To start test:  touch /opt/dsmgr_crash
+         * To stop test:   rm /opt/dsmgr_crash
+         */
+        INT_ERROR("[TEST] /opt/dsmgr_crash — sending READY=1 then raising "
+                  "SIGABRT to test reboot-count path (Result=signal).\n");
+        /* NOTE: do NOT remove — must survive reboot to keep incrementing count */
+    #ifdef ENABLE_SD_NOTIFY
+        sd_notifyf(0, "READY=1\n"
+                   "STATUS=DsMgr TEST: raising SIGABRT to test reboot count\n"
+                   "MAINPID=%lu", (unsigned long) getpid());
+    #endif
+        INT_INFO("raise SIGABRT to check reboot count case\n");
+        sleep(5);
+        raise(SIGABRT);
     } else {
     #ifdef ENABLE_SD_NOTIFY
-           sd_notifyf(0, "READY=1\n"
-           "STATUS=DsMgr is Successfully Initialized\n"
-              "MAINPID=%lu", (unsigned long) getpid());
+        sd_notifyf(0, "READY=1\n"
+                   "STATUS=DsMgr is Successfully Initialized\n"
+                   "MAINPID=%lu", (unsigned long) getpid());
     #endif
     }
 
