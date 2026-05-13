@@ -258,6 +258,11 @@ static void _enableHDCP()
 
 IARM_Result_t DSMgr_Start()
 {
+	struct timeval tv_start, tv_end;
+	gettimeofday(&tv_start, NULL);
+	INT_INFO("[PROFILE] DSMgr_Start() BEGIN: %ld.%06ld\n", (long)tv_start.tv_sec, (long)tv_start.tv_usec);
+	struct timeval tv_last, tv_curr;
+	tv_last = tv_start;
 	FILE *fDSCtrptr = NULL;
 	IARM_Bus_SYSMgr_GetSystemStates_Param_t tuneReadyParam;
 	IARM_Result_t iarmStatus;
@@ -267,11 +272,17 @@ IARM_Result_t DSMgr_Start()
 	
 	/* Register with IARM Libs and Connect */
 	iarmStatus = IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After IARM_Bus_Init: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to initialize IARM Bus for [%s] \r\n", IARM_BUS_DSMGR_NAME);
 		return iarmStatus;
 	}
 	iarmStatus = IARM_Bus_Connect();
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After IARM_Bus_Connect: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to connect IARM Bus for [%s] \r\n", IARM_BUS_DSMGR_NAME);
 		return iarmStatus;
@@ -279,14 +290,23 @@ IARM_Result_t DSMgr_Start()
 
 	/* Initialize Telemetry 2 */
 	TELEMETRY_INIT(IARM_BUS_DSMGR_NAME);
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After TELEMETRY_INIT: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 
 	iarmStatus = IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After IARM_Bus_RegisterEvent: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
 		return iarmStatus;
 	}
 	/*Initialize the DS Manager - DS Srv and DS HAL */
 	iarmStatus = dsMgr_init();
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After dsMgr_init: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to initialize DS Manager for [%s] \r\n", IARM_BUS_DSMGR_NAME);
 		return iarmStatus;
@@ -295,47 +315,80 @@ IARM_Result_t DSMgr_Start()
         dsEdidIgnoreParam_t ignoreEdidParam;
         memset(&ignoreEdidParam,0,sizeof(ignoreEdidParam));
         ignoreEdidParam.handle = dsVIDEOPORT_TYPE_HDMI;
-        _dsGetIgnoreEDIDStatus(&ignoreEdidParam);
+		_dsGetIgnoreEDIDStatus(&ignoreEdidParam);
+		gettimeofday(&tv_curr, NULL);
+		INT_INFO("[PROFILE] After _dsGetIgnoreEDIDStatus: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+		tv_last = tv_curr;
 	IsIgnoreEdid_gs = ignoreEdidParam.ignoreEDID;
 	INT_INFO("ResOverride DSMgr_Start IsIgnoreEdid_gs: %d\n", IsIgnoreEdid_gs);
 	/*Register the Events */
 	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME,IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,_EventHandler);
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After IARM_Bus_RegisterEventHandler(SYSMGR): %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
 		return iarmStatus;
 	}
 	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG,_EventHandler);
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After IARM_Bus_RegisterEventHandler(HDMI_HOTPLUG): %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
 		return iarmStatus;
 	}
 	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_DSMGR_NAME,IARM_BUS_DSMGR_EVENT_HDCP_STATUS,_EventHandler);
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After IARM_Bus_RegisterEventHandler(HDCP_STATUS): %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
 		return iarmStatus;
 	}
 	/*Register EAS handler so that we can ensure audio settings for EAS */
 	iarmStatus = IARM_Bus_RegisterCall(IARM_BUS_COMMON_API_SysModeChange, _SysModeChange);
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After IARM_Bus_RegisterCall(SysModeChange): %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_COMMON_API_SysModeChange);
 		return iarmStatus;
 	}
 
         /*Refactored dsMGR code*/
-       PowerController_Init();
-       dsMgrInitPwrControllerEvt();
-       /* Power controller connect is checked inside initPwrEventListner*/
-        initPwrEventListner();   
+	PowerController_Init();
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After PowerController_Init: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
+	dsMgrInitPwrControllerEvt();
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After dsMgrInitPwrControllerEvt: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
+	/* Power controller connect is checked inside initPwrEventListner*/
+	initPwrEventListner();   
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After initPwrEventListner: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	/* Create  Thread for listening Hot Plug events */
 	pthread_mutex_init (&tdsMutexLock, NULL);
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After pthread_mutex_init: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (pthread_cond_init(&tdsMutexCond, NULL) != 0) {
 		INT_ERROR("Failed to create pthread_cond_init tdsMutexCond.");
 		return IARM_RESULT_IPCCORE_FAIL;
 	}
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After pthread_cond_init: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (pthread_create(&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL) != 0) {
 		INT_ERROR("Failed pthread_create _DSMgrResnThreadFunc.");
 		return IARM_RESULT_IPCCORE_FAIL;
 	}
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After pthread_create(edsHDMIHPDThreadID): %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	/* Read the HDMI DDC Line delay to be introduced 
 	 * for setting  the resolution
 	 * The DDC line is used for EDID and HDCP Negotiation
@@ -347,11 +400,17 @@ IARM_Result_t DSMgr_Start()
 		{
 			INT_ERROR("Error: fscanf on ddcDelay failed");
 		}
-                fclose (fDSCtrptr);
+		fclose (fDSCtrptr);
 	}
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After ddcDelay read: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	INT_DEBUG("Retry DS manager Resolution count is iResnCount = %d \r\n",iResnCount);
 
 	iarmStatus = IARM_Bus_Call(IARM_BUS_SYSMGR_NAME, IARM_BUS_SYSMGR_API_GetSystemStates, &tuneReadyParam, sizeof(tuneReadyParam));
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After IARM_Bus_Call(GetSystemStates): %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to get Tune Ready status for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
 		return iarmStatus;
@@ -365,27 +424,45 @@ IARM_Result_t DSMgr_Start()
 	}
 
 	/* Create Main loop for DS Manager */
-    dsMgr_Gloop = g_main_loop_new ( NULL , FALSE );
-    if(dsMgr_Gloop != NULL){
-        g_timeout_add_seconds (300 , heartbeatMsg , dsMgr_Gloop); 
-    }
-    else {
-        INT_ERROR("Fails to Create a main Loop for [%s] \r\n",IARM_BUS_DSMGR_NAME);
-    }
-
-    INT_INFO("Set resolution during dsMgr init .. \r\n");
-    _SetVideoPortResolution(); 
-    setupPlatformConfig();
-
-	if (PROFILE_INVALID == profileType){
-        profileType = searchRdkProfile();
-    }
-	if(PROFILE_STB == profileType)
-	{
-    	_enableHDCP();
+	dsMgr_Gloop = g_main_loop_new ( NULL , FALSE );
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After g_main_loop_new: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
+	if(dsMgr_Gloop != NULL){
+		g_timeout_add_seconds (300 , heartbeatMsg , dsMgr_Gloop); 
+	}
+	else {
+		INT_ERROR("Fails to Create a main Loop for [%s] \r\n",IARM_BUS_DSMGR_NAME);
 	}
 
-    return IARM_RESULT_SUCCESS;
+    INT_INFO("Set resolution during dsMgr init .. \r\n");
+	_SetVideoPortResolution(); 
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After _SetVideoPortResolution: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
+	setupPlatformConfig();
+	gettimeofday(&tv_curr, NULL);
+	INT_INFO("[PROFILE] After setupPlatformConfig: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+	tv_last = tv_curr;
+
+	if (PROFILE_INVALID == profileType){
+		profileType = searchRdkProfile();
+		gettimeofday(&tv_curr, NULL);
+		INT_INFO("[PROFILE] After searchRdkProfile: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+		tv_last = tv_curr;
+	}
+	if(PROFILE_STB == profileType)
+	{
+		_enableHDCP();
+		gettimeofday(&tv_curr, NULL);
+		INT_INFO("[PROFILE] After _enableHDCP: %ld us\n", (long)((tv_curr.tv_sec - tv_last.tv_sec) * 1000000L + (tv_curr.tv_usec - tv_last.tv_usec)));
+		tv_last = tv_curr;
+	}
+
+	gettimeofday(&tv_end, NULL);
+	INT_INFO("[PROFILE] DSMgr_Start() END: %ld.%06ld\n", (long)tv_end.tv_sec, (long)tv_end.tv_usec);
+	INT_INFO("[PROFILE] DSMgr_Start() DURATION: %ld microseconds\n", (long)((tv_end.tv_sec - tv_start.tv_sec) * 1000000L + (tv_end.tv_usec - tv_start.tv_usec)));
+	return IARM_RESULT_SUCCESS;
 }
 
 IARM_Result_t DSMgr_Loop()
