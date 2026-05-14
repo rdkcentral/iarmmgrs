@@ -135,6 +135,19 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    /* --- Runtime test hook: simulate DSMgr_Start() failure (Result=exit-code) ---
+     * touch /tmp/dsmgr_exitcode && systemctl restart dsmgr
+     * Process returns -1 without sending READY=1 → Result=exit-code
+     * Tests whether ExecStopPost/ds-reboot.sh handles exit-code on v230.
+     * File removed after use (one-shot, /tmp cleared on reboot).
+     */
+    if (access("/tmp/dsmgr_exitcode", F_OK) == 0) {
+        INT_ERROR("[TEST] /tmp/dsmgr_exitcode — simulating DSMgr_Start() failure "
+                  "(Result=exit-code).\n");
+        remove("/tmp/dsmgr_exitcode");
+        return -1;
+    }
+
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
 
     /* --- Runtime test hooks (one-shot, trigger-file based) ---
