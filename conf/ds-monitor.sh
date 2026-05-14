@@ -11,17 +11,17 @@ do
     RESULT=$(systemctl show dsmgr.service -p Result --value)
 
     if [ "$RESULT" = "timeout" ]; then
-        log "dsmgr Result=timeout detected — sending SIGFPE to dsMgrMain"
+        log "dsmgr Result=timeout detected"
 
         PID=$(pidof dsMgrMain)
         if [ -n "$PID" ]; then
-            log "Sending SIGFPE to dsMgrMain PID=$PID"
-            kill -SIGFPE "$PID"
+            log "Sending SIGABRT to dsMgrMain PID=$PID"
+            kill -SIGABRT "$PID"
         else
-            log "dsMgrMain not running — skipping SIGFPE, calling rebootNow.sh directly"
+            log "dsMgrMain not running — calling rebootNow.sh directly"
         fi
 
-        log "Triggering reboot: /rebootNow.sh -c dsMgrMain"
+        log "Triggering: /rebootNow.sh -c dsMgrMain"
         /rebootNow.sh -c dsMgrMain
         exit 0
     fi
