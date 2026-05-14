@@ -47,7 +47,6 @@
 
 
 #include "sysMgr.h"
-#include "mfrMgr.h"
 
 #include "dsMgr.h"
 #include "dsUtl.h"
@@ -96,8 +95,7 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
-static void* _HDCPEnableThreadFunc(void *arg);
-static void _enableHDCPAsync();
+static void _enableHDCP();
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
@@ -220,136 +218,42 @@ static bool isHDMIConnected()
     return ConParam.connected; 
 }
 
-static void* _HDCPEnableThreadFunc(void *arg)
+static void _enableHDCP()
 {
-    (void)arg;
-    INT_INFO("Enter function \n");
+	INT_INFO("Enter function \n");
 	errno_t rc = EOK;
-    int IsMfrDataRead = false;
 	dsEnableHDCPParam_t hdcpParam;
-
-	IARM_Bus_MFRLib_GetSerializedData_Param_t param_, *param = &param_;
 
 	rc = memset_s(&hdcpParam, sizeof(hdcpParam), 0, sizeof(hdcpParam));
 	if (rc != EOK) {
 		INT_ERROR("Failed to reset HDCP Param: error code:%d\n", rc);
 	}
-
-	do
-	{	
-		IsMfrDataRead = false;
-		/*Initialize the struct */
-		memset(param, 0, sizeof(*param));
-
-		/* Get Key */
-		param->type = mfrSERIALIZED_TYPE_HDMIHDCP;
-		param->bufLen = MAX_SERIALIZED_BUF;
-		
-		int ret = IARM_Bus_Call(IARM_BUS_MFRLIB_NAME,IARM_BUS_MFRLIB_API_GetSerializedData,
-			(void *)param, sizeof(IARM_Bus_MFRLib_GetSerializedData_Param_t));
-
-		if(ret != IARM_RESULT_SUCCESS)
-		{
-			//IARM_RESULT_IPCCORE_FAIL means MFR API is not supported in the platform. In that case, we should not retry to read MFR data and should break the loop.
-			//For other errors, we can retry to read MFR data after some delay as it could be transient error.
-			if(ret == IARM_RESULT_IPCCORE_FAIL)
-			{
-				INT_INFO("MFR Read not available in this platform \n");
-				break;
-			}
-
-			INT_ERROR("Call failed for %s: error code:%d\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP",ret);
-			/**Sleep for 2 sec - wait for MFR data to be ready*/
-			sleep(2);
-		}
-		else
-		{
-			hdcpParam.keySize = param->bufLen;
-			if (hdcpParam.keySize < 0 || hdcpParam.keySize > HDCP_KEY_MAX_SIZE) {
-				INT_ERROR("Incorrect HDCP key size %d maxsize %d\n", hdcpParam.keySize, HDCP_KEY_MAX_SIZE);
-				rc = EINVAL;
-				break;
-			}
-
-			rc = memcpy_s(hdcpParam.hdcpKey, sizeof(hdcpParam.hdcpKey), param->buffer, hdcpParam.keySize);
-			if (rc != EOK) {
-				INT_ERROR("Failed to copy HDCP key: error code:%d\n", rc);
-				break;
-			}
-
-			if(0 == hdcpParam.keySize){
-				break;
-			}
-			
-			if ((hdcpParam.hdcpKey[0] == 0) &&
-				(hdcpParam.hdcpKey[1] == 0) &&
-				(hdcpParam.hdcpKey[2] == 0) &&
-				(hdcpParam.hdcpKey[3] == 0) &&
-				(hdcpParam.hdcpKey[4] == 0) &&
-				(hdcpParam.hdcpKey[5] == 0) 
-				)
-			{
-				INT_ERROR("Invalid MFR Data !! Wait for MFR data to be ready..Retry after 10 sec\n");
-				/**Sleep for 10 sec - wait for MFR data to be ready*/
-				sleep(10);
-			}
-			else
-			{
-				INT_INFO("Call succeeded for %s: [%d]\n","IARM_BUS_MFR_SERIALIZED_TYPE_HDMIHDCP", param->bufLen);
-				IsMfrDataRead = true;
-			}
-		}
-	}while(false == IsMfrDataRead);	
 	
 	if(rc == EOK)
 	{
 		INT_INFO("Setting HDCP true \n");
-		int hdcpRetry = 0;
-		const int HDCP_MAX_RETRIES = 3;
-		bool hdcpEnabled = false;
 		hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
 		hdcpParam.contentProtect = true;
 		hdcpParam.rpcResult = dsERR_NONE;
 
-		while (hdcpRetry < HDCP_MAX_RETRIES && !hdcpEnabled)
+		if(_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS)
 		{
-			if(_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS)
+			INT_ERROR("Failed to enable HDCP \r\n");
+		}
+		else
+		{
+			if(hdcpParam.rpcResult != dsERR_NONE)
 			{
-				hdcpRetry++;
-				INT_ERROR("enabledHDCP failed, retry %d/%d\n", hdcpRetry, HDCP_MAX_RETRIES);
-				if (hdcpRetry < HDCP_MAX_RETRIES) {
-					sleep(4);
-				}
+				INT_ERROR("Failed to enable HDCP with error code %d \r\n", hdcpParam.rpcResult);
 			}
 			else
 			{
-				hdcpEnabled = true;
 				INT_INFO("Setting HDCP done \n");
 			}
-
-		}
-		if (!hdcpEnabled) {
-			INT_ERROR("enabledHDCP failed after %d retries\n", HDCP_MAX_RETRIES);
 		}
 	}
    
     INT_INFO("Exit function \n");
-    return NULL;
-}
-
-static void _enableHDCPAsync()
-{
-    pthread_t hdcpThreadId;
-    pthread_attr_t attr;
-
-    pthread_attr_init(&attr);
-    pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
-
-    if (pthread_create(&hdcpThreadId, &attr, _HDCPEnableThreadFunc, NULL) != 0) {
-        INT_ERROR("Failed to create HDCP enable thread \n");
-    }
-
-    pthread_attr_destroy(&attr);
 }
 
 IARM_Result_t DSMgr_Start()
@@ -478,7 +382,7 @@ IARM_Result_t DSMgr_Start()
     }
 	if(PROFILE_STB == profileType)
 	{
-    	_enableHDCPAsync();
+    	_enableHDCP();
 	}
 
     return IARM_RESULT_SUCCESS;
