@@ -188,6 +188,23 @@ int main(int argc, char *argv[])
         INT_INFO("raise SIGABRT to check reboot count case\n");
         sleep(5);
         raise(SIGABRT);
+    } else if (access("/tmp/dsmgr_exitpost", F_OK) == 0) {
+        /* TEST 3 — exit-code AFTER sd_notify (Result=exit-code, ExecStopPost fires)
+         * touch /tmp/dsmgr_exitpost && systemctl restart dsmgr
+         * READY=1 is sent first → service marked active → then return -1
+         * → Result=exit-code → ExecStopPost fires → ds-reboot.sh handles reboot
+         * Validates: ds-reboot.sh exit-code path + ExecStopPost after READY=1
+         */
+        INT_ERROR("[TEST] /tmp/dsmgr_exitpost — sending READY=1 "
+                  "then returning -1 to test exit-code path (after notify).\n");
+        remove("/tmp/dsmgr_exitpost");
+    #ifdef ENABLE_SD_NOTIFY
+        sd_notifyf(0, "READY=1\n"
+                   "STATUS=DsMgr TEST: returning -1 after notify\n"
+                   "MAINPID=%lu", (unsigned long) getpid());
+    #endif
+        sleep(10);
+        return -1;
     } else {
     #ifdef ENABLE_SD_NOTIFY
         sd_notifyf(0, "READY=1\n"
