@@ -24,7 +24,7 @@ After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager
 [Service]
 Type=notify
 ExecStartPre=/bin/mkdir -p /opt/persistent/ds
-ExecStartPre=/bin/systemd-run --unit=dsmgr-monitor /usr/lib/ds-monitor.sh
+ExecStartPre=/bin/sh -c '/usr/bin/systemd-run --unit=dsmgr-monitor /bin/sh /usr/lib/ds-monitor.sh'
 ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
 # ExecStartPost runs only after dsMgrMain has successfully started (sent READY=1
 # for Type=notify, or simply started for Type=simple).  The sentinel file is used
@@ -34,8 +34,10 @@ ExecStartPost=/bin/touch /tmp/dsmgr.ready
 # Reset reboot-storm counter on every successful start (READY=1 confirmed).
 # Mirrors RDK-v reboot-count-checker.sh: counter only increments on failure,
 # resets when dsMgrMain starts cleanly. /opt persists across reboots.
-ExecStartPost=/bin/rm -f /opt/.dsmgr_restart_count
+# [TODO] /opt/.dsmgr_restart_count file is not remove by service. this will clean by factory or some remove manully.
+#ExecStartPost=/bin/rm -f /opt/.dsmgr_restart_count
 ExecStop=/bin/rm -f /tmp/dsmgr.ready
+ExecStop=-/bin/systemctl stop dsmgr-monitor
 ExecStopPost=/bin/sh /usr/lib/ds-reboot.sh
 
 [Install]
