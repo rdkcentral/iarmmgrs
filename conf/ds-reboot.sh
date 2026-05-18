@@ -56,6 +56,7 @@ case "${SERVICE_RESULT}" in
         # Clean stop — systemctl stop dsmgr or DSMgr_Stop() returned 0.
         # No reboot needed.
         echo "[ds-reboot] Clean exit — no reboot triggered." >&2
+        rm -f /tmp/dsmgr.ready
         exit 0
         ;;
     unknown)
@@ -146,6 +147,10 @@ else
     # -c indicates a crash reboot (mirrors RDK-v: /rebootNow.sh -c dsMgrMain)
     REBOOT_ARGS="-c dsMgrMain"
 fi
+
+# Remove the ready sentinel before rebooting so the unknown-case logic
+# in a future run starts with a clean state.
+rm -f /tmp/dsmgr.ready
 
 echo "[ds-reboot] Triggering: /rebootNow.sh ${REBOOT_ARGS}" >&2
 
