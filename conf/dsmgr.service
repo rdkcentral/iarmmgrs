@@ -24,17 +24,16 @@ After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager
 [Service]
 Type=notify
 ExecStartPre=/bin/mkdir -p /opt/persistent/ds
-ExecStartPre=/bin/rm -f /tmp/dsmgr_monitor_stop
-ExecStartPre=/bin/sh -c '/bin/sh /usr/lib/ds-monitor.sh &'
+ExecStartPre=/usr/bin/systemd-run --unit=dsmgr-monitor /bin/sh /usr/lib/ds-monitor.sh
 ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
 # Runs only after READY=1 is confirmed (Type=notify guarantee).
 ExecStartPost=/bin/touch /tmp/dsmgr.ready
-# Signal ds-monitor.sh to exit — faster than systemctl stop (no service overhead).
-ExecStartPost=/bin/touch /tmp/dsmgr_monitor_stop
+# dsMgrMain sent READY=1 — stop the start-phase watchdog (non-blocking).
+ExecStartPost=-/bin/systemctl stop --no-block dsmgr-monitor
 # TODO: confirm how /opt/.dsmgr_restart_count is removed in RDKv before enabling.
 #ExecStartPost=/bin/rm -f /opt/.dsmgr_restart_count
-# Signal monitor to stop if still running (flag checked on next poll).
-ExecStop=/bin/touch /tmp/dsmgr_monitor_stop
+# Stop the watchdog if still running (non-blocking — avoids delaying dsmgr shutdown).
+ExecStop=-/bin/systemctl stop --no-block dsmgr-monitor
 ExecStopPost=/bin/sh /usr/lib/ds-reboot.sh
 
 [Install]

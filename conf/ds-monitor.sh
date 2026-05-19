@@ -27,12 +27,6 @@ elapsed=0
 
 while true
 do
-    if [ -f "/tmp/dsmgr_monitor_stop" ]; then
-        rm -f /tmp/dsmgr_monitor_stop
-        log "dsmgr started successfully — stop flag set, exiting monitor"
-        exit 0
-    fi
-
     RESULT=$(systemctl show dsmgr.service -p Result --value)
 
     if [ "$RESULT" = "timeout" ]; then
