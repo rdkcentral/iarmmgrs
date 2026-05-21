@@ -73,7 +73,6 @@ extern IARM_Result_t _dsGetEDID(void *arg);
 extern IARM_Result_t _dsGetEDIDBytes(void *arg);
 extern IARM_Result_t _dsGetVideoPort(void *arg);
 extern IARM_Result_t _dsIsDisplayConnected(void *arg);
-extern IARM_Result_t _dsEnableHDCP(void *arg);
 extern IARM_Result_t _dsGetStereoAuto(void *arg);
 extern IARM_Result_t _dsIsDisplaySurround(void *arg);
 extern IARM_Result_t _dsGetForceDisable4K(void *arg);
