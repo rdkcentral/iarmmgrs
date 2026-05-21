@@ -61,7 +61,6 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
-#include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
 extern IARM_Result_t _dsGetResolution(void *arg);
