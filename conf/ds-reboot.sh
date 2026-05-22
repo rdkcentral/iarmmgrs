@@ -40,7 +40,7 @@ EXIT_STATUS="${EXIT_STATUS:-}"
 # platform runs v230) it is empty, so query the result from systemd directly.
 # NOTE: --value flag was added in v230; use Result=xxx parse as primary to be safe.
 if [ -z "${SERVICE_RESULT}" ] || [ "${SERVICE_RESULT}" = "unknown" ]; then
-    _raw=$(systemctl show dsmgr --property=Result 2>/dev/null)
+    _raw=$(systemctl show dsmgr.service --property=Result 2>/dev/null)
     # _raw is "Result=success" / "Result=timeout" etc.
     SERVICE_RESULT=$(echo "${_raw}" | sed 's/^Result=//')
     # If sed left it unchanged (no match) or empty, flag as unknown
@@ -125,7 +125,12 @@ if [ ! -f "${COUNTER_FILE}" ]; then
     count=1
 else
     count=$(cat "${COUNTER_FILE}" 2>/dev/null)
-    count=$(expr $count + 1)
+    case "${count}" in
+        ''|*[!0-9]*)
+            count=0
+            ;;
+    esac
+    count=$(expr "${count}" + 1)
 fi
 echo "${count}" > "${COUNTER_FILE}"
 

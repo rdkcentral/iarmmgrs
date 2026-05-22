@@ -24,7 +24,7 @@ After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager
 [Service]
 Type=notify
 ExecStartPre=/bin/mkdir -p /opt/persistent/ds
-ExecStartPre=/usr/bin/systemd-run --unit=dsmgr-monitor /bin/sh /usr/lib/ds-monitor.sh
+ExecStartPre=-/usr/bin/systemd-run --unit=dsmgr-monitor /bin/sh /usr/lib/ds-monitor.sh
 ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
 # Runs only after READY=1 is confirmed (Type=notify guarantee).
 ExecStartPost=/bin/touch /tmp/dsmgr.ready
