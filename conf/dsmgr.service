@@ -30,7 +30,7 @@ ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
 ExecStartPost=/bin/touch /tmp/dsmgr.ready
 # dsMgrMain sent READY=1 — stop the start-phase watchdog (non-blocking).
 ExecStartPost=-/bin/systemctl stop --no-block dsmgr-monitor
-# TODO: confirm how /opt/.dsmgr_restart_count is removed in RDKv before enabling.
+# Confirmed that /opt/.dsmgr_restart_count is removed during a factory reset from the UI in RDK‑E.
 #ExecStartPost=/bin/rm -f /opt/.dsmgr_restart_count
 # Stop the watchdog if still running (non-blocking — avoids delaying dsmgr shutdown).
 ExecStop=-/bin/systemctl stop --no-block dsmgr-monitor

@@ -99,23 +99,13 @@ case "${SERVICE_RESULT}" in
         ;;
 esac
 
-# Invoke the platform reboot script.
-# -s <component>  identifies the rebooting component in the reboot log.
-
-# ---------------------------------------------------------------------------
-# Reboot storm protection — mirrors reboot-count-checker.sh from RDK-v.
-#
-# RDK-v logic (reboot-count-checker.sh / rebootCounterCheck dsmgr):
-#   - Counter file: /opt/.dsmgr_restart_count  (persists across reboots)
-#   - Increment counter on every abnormal exit
-#   - count > 10  → log warning, suppress reboot (no more reboot loop)
-#   - count ≤ 10  → check dependency failure, then call rebootNow.sh
-#   - Reset counter: done on clean successful start via ExecStartPost in
-#     dsmgr.service (removes the counter file)
-#
-# RDK-v also waits for coredump upload before rebooting.  On RDK-e that
-# is handled asynchronously by breakpad, so the wait is intentionally skipped.
-# ---------------------------------------------------------------------------
+# Reboot storm protection — mirrors RDK-v reboot-count-checker.sh logic.
+# Counter /opt/.dsmgr_restart_count persists across reboots; suppresses
+# reboot after 10 consecutive failures. Coredump wait skipped (breakpad
+# handles it asynchronously on RDK-e).
+# NOTE: Counter is incremented only on abnormal exit (signal, exit-code,
+# timeout, unknown). Clean exit (success) returns early above and never
+# reaches this point.
 COUNTER_FILE="/opt/.dsmgr_restart_count"
 LOG_FILE="/opt/logs/uimgr_log.txt"
 MAX_REBOOTS=10
@@ -139,9 +129,12 @@ echo "[ds-reboot] dsMgrMain restart count: ${count}/${MAX_REBOOTS}" >> "${LOG_FI
 
 if [ "${count}" -gt "${MAX_REBOOTS}" ]; then
     # Mirrors: "-----Box has rebooted 10 times.. no more reboot----"
+    # Exit 0: suppressing reboot is intentional, not an error — avoids
+    # marking the ExecStopPost as failed in systemd unit state.
     echo "[ds-reboot] Box has rebooted ${MAX_REBOOTS} times — no more reboot." >&2
     echo "[ds-reboot] Box has rebooted ${MAX_REBOOTS} times — no more reboot." >> "${LOG_FILE}"
-    exit 1
+    rm -f /tmp/dsmgr.ready
+    exit 0
 fi
 
 # Mirrors: check "Dependency failed" then pick -s or -c flag for rebootNow.sh
