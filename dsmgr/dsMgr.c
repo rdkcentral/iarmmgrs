@@ -61,7 +61,6 @@
 #include "safec_lib.h"
 #include "rfcapi.h"
 #include "dsMgrPwrEventListener.h"
-#include "rdkProfile.h"
 
 extern IARM_Result_t _dsSetResolution(void *arg);
 extern IARM_Result_t _dsGetResolution(void *arg);
@@ -73,7 +72,6 @@ extern IARM_Result_t _dsGetEDID(void *arg);
 extern IARM_Result_t _dsGetEDIDBytes(void *arg);
 extern IARM_Result_t _dsGetVideoPort(void *arg);
 extern IARM_Result_t _dsIsDisplayConnected(void *arg);
-extern IARM_Result_t _dsEnableHDCP(void *arg);
 extern IARM_Result_t _dsGetStereoAuto(void *arg);
 extern IARM_Result_t _dsIsDisplaySurround(void *arg);
 extern IARM_Result_t _dsGetForceDisable4K(void *arg);
@@ -95,7 +93,6 @@ static pthread_cond_t  tdsMutexCond;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
-static void _enableHDCP();
 static int iResnCount = 5;
 static int iInitResnFlag = 0;
 static bool bHDCPAuthenticated = false;
@@ -115,7 +112,6 @@ IARM_Bus_Daemon_SysMode_t isEAS = IARM_BUS_SYS_MODE_NORMAL; // Default is Normal
 #define EU_INTERLACED_FPS   "25"
 
 static bool IsEUPlatform = false;
-static profile_t profileType = PROFILE_INVALID;
 
 static char fallBackResolutionList[RES_MAX_COUNT][RES_MAX_LEN];
 
@@ -216,44 +212,6 @@ static bool isHDMIConnected()
     ConParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
     _dsIsDisplayConnected(&ConParam);
     return ConParam.connected; 
-}
-
-static void _enableHDCP()
-{
-	INT_INFO("Enter function \n");
-	errno_t rc = EOK;
-	dsEnableHDCPParam_t hdcpParam;
-
-	rc = memset_s(&hdcpParam, sizeof(hdcpParam), 0, sizeof(hdcpParam));
-	if (rc != EOK) {
-		INT_ERROR("Failed to reset HDCP Param: error code:%d\n", rc);
-	}
-	
-	if(rc == EOK)
-	{
-		INT_INFO("Setting HDCP true \n");
-		hdcpParam.handle = getVideoPortHandle(dsVIDEOPORT_TYPE_HDMI);
-		hdcpParam.contentProtect = true;
-		hdcpParam.rpcResult = dsERR_NONE;
-
-		if(_dsEnableHDCP(&hdcpParam) != IARM_RESULT_SUCCESS)
-		{
-			INT_ERROR("Failed to enable HDCP \r\n");
-		}
-		else
-		{
-			if(hdcpParam.rpcResult != dsERR_NONE)
-			{
-				INT_ERROR("Failed to enable HDCP with error code %d \r\n", hdcpParam.rpcResult);
-			}
-			else
-			{
-				INT_INFO("Setting HDCP done \n");
-			}
-		}
-	}
-   
-    INT_INFO("Exit function \n");
 }
 
 IARM_Result_t DSMgr_Start()
@@ -377,15 +335,7 @@ IARM_Result_t DSMgr_Start()
     _SetVideoPortResolution(); 
     setupPlatformConfig();
 
-	if (PROFILE_INVALID == profileType){
-        profileType = searchRdkProfile();
-    }
-	if(PROFILE_STB == profileType)
-	{
-    	_enableHDCP();
-	}
-
-    return IARM_RESULT_SUCCESS;
+	return IARM_RESULT_SUCCESS;
 }
 
 IARM_Result_t DSMgr_Loop()
