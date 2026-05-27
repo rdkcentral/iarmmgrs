@@ -24,7 +24,7 @@ After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager
 [Service]
 Type=notify
 ExecStartPre=/bin/mkdir -p /opt/persistent/ds
-ExecStartPre=-/usr/bin/systemd-run --unit=dsmgr-monitor /bin/sh /usr/lib/ds-monitor.sh
+ExecStartPre=/usr/bin/systemd-run --unit=dsmgr-monitor /bin/sh /usr/lib/iarm-monitor.sh dsmgr dsMgrMain
 ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
 # Runs only after READY=1 is confirmed (Type=notify guarantee).
 ExecStartPost=/bin/touch /tmp/dsmgr.ready
@@ -34,7 +34,7 @@ ExecStartPost=-/bin/systemctl stop --no-block dsmgr-monitor
 ExecStartPost=/bin/rm -f /opt/.dsmgr_restart_count
 # Stop the watchdog if still running (non-blocking — avoids delaying dsmgr shutdown).
 ExecStop=-/bin/systemctl stop --no-block dsmgr-monitor
-ExecStopPost=/bin/sh /usr/lib/ds-reboot.sh
+ExecStopPost=/bin/sh /usr/lib/iarm-reboot.sh dsmgr dsMgrMain
 
 [Install]
 WantedBy=multi-user.target
