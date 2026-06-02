@@ -1317,12 +1317,12 @@ static void dumpHdmiEdidInfo(dsDisplayEDID_t* pedidData)
 		INT_DEBUG("HDMI  Monitor Name is %s \r\n",pedidData->monitorName);
         char eventMsg[256];
         snprintf(eventMsg, sizeof(eventMsg), "HDMI  Monitor Name is %s", pedidData->monitorName);
-        TELEMETRY_EVENT_STRING("HDMI_INFO_MonitorName", eventMsg);
+        TELEMETRY_EVENT_STRING("HDMI_INFO_MonitorName_split", eventMsg);
 		INT_DEBUG("HDMI  Manufacturing ID is %d \r\n",pedidData->serialNumber);
 		INT_DEBUG("HDMI  Product Code is %d \r\n",pedidData->productCode);
 		INT_DEBUG("HDMI  Device Type is  %s \r\n", (pedidData->hdmiDeviceType == true)?"HDMI":"DVI");
         if(pedidData->hdmiDeviceType == false) {
-            TELEMETRY_EVENT_STRING("HDMI_INFO_DVIDevice", "HDMI  Device Type is DVI");
+            TELEMETRY_EVENT_INT("HDMI_INFO_DVIDevice", 1);
         }
 		INT_DEBUG("HDMI  Sink Device %s a Repeater \r\n",pedidData->isRepeater?"is":"is not");
 		INT_DEBUG("HDMI  Physical Address is %d:%d:%d:%d \r\n",pedidData->physicalAddressA,
