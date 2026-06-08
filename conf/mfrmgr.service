@@ -18,6 +18,7 @@
 ##########################################################################
 [Unit]
 Description=IARM Mgr Daemon MFR MGR
+Requires=iarmbusd.service
 After=iarmbusd.service mfrlibapp.service
 
 [Service]
