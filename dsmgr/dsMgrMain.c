@@ -129,7 +129,7 @@ int main(int argc, char *argv[])
 //    DSHal_RegisterForLog(dslogCallback);
 
 #endif
-    if (IARM_RESULT_SUCCESS != DSMgr_Start()) {
+/*    if (IARM_RESULT_SUCCESS != DSMgr_Start()) {
         INT_ERROR("DSMgr_Start() failed\n");
         return -1;
     }
@@ -148,7 +148,7 @@ int main(int argc, char *argv[])
     IARM_Bus_WritePIDFile(xstr(PID_FILE_PATH) "/dsmgr.pid");
 #endif
     DSMgr_Loop();
-    DSMgr_Stop();
+    DSMgr_Stop();*/
     return 0;
 }
 
