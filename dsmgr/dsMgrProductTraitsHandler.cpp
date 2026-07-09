@@ -299,8 +299,8 @@ ux_controller_tv_eu::ux_controller_tv_eu(unsigned int in_id, const std::string &
 bool ux_controller_tv_eu::applyPowerStateChangeConfig(PowerController_PowerState_t new_state, PowerController_PowerState_t prev_state)
 {
     bool ret = true;
-    sync_display_ports_with_power_state(new_state);
     ret = set_bootloader_pattern((POWER_STATE_ON == new_state ? mfrBL_PATTERN_NORMAL : mfrBL_PATTERN_SILENT_LED_ON));
+    sync_display_ports_with_power_state(new_state);
     return ret;
 }
 
@@ -376,8 +376,8 @@ ux_controller_stb_eu::ux_controller_stb_eu(unsigned int in_id, const std::string
 
 bool ux_controller_stb_eu::applyPowerStateChangeConfig(PowerController_PowerState_t new_state, PowerController_PowerState_t prev_state)
 {
-    sync_display_ports_with_power_state(new_state);
     sync_power_led_with_power_state(new_state);
+    sync_display_ports_with_power_state(new_state);
     return true;
 }
 
@@ -441,8 +441,8 @@ bool ux_controller_tv::applyPowerStateChangeConfig(PowerController_PowerState_t 
     //The new power state takes precedence.
     mutex.unlock();
 
-    sync_display_ports_with_power_state(new_state);
     bool ret = set_bootloader_pattern((POWER_STATE_ON == new_state ? mfrBL_PATTERN_NORMAL : mfrBL_PATTERN_SILENT_LED_ON));
+    sync_display_ports_with_power_state(new_state);
     return ret;
 }
 
@@ -530,8 +530,8 @@ ux_controller_stb::ux_controller_stb(unsigned int in_id, const std::string &in_n
 
 bool ux_controller_stb::applyPowerStateChangeConfig(PowerController_PowerState_t new_state, PowerController_PowerState_t prev_state)
 {
-    sync_display_ports_with_power_state(new_state);
     sync_power_led_with_power_state(new_state);
+    sync_display_ports_with_power_state(new_state);
     return true;
 }
 
