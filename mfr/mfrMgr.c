@@ -31,8 +31,6 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include <errno.h>
-#include <syslog.h>
-#include <sys/time.h>
 #include <time.h>
 
 #include "mfrMgrInternal.h"
@@ -1303,7 +1301,7 @@ IARM_Result_t MFRLib_Start(void)
     IARM_Result_t err = IARM_RESULT_SUCCESS;
 
     LOG("Entering [%s] - [%s] - disabling io redirect buf\r\n", __FUNCTION__, IARM_BUS_MFRLIB_NAME);
-    SYSLOG(Logging::Startup, (_T("[MFRLib_Start] START - disabling io redirect buf")));
+    LOG("[MFRLib_Start] START - disabling io redirect buf\n");
     setvbuf(stdout, NULL, _IOLBF, 0);
 
     do{
@@ -1317,7 +1315,7 @@ IARM_Result_t MFRLib_Start(void)
 
         err = IARM_Bus_Init(IARM_BUS_MFRLIB_NAME);
 
-        SYSLOG(Logging::Startup, (_T("[MFRLib_Start] After mfr_init")));
+        LOG("[MFRLib_Start] After mfr_init\n");
 
         if(IARM_RESULT_SUCCESS != err)
         {
@@ -1325,7 +1323,7 @@ IARM_Result_t MFRLib_Start(void)
             break;
         }
 
-        SYSLOG(Logging::Startup, (_T("[MFRLib_Start] After IARM_Bus_Init")));
+        LOG("[MFRLib_Start] After IARM_Bus_Init\n");
 
         err = IARM_Bus_Connect();
 
@@ -1334,16 +1332,16 @@ IARM_Result_t MFRLib_Start(void)
             LOG("Error connecting to IARM.. error code : %d\n",err);
             break;
         }
-        SYSLOG(Logging::Startup, (_T("[MFRLib_Start] After IARM_Bus_Connect")));
+        LOG("[MFRLib_Start] After IARM_Bus_Connect\n");
         is_connected = 1;
-        SYSLOG(Logging::Startup, (_T("[MFRLib_Start] Before RegisterCall - GetSerializedData")));
+        LOG("[MFRLib_Start] Before RegisterCall - GetSerializedData\n");
         err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_GetSerializedData,getSerializedData_);
         if(IARM_RESULT_SUCCESS != err)
         {
             LOG("Error registering call(getSerializedData) in IARM.. error code : %d\n",err);
             break;
         }
-	SYSLOG(Logging::Startup, (_T("[MFRLib_Start] After RegisterCall - GetSerializedData")));
+    LOG("[MFRLib_Start] After RegisterCall - GetSerializedData\n");
 	err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_SetSerializedData,setSerializedData_);
 	if(IARM_RESULT_SUCCESS != err)
 	{
@@ -1373,7 +1371,7 @@ IARM_Result_t MFRLib_Start(void)
             break;
         }
 
-        SYSLOG(Logging::Startup, (_T("[MFRLib_Start] After RegisterCall - WriteImage")));
+        LOG("[MFRLib_Start] After RegisterCall - WriteImage\n");
 
         err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_SetBootLoaderPattern, setBootloaderPattern_);
         if(IARM_RESULT_SUCCESS != err)
@@ -1430,7 +1428,7 @@ IARM_Result_t MFRLib_Start(void)
 		LOG("Error registering event(IARM_BUS_MFRMGR_EVENT_MAX) in IARM.. error code : %d\n",err);
 		break;
 	}
-    SYSLOG(Logging::Startup, (_T("[MFRLib_Start] After RegisterEvent - IARM_BUS_MFRMGR_EVENT_MAX")));
+    LOG("[MFRLib_Start] After RegisterEvent - IARM_BUS_MFRMGR_EVENT_MAX\n");
 
     err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_GetSecureTime, getSecureTime_);
 
@@ -1463,7 +1461,7 @@ IARM_Result_t MFRLib_Start(void)
         break;
     }
 #ifdef MFR_TEMP_CLOCK_READ
-    SYSLOG(Logging::Startup, (_T("[MFRLib_Start] Before RegisterCall - Thermal/Clock APIs")));
+    LOG("[MFRLib_Start] Before RegisterCall - Thermal/Clock APIs\n");
     err = IARM_Bus_RegisterCall(IARM_BUS_MFRLIB_API_GetTemperature, getTemperature_);
 
     if(IARM_RESULT_SUCCESS != err)
@@ -1527,7 +1525,7 @@ IARM_Result_t MFRLib_Start(void)
          break;
     }
 	LOG("All IARM Bus calls and events registered successfully\n");
-    SYSLOG(Logging::Startup, (_T("[MFRLib_Start] COMPLETE - All RegisterCall/RegisterEvent completed")));
+    LOG("[MFRLib_Start] COMPLETE - All RegisterCall/RegisterEvent completed\n");
     }while(0);
 
     if(err != IARM_RESULT_SUCCESS)
@@ -1546,7 +1544,7 @@ IARM_Result_t MFRLib_Start(void)
 	}
      }
 
-    SYSLOG(Logging::Startup, (_T("[MFRLib_Start] EXIT")));
+    LOG("[MFRLib_Start] EXIT\n");
 
     return err;
 
@@ -1692,7 +1690,7 @@ static IARM_Result_t getFSRflag_(void *arg)
 
 IARM_Result_t MFRLib_Stop(void)
 {
-    SYSLOG(Logging::Startup, (_T("[MFRLib_Stop] START - Stopping MFRLib")));
+    LOG("[MFRLib_Stop] START - Stopping MFRLib\n");
     if (is_connected)
     {
         IARM_Result_t result;
@@ -1709,7 +1707,7 @@ IARM_Result_t MFRLib_Stop(void)
         }
     }
 
-    SYSLOG(Logging::Startup, (_T("[MFRLib_Stop] COMPLETE - MFRLib stopped successfully")));
+    LOG("[MFRLib_Stop] COMPLETE - MFRLib stopped successfully\n");
 
     return IARM_RESULT_SUCCESS;
 }
@@ -1717,7 +1715,7 @@ IARM_Result_t MFRLib_Stop(void)
 IARM_Result_t MFRLib_Loop()
 {
     time_t curr = 0;
-    SYSLOG(Logging::Startup, (_T("[MFRLib_Loop] START - HeartBeat started")));
+    LOG("[MFRLib_Loop] START - HeartBeat started\n");
     while(1)
     {
         time(&curr);
