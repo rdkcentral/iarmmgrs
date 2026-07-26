@@ -167,7 +167,7 @@ graph TD
   - `/opt/persistent/ds` — Persistent device settings directory created by DSMgr service on start.
   - `/opt/.hdcp_profile_1` — HDCP profile persistence marker file managed by SysMgr.
   - `/opt/ddcDelay` — Optional file controlling DDC retry count during HDMI resolution negotiation.
-  - `/etc/deviceUpdateConfig.json` — Device Update Manager configuration: folder paths to monitor and download/load behavior.
+  - `/opt/deviceUpdateConfig.json`, `/mnt/nfs/env/deviceUpdateConfig.json`, `/etc/deviceUpdateConfig.json`, or `./deviceUpdateConfig.json` — Device Update Manager configuration: folder paths to monitor and download/load behavior (searched in that order).
 - **Startup Order**: `iarmbusd` → `sysmgr` → `wpeframework-powermanager` → `dsmgr`; `mfrlibapp` → `mfrmgr`.
 
 ---
