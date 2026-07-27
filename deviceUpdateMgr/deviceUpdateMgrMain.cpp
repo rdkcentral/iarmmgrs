@@ -280,7 +280,8 @@ bool loadConfig()
 			filePath = "/etc/" + confName;
 			if (!_fileExists(filePath))
 			{
-				filePath = confName;
+				//coverity fix: COPY_INSTEAD_OF_MOVE - use move semantics since confName is no longer needed
+				filePath = std::move(confName);
 				if (!_fileExists(filePath))
 				{
 					__TIMESTAMP();
@@ -762,6 +763,7 @@ bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData)
 			ERR_CHK(rc);
 		}
 
+	//coverity fix: COPY_INSTEAD_OF_MOVE - assign return value directly (RVO applies)
 	text = getXMLTagText(fileContents, "image:type");
 	myData->deviceImageType = atoi(text.c_str());
 
@@ -814,7 +816,7 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 								if (_folderExists(updatePath))
 								{
 									INT_LOG("I-ARM DevUpdate Mgr: processing folder location <%s>\n", updatePath.c_str());
-									processDeviceFolder(updatePath, updateFolder);
+									processDeviceFolder(std::move(updatePath), std::move(updateFolder)); //coverity fix: COPY_INSTEAD_OF_MOVE
 
 								}
 							}
@@ -838,7 +840,7 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 							if (_folderExists(updatePath))
 							{
 								INT_LOG("I-ARM DevUpdate Mgr: processing folder location <%s>\n", updatePath.c_str());
-								processDeviceFolder(updatePath, updateFolder);
+								processDeviceFolder(std::move(updatePath), std::move(updateFolder)); //coverity fix: COPY_INSTEAD_OF_MOVE
 
 							}
 						}

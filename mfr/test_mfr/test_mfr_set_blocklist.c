@@ -28,11 +28,13 @@ int main(int argc, char *argv[] )
 		return 1;
 	}
 
-
+	//coverity fix: CONSTANT_EXPRESSION_RESULT and DEADCODE - use conditional check only when unsigned long can exceed unsigned int
+#if ULONG_MAX > UINT_MAX
 	if (input_ul_data > UINT_MAX) {
     		printf("Invalid input: value exceeds unsigned int range (0 to %u).\n", UINT_MAX);
     		return 1;
 	}
+#endif
 
 	unsigned int blocklist_value = (unsigned int)input_ul_data;
         

@@ -56,10 +56,12 @@ public:
     virtual ~JSONParser();
     map<string, varVal *> parse(const unsigned char *);
 
-    void newKey(string keyName) { m_curKey = keyName; }
+    //coverity fix: COPY_INSTEAD_OF_MOVE - use move semantics
+    void newKey(string keyName) { m_curKey = std::move(keyName); }
     void newString(string value) {
     	varVal *vv=new varVal();
-    	vv->str=value;
+    	//coverity fix: COPY_INSTEAD_OF_MOVE - use move semantics
+    	vv->str=std::move(value);
     	if(m_array!=NULL){
     		m_array->push_back(vv);
     	}else{
