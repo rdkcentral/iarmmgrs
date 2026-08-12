@@ -147,8 +147,23 @@ int main(int argc, char *argv[])
     // write pidfile because sd_notify() does not work inside container
     IARM_Bus_WritePIDFile(xstr(PID_FILE_PATH) "/dsmgr.pid");
 #endif
-    DSMgr_Loop();
-    DSMgr_Stop();
+    //coverity fix: UNCAUGHT_EXCEPT - wrap in try-catch to handle potential exceptions
+#ifdef __cplusplus
+    try {
+#endif
+        DSMgr_Loop();
+        DSMgr_Stop();
+#ifdef __cplusplus
+    }
+    catch (const std::exception& e) {
+        INT_ERROR("Exception caught in main: %s\n", e.what());
+        return -1;
+    }
+    catch (...) {
+        INT_ERROR("Unknown exception caught in main\n");
+        return -1;
+    }
+#endif
     return 0;
 }
 
