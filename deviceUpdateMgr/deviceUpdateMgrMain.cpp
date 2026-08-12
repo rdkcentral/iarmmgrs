@@ -184,19 +184,30 @@ IARM_Result_t deviceUpdateStart()
 	INT_LOG("Entering [%s] - [%s] - disabling io redirect buf\n", __FUNCTION__, IARM_BUS_DEVICE_UPDATE_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	
-	// Use RAII lock guard to automatically handle mutex lifecycle
+	// coverity fix: ORDER_REVERSAL - check initialized flag first, then do IARM operations
+	// This avoids holding mapMutex while acquiring tMutexLock (which would violate lock order)
+	bool needsInit = false;
 	{
 		std::lock_guard<std::mutex> mapLock(mapMutex);
+		if (!initialized) {
+			needsInit = true;
+		}
+		else {
+			__TIMESTAMP();
+			INT_LOG("dumMgr: I-ARM Device Update Mgr Error case: %d\n", __LINE__);
+			return IARM_RESULT_INVALID_STATE;
+		}
+	} // mapMutex unlocked here
+	
+	if (needsInit)
+	{
+		IARM_Result_t rc;
 		
-		if (!initialized)
+		// Now acquire tMutexLock without holding mapMutex
 		{
-			IARM_Result_t rc;
+			std::lock_guard<std::mutex> tLock(tMutexLock);
 			
-			// Use nested scope for tMutexLock to avoid hierarchy issues
-			{
-				std::lock_guard<std::mutex> tLock(tMutexLock);
-				
-				rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
+			rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
 				INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
 				if (IARM_RESULT_SUCCESS != rc) {
 					INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
@@ -209,7 +220,7 @@ IARM_Result_t deviceUpdateStart()
 					INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
 					return rc;
 				}
-			} // tMutexLock automatically unlocked here
+			} // tMutexLock unlocked here
 
 			rc = IARM_Bus_RegisterEvent(IARM_BUS_DEVICE_UPDATE_EVENT_MAX);
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n", rc);
@@ -250,16 +261,13 @@ IARM_Result_t deviceUpdateStart()
 				return rc;
 			}
 
-			initialized = 1;
+			// Mark as initialized - acquire mapMutex to set the flag
+			{
+				std::lock_guard<std::mutex> mapLock(mapMutex);
+				initialized = true;
+			}
 			status = IARM_RESULT_SUCCESS;
-		}
-		else
-		{
-			__TIMESTAMP();
-			INT_LOG("dumMgr: I-ARM Device Update Mgr Error case: %d\n", __LINE__);
-			status = IARM_RESULT_INVALID_STATE;
-		}
-	} // mapMutex automatically unlocked here
+	}
 	return status;
 }
 
@@ -767,7 +775,7 @@ bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData)
 	text = getXMLTagText(fileContents, "image:type");
 	myData->deviceImageType = atoi(text.c_str());
 
-	text = getXMLTagText(fileContents, "image:productName");
+	text = getXMLTagText(std::move(fileContents), "image:productName");
 		rc = strcpy_s(myData->deviceName,sizeof(myData->deviceName), text.c_str());
 		if(rc!=EOK)
 		{
