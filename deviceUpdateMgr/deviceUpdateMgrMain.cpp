@@ -927,7 +927,13 @@ IARM_Result_t AcceptUpdate(void *arg)
 
 IARM_Result_t deviceUpdateStop(void)
 {
-	if (initialized)
+	bool shouldStop = false;
+	{
+		std::lock_guard<std::mutex> lock(mapMutex);
+		shouldStop = initialized;
+	}
+	
+	if (shouldStop)
 	{
 		{
 			std::lock_guard<std::mutex> lock(tMutexLock);
@@ -940,6 +946,10 @@ IARM_Result_t deviceUpdateStop(void)
 			if (IARM_Bus_Term() != IARM_RESULT_SUCCESS) {
 				INT_LOG("%s:%d: IARM_Bus_Term failed\n", __FUNCTION__, __LINE__);
 			}
+		}
+		{
+			std::lock_guard<std::mutex> lock(mapMutex);
+			initialized = false;
 		}
 		initialized = false;
 		return IARM_RESULT_SUCCESS;
