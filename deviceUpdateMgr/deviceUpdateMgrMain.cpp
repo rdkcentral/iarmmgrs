@@ -201,24 +201,30 @@ IARM_Result_t deviceUpdateStart()
 	{
 		IARM_Result_t rc;
 		
-		// Now acquire tMutexLock without holding mapMutex
 		{
 			std::lock_guard<std::mutex> tLock(tMutexLock);
 			
+			{
+				std::lock_guard<std::mutex> mapLock(mapMutex);
+				if (initialized) {
+					return IARM_RESULT_SUCCESS;
+				}
+			}
+			
 			rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
-				INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
-				if (IARM_RESULT_SUCCESS != rc) {
-					INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
-					return rc;
-				}
+			INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
+				return rc;
+			}
 
-				rc = IARM_Bus_Connect();
-				INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
-				if (IARM_RESULT_SUCCESS != rc) {
-					INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
-					return rc;
-				}
-			} // tMutexLock unlocked here
+			rc = IARM_Bus_Connect();
+			INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
+				return rc;
+			}
+		} 
 
 			rc = IARM_Bus_RegisterEvent(IARM_BUS_DEVICE_UPDATE_EVENT_MAX);
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n", rc);
@@ -259,7 +265,6 @@ IARM_Result_t deviceUpdateStart()
 				return rc;
 			}
 
-			// Mark as initialized - acquire mapMutex to set the flag
 			{
 				std::lock_guard<std::mutex> mapLock(mapMutex);
 				initialized = true;
