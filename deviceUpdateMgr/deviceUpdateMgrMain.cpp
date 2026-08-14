@@ -183,7 +183,7 @@ IARM_Result_t deviceUpdateStart()
 
 	INT_LOG("Entering [%s] - [%s] - disabling io redirect buf\n", __FUNCTION__, IARM_BUS_DEVICE_UPDATE_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
-	
+	// Use RAII lock guard to automatically handle mutex lifecycle
 	bool needsInit = false;
 	{
 		std::lock_guard<std::mutex> mapLock(mapMutex);
