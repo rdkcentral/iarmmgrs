@@ -118,7 +118,6 @@ extern int b_rdk_logger_enabled;
 #else
 
 /* Fallback macros for non-RDK logger builds - consistent formatting */
-//coverity fix: PW.BAD_MACRO_REDEF - use ifndef guards to prevent redefinition warnings
 #ifndef INT_DEBUG
 #define INT_DEBUG(FORMAT, ...)     do { printf(FORMAT, ##__VA_ARGS__); } while(0)
 #endif
