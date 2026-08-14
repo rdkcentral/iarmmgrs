@@ -184,8 +184,6 @@ IARM_Result_t deviceUpdateStart()
 	INT_LOG("Entering [%s] - [%s] - disabling io redirect buf\n", __FUNCTION__, IARM_BUS_DEVICE_UPDATE_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
 	
-	// coverity fix: ORDER_REVERSAL - check initialized flag first, then do IARM operations
-	// This avoids holding mapMutex while acquiring tMutexLock (which would violate lock order)
 	bool needsInit = false;
 	{
 		std::lock_guard<std::mutex> mapLock(mapMutex);
@@ -288,7 +286,6 @@ bool loadConfig()
 			filePath = "/etc/" + confName;
 			if (!_fileExists(filePath))
 			{
-				//coverity fix: COPY_INSTEAD_OF_MOVE - use move semantics since confName is no longer needed
 				filePath = std::move(confName);
 				if (!_fileExists(filePath))
 				{
@@ -771,7 +768,6 @@ bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData)
 			ERR_CHK(rc);
 		}
 
-	//coverity fix: COPY_INSTEAD_OF_MOVE - assign return value directly (RVO applies)
 	text = getXMLTagText(fileContents, "image:type");
 	myData->deviceImageType = atoi(text.c_str());
 
@@ -824,7 +820,7 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 								if (_folderExists(updatePath))
 								{
 									INT_LOG("I-ARM DevUpdate Mgr: processing folder location <%s>\n", updatePath.c_str());
-									processDeviceFolder(std::move(updatePath), std::move(updateFolder)); //coverity fix: COPY_INSTEAD_OF_MOVE
+									processDeviceFolder(std::move(updatePath), std::move(updateFolder));
 
 								}
 							}
@@ -848,7 +844,7 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 							if (_folderExists(updatePath))
 							{
 								INT_LOG("I-ARM DevUpdate Mgr: processing folder location <%s>\n", updatePath.c_str());
-								processDeviceFolder(std::move(updatePath), std::move(updateFolder)); //coverity fix: COPY_INSTEAD_OF_MOVE
+								processDeviceFolder(std::move(updatePath), std::move(updateFolder));
 
 							}
 						}
