@@ -947,7 +947,6 @@ IARM_Result_t deviceUpdateStop(void)
 			std::lock_guard<std::mutex> lock(mapMutex);
 			initialized = false;
 		}
-		initialized = false;
 		return IARM_RESULT_SUCCESS;
 	}
 	else
