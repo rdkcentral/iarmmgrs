@@ -59,7 +59,6 @@ static int parse_number(void * ctx, const char * s, size_t l)
     std::string str;
     str.append(s, l);
     JSONParser *parser = (JSONParser *)ctx;
-    //coverity fix: COPY_INSTEAD_OF_MOVE - use move since str not used after this
     parser->newString(std::move(str));
     //currentMap[currentMapKey] = str;
     //__TIMESTAMP(); printf ("NUMBER: <%s>\n", str.c_str());
@@ -79,7 +78,6 @@ static int parse_string(void * ctx, const unsigned char * stringVal,
     	parser->newBool((str=="true")?true:false);
     }else
     {
-    	//coverity fix: COPY_INSTEAD_OF_MOVE - use move since str not used after this
     	parser->newString(std::move(str));
     }
     //currentMap[currentMapKey] = str;
@@ -95,7 +93,6 @@ static int parse_map_key(void * ctx, const unsigned char * stringVal,
     std::string str;
     str.append((const char *)stringVal, stringLen);
     JSONParser *parser = (JSONParser *)ctx;
-    //coverity fix: COPY_INSTEAD_OF_MOVE - use move since str not used after this
     parser->newKey(std::move(str));
     //printf ("MAPKEY: <%s>\n", str.c_str());
     //currentMapKey = str;
