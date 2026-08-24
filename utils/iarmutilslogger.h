@@ -118,10 +118,18 @@ extern int b_rdk_logger_enabled;
 #else
 
 /* Fallback macros for non-RDK logger builds - consistent formatting */
+#ifndef INT_DEBUG
 #define INT_DEBUG(FORMAT, ...)     do { printf(FORMAT, ##__VA_ARGS__); } while(0)
+#endif
+#ifndef INT_ERROR
 #define INT_ERROR(FORMAT, ...)     do { printf(FORMAT, ##__VA_ARGS__); } while(0)
+#endif
+#ifndef INT_INFO
 #define INT_INFO(FORMAT, ...)      do { printf(FORMAT, ##__VA_ARGS__); } while(0)
+#endif
+#ifndef INT_WARNING
 #define INT_WARNING(FORMAT, ...)   do { printf(FORMAT, ##__VA_ARGS__); } while(0)
+#endif
 
 
 #endif

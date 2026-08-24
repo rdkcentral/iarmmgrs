@@ -183,33 +183,48 @@ IARM_Result_t deviceUpdateStart()
 
 	INT_LOG("Entering [%s] - [%s] - disabling io redirect buf\n", __FUNCTION__, IARM_BUS_DEVICE_UPDATE_NAME);
 	setvbuf(stdout, NULL, _IOLBF, 0);
-	
 	// Use RAII lock guard to automatically handle mutex lifecycle
+	bool needsInit = false;
 	{
 		std::lock_guard<std::mutex> mapLock(mapMutex);
+		if (!initialized) {
+			needsInit = true;
+		}
+		else {
+			__TIMESTAMP();
+			INT_LOG("dumMgr: I-ARM Device Update Mgr Error case: %d\n", __LINE__);
+			return IARM_RESULT_INVALID_STATE;
+		}
+	} // mapMutex unlocked here
+	
+	if (needsInit)
+	{
+		IARM_Result_t rc;
 		
-		if (!initialized)
 		{
-			IARM_Result_t rc;
+			std::lock_guard<std::mutex> tLock(tMutexLock);
 			
-			// Use nested scope for tMutexLock to avoid hierarchy issues
 			{
-				std::lock_guard<std::mutex> tLock(tMutexLock);
-				
-				rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
-				INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
-				if (IARM_RESULT_SUCCESS != rc) {
-					INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
-					return rc;
+				std::lock_guard<std::mutex> mapLock(mapMutex);
+				if (initialized) {
+					return IARM_RESULT_SUCCESS;
 				}
+			}
+			
+			rc = IARM_Bus_Init(IARM_BUS_DEVICE_UPDATE_NAME);
+			INT_LOG("dumMgr:I-ARM IARM_Bus_Init Mgr: %d\n", rc);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_Init failed: %d\n", rc);
+				return rc;
+			}
 
-				rc = IARM_Bus_Connect();
-				INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
-				if (IARM_RESULT_SUCCESS != rc) {
-					INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
-					return rc;
-				}
-			} // tMutexLock automatically unlocked here
+			rc = IARM_Bus_Connect();
+			INT_LOG("dumMgr:I-ARM IARM_Bus_Connect Mgr: %d\n", rc);
+			if (IARM_RESULT_SUCCESS != rc) {
+				INT_LOG("dumMgr:I-ARM IARM_Bus_Connect failed: %d\n", rc);
+				return rc;
+			}
+		} 
 
 			rc = IARM_Bus_RegisterEvent(IARM_BUS_DEVICE_UPDATE_EVENT_MAX);
 			INT_LOG("dumMgr:I-ARM IARM_Bus_RegisterEvent Mgr: %d\n", rc);
@@ -250,16 +265,12 @@ IARM_Result_t deviceUpdateStart()
 				return rc;
 			}
 
-			initialized = 1;
+			{
+				std::lock_guard<std::mutex> mapLock(mapMutex);
+				initialized = true;
+			}
 			status = IARM_RESULT_SUCCESS;
-		}
-		else
-		{
-			__TIMESTAMP();
-			INT_LOG("dumMgr: I-ARM Device Update Mgr Error case: %d\n", __LINE__);
-			status = IARM_RESULT_INVALID_STATE;
-		}
-	} // mapMutex automatically unlocked here
+	}
 	return status;
 }
 
@@ -280,7 +291,7 @@ bool loadConfig()
 			filePath = "/etc/" + confName;
 			if (!_fileExists(filePath))
 			{
-				filePath = confName;
+				filePath = std::move(confName);
 				if (!_fileExists(filePath))
 				{
 					__TIMESTAMP();
@@ -765,7 +776,7 @@ bool getEventData(string filename, _IARM_Bus_DeviceUpdate_Announce_t *myData)
 	text = getXMLTagText(fileContents, "image:type");
 	myData->deviceImageType = atoi(text.c_str());
 
-	text = getXMLTagText(fileContents, "image:productName");
+	text = getXMLTagText(std::move(fileContents), "image:productName");
 		rc = strcpy_s(myData->deviceName,sizeof(myData->deviceName), text.c_str());
 		if(rc!=EOK)
 		{
@@ -814,7 +825,7 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 								if (_folderExists(updatePath))
 								{
 									INT_LOG("I-ARM DevUpdate Mgr: processing folder location <%s>\n", updatePath.c_str());
-									processDeviceFolder(updatePath, updateFolder);
+									processDeviceFolder(std::move(updatePath), std::move(updateFolder));
 
 								}
 							}
@@ -838,7 +849,7 @@ void deviceUpdateRun(list<JSONParser::varVal *> *folders)
 							if (_folderExists(updatePath))
 							{
 								INT_LOG("I-ARM DevUpdate Mgr: processing folder location <%s>\n", updatePath.c_str());
-								processDeviceFolder(updatePath, updateFolder);
+								processDeviceFolder(std::move(updatePath), std::move(updateFolder));
 
 							}
 						}
@@ -917,7 +928,13 @@ IARM_Result_t AcceptUpdate(void *arg)
 
 IARM_Result_t deviceUpdateStop(void)
 {
-	if (initialized)
+	bool shouldStop = false;
+	{
+		std::lock_guard<std::mutex> lock(mapMutex);
+		shouldStop = initialized;
+	}
+	
+	if (shouldStop)
 	{
 		{
 			std::lock_guard<std::mutex> lock(tMutexLock);
@@ -931,7 +948,10 @@ IARM_Result_t deviceUpdateStop(void)
 				INT_LOG("%s:%d: IARM_Bus_Term failed\n", __FUNCTION__, __LINE__);
 			}
 		}
-		initialized = false;
+		{
+			std::lock_guard<std::mutex> lock(mapMutex);
+			initialized = false;
+		}
 		return IARM_RESULT_SUCCESS;
 	}
 	else
