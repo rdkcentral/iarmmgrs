@@ -59,7 +59,7 @@ static int parse_number(void * ctx, const char * s, size_t l)
     std::string str;
     str.append(s, l);
     JSONParser *parser = (JSONParser *)ctx;
-    parser->newString(str);
+    parser->newString(std::move(str));
     //currentMap[currentMapKey] = str;
     //__TIMESTAMP(); printf ("NUMBER: <%s>\n", str.c_str());
     //yajl_gen g = (yajl_gen) ctx;
@@ -78,7 +78,7 @@ static int parse_string(void * ctx, const unsigned char * stringVal,
     	parser->newBool((str=="true")?true:false);
     }else
     {
-    	parser->newString(str);
+    	parser->newString(std::move(str));
     }
     //currentMap[currentMapKey] = str;
     //printf ("STRING: <%s>\n", str.c_str());
@@ -93,7 +93,7 @@ static int parse_map_key(void * ctx, const unsigned char * stringVal,
     std::string str;
     str.append((const char *)stringVal, stringLen);
     JSONParser *parser = (JSONParser *)ctx;
-    parser->newKey(str);
+    parser->newKey(std::move(str));
     //printf ("MAPKEY: <%s>\n", str.c_str());
     //currentMapKey = str;
     //yajl_gen g = (yajl_gen) ctx;

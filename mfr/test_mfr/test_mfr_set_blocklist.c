@@ -28,11 +28,12 @@ int main(int argc, char *argv[] )
 		return 1;
 	}
 
-
+#if ULONG_MAX > UINT_MAX
 	if (input_ul_data > UINT_MAX) {
     		printf("Invalid input: value exceeds unsigned int range (0 to %u).\n", UINT_MAX);
     		return 1;
 	}
+#endif
 
 	unsigned int blocklist_value = (unsigned int)input_ul_data;
         
