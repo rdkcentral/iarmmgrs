@@ -19,7 +19,7 @@
 [Unit]
 Description=IARM Mgr Daemon DS MGR
 Requires=iarmbusd.service
-After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager.service
+After=lighttpd.service iarmbusd.service sysmgr.service mfrmgr.service wpeframework-powermanager.service
 
 [Service]
 Type=notify
