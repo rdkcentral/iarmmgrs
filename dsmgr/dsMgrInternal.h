@@ -53,13 +53,18 @@
 #include "rdk_debug.h"
 #include "iarmUtil.h"
 
-#define INT_ERROR(FORMAT, ...)       LOG_ERROR(PREFIX(FORMAT), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_WARNING(FORMAT,  ...)       LOG_WARNING(PREFIX(FORMAT),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_INFO(FORMAT,  ...)       LOG_INFO(PREFIX(FORMAT),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_DEBUG(FORMAT, ...)       LOG_DEBUG(PREFIX(FORMAT), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_TRACE(FORMAT, ...)       LOG_TRACE(PREFIX(FORMAT), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+static inline const char* fileName(const char* path) {
+    const char* slash = strrchr(path, '/');
+    return slash ? slash + 1 : path;
+}
 
-#define PREFIX(FORMAT)  "%d\t: %s - " FORMAT
+#define INT_ERROR(FORMAT, ...)       LOG_ERROR(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_WARNING(FORMAT,  ...)    LOG_WARNING(PREFIX(FORMAT), fileName(__FILE__),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_INFO(FORMAT,  ...)       LOG_INFO(PREFIX(FORMAT), fileName(__FILE__),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_DEBUG(FORMAT, ...)       LOG_DEBUG(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_TRACE(FORMAT, ...)       LOG_TRACE(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+
+#define PREFIX(FORMAT)  "[%s:%d] %s: " FORMAT
 
 extern int b_rdk_logger_enabled;
 

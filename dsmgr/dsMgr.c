@@ -603,6 +603,7 @@ static int _SetVideoPortResolution()
 			_SetResolution(&_hdmihandle,dsVIDEOPORT_TYPE_HDMI);
 		}
 		else {
+            INT_INFO("HDMI not connected, checking other video ports...\r\n");
 			_comphandle = getVideoPortHandle(dsVIDEOPORT_TYPE_COMPONENT);
 			
 			if (NULL != _comphandle)
@@ -614,27 +615,27 @@ static int _SetVideoPortResolution()
 			{
 			    INT_INFO("%s: NULL Handle for component\r\n",__FUNCTION__);
 
-                            intptr_t _compositehandle = getVideoPortHandle(dsVIDEOPORT_TYPE_BB);
+                intptr_t _compositehandle = getVideoPortHandle(dsVIDEOPORT_TYPE_BB);
 
-                            if (NULL != _compositehandle)
-                            {
-                                INT_INFO("Setting BB Composite Resolution.......... \r\n");
-                                _SetResolution(&_compositehandle,dsVIDEOPORT_TYPE_BB);
-                            }
-                            else
-                            {
-                                 INT_INFO("%s: NULL Handle for Composite \r\n",__FUNCTION__);
-                                 intptr_t _rfhandle = getVideoPortHandle(dsVIDEOPORT_TYPE_RF);
-                                 if (NULL != _rfhandle)
-                                 {
-                                     INT_INFO("Setting RF Resolution.......... \r\n");
-                                     _SetResolution(&_rfhandle,dsVIDEOPORT_TYPE_RF);
-                                 }
-                                 else
-                                 {
-                                     INT_INFO("%s: NULL Handle for RF \r\n",__FUNCTION__);
-                                 }
-                            }
+                if (NULL != _compositehandle)
+                {
+                    INT_INFO("Setting BB Composite Resolution.......... \r\n");
+                    _SetResolution(&_compositehandle,dsVIDEOPORT_TYPE_BB);
+                }
+                else
+                {
+                    INT_INFO("%s: NULL Handle for Composite \r\n",__FUNCTION__);
+                    intptr_t _rfhandle = getVideoPortHandle(dsVIDEOPORT_TYPE_RF);
+                    if (NULL != _rfhandle)
+                    {
+                        INT_INFO("Setting RF Resolution.......... \r\n");
+                        _SetResolution(&_rfhandle,dsVIDEOPORT_TYPE_RF);
+                    }
+                    else
+                    {
+                        INT_INFO("%s: NULL Handle for RF \r\n",__FUNCTION__);
+                    }
+                }
 			}
 		
 		}
@@ -762,6 +763,8 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	int resolutionsSize = 0;
 	dsVideoPortResolution_t *pResolutions = NULL;
 
+    INT_INFO("[DsMgr] _SetResolution called for PortType %d\n", PortType);
+
 	if (_dsGetVideoPortResolutions(&resolutionsSize, &pResolutions) != dsERR_NONE) {
 		INT_ERROR("Failed to get video port resolutions\n");
 		return 0;
@@ -811,21 +814,27 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	/*Get the User Persisted Resolution Based on Handle */
 	memset(&Getparam,0,sizeof(Getparam));
 	Getparam.handle = _handle;
-        gboolean hotplug_edid_diff = dumpEdidOnChecksumDiff(NULL);
+    gboolean hotplug_edid_diff = dumpEdidOnChecksumDiff(NULL);
 	if(bootup_flag_enabled || hotplug_edid_diff){
 	    Getparam.toPersist = true;
-        }else{
+    }
+    else{
 	    Getparam.toPersist = false;
-        }
+    }
+    
+    INT_INFO("Retrieve Resolution: toPersist[%u]", Getparam.toPersist);
+
 	_dsGetResolution(&Getparam);
 	dsVideoPortResolution_t *presolution = &Getparam.resolution;
 	if(bootup_flag_enabled||hotplug_edid_diff){
 	    INT_INFO("Got User Persisted Resolution - %s..\r\n",presolution->name);
-        }else{
+    }
+    else{
 	    INT_INFO("Got Platform Resolution - %s..\r\n",presolution->name);
-        }
+    }
 
 	if (PortType == dsVIDEOPORT_TYPE_HDMI)	{
+        INT_INFO("Setting resolution for HDMI port..\r\n");
 		/*Get The Display Handle */
 		dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
 		if (_displayHandle)
@@ -858,7 +867,6 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 			*/
 			if ((0 == numResolutions) || (!(edidData->hdmiDeviceType)))
 			{
-
 				INT_ERROR("Do not Set Resolution..The HDMI is not Ready  !! \r\n");
 				INT_ERROR("numResolutions  = %d edidData.hdmiDeviceType = %d !! \r\n",numResolutions,edidData->hdmiDeviceType);
 				free(Edidparam);
@@ -1003,6 +1011,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	}
 	else if (PortType == dsVIDEOPORT_TYPE_COMPONENT || PortType == dsVIDEOPORT_TYPE_BB || PortType == dsVIDEOPORT_TYPE_RF)
 	{
+        INT_INFO("Setting resolution for Component/Composite/RF port..\r\n");
 		/* Set the Component / Composite  Resolution */	
     	for (i = 0; i < resolutionsSize; i++)
     	{
@@ -1067,6 +1076,8 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	{
 		free(edidData);
 	}
+
+    INT_INFO("Exiting _SetResolution with resolution - %s..\r\n", setResn->name);
 
 	return 0 ;
 }
@@ -1334,42 +1345,45 @@ static void dumpHdmiEdidInfo(dsDisplayEDID_t* pedidData)
 
 
 static gboolean dumpEdidOnChecksumDiff(gpointer data) {
-        INT_INFO("dumpEdidOnChecksumDiff HDMI-EDID Dump>>>>>>>>>>>>>>\r\n");
-        intptr_t _displayHandle = 0;
-        dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
-        if (_displayHandle) {
-                int length = 0;
-                dsDisplayGetEDIDBytesParam_t EdidBytesParam;
-                static int cached_EDID_checksum = 0;
-                int current_EDID_checksum = 0;
-                memset(&EdidBytesParam,0,sizeof(EdidBytesParam));
-                EdidBytesParam.handle = _displayHandle;
-                _dsGetEDIDBytes(&EdidBytesParam);
-		length = EdidBytesParam.length;
+    INT_INFO("dumpEdidOnChecksumDiff HDMI-EDID Dump>>>>>>>>>>>>>>\r\n");
+    intptr_t _displayHandle = 0;
+    dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
+    if (_displayHandle) {
+        int length = 0;
+        dsDisplayGetEDIDBytesParam_t EdidBytesParam;
+        static int cached_EDID_checksum = 0;
+        int current_EDID_checksum = 0;
+        memset(&EdidBytesParam,0,sizeof(EdidBytesParam));
+        EdidBytesParam.handle = _displayHandle;
+        _dsGetEDIDBytes(&EdidBytesParam);
+        length = EdidBytesParam.length;
 
-		if((length > 0) && (length <= 512)) {
-                    unsigned char* edidBytes = EdidBytesParam.bytes;
-                    for (int i = 0; i < (length / 128); i++)
-                            current_EDID_checksum += edidBytes[(i+1)*128 - 1];
+        INT_INFO("Current EDID length is %d bytes\r\n", length);
 
-                    if((cached_EDID_checksum == 0) || (current_EDID_checksum != cached_EDID_checksum)) {
-                            cached_EDID_checksum = current_EDID_checksum;
-                            INT_DEBUG("HDMI-EDID Dump BEGIN>>>>>>>>>>>>>>\r\n");
-                            for (int i = 0; i < length; i++) {
-                                    if (i % 16 == 0) {
-                                            INT_DEBUG("\r\n");
-                                    }
-                                    if (i % 128 == 0) {
-                                            INT_DEBUG("\r\n");
-                                    }
-                                    INT_DEBUG("%02X ", edidBytes[i]);
-                            }
-                            INT_INFO("\nHDMI-EDID Dump END>>>>>>>>>>>>>>\r\n");
-			    return true;
+        if((length > 0) && (length <= 512)) {
+            unsigned char* edidBytes = EdidBytesParam.bytes;
+            for (int i = 0; i < (length / 128); i++)
+                current_EDID_checksum += edidBytes[(i+1)*128 - 1];
+
+            if((cached_EDID_checksum == 0) || (current_EDID_checksum != cached_EDID_checksum)) {
+                cached_EDID_checksum = current_EDID_checksum;
+                INT_DEBUG("HDMI-EDID Dump BEGIN>>>>>>>>>>>>>>\r\n");
+                for (int i = 0; i < length; i++) {
+                    if (i % 16 == 0) {
+                        INT_DEBUG("\r\n");
                     }
-		}
+                    if (i % 128 == 0) {
+                        INT_DEBUG("\r\n");
+                    }
+                    printf("%02X ", edidBytes[i]);
+                }
+                INT_INFO("\nHDMI-EDID Dump END>>>>>>>>>>>>>>\r\n");
+                return true;
+            }
         }
-        return false;
+    }
+    INT_INFO("No change in EDID checksum or EDID length is invalid\r\n");
+    return false;
 }
 
 /** @} */
