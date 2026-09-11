@@ -136,9 +136,11 @@ int main(int argc, char *argv[])
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
+        INT_INFO("Calling SD_NOTIFY");
            sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
               "MAINPID=%lu", (unsigned long) getpid());
+        INT_INFO("SD_NOTIFY done");
     #endif
 
 #ifdef PID_FILE_PATH
