@@ -17,8 +17,9 @@
  * limitations under the License.
 */
 
-#define SAFEC_DUMMY_API 1
-#ifndef SAFEC_DUMMY_API
+#ifdef SAFEC_DUMMY_API
+#error "SAFEC_DUMMY_API is not permitted in production builds"
+#endif
 #include "safe_str_lib.h"
 #include "safe_mem_lib.h"
 
@@ -28,7 +29,6 @@
  #define STRCPY_S_NOCLOBBER(dst,dmax,src)   ((src != NULL) ? (strlen(src) < dmax ?  strcpy_s(dst,dmax,src) : ESNOSPC):ESNULLP)
 #endif
 #define MEMCPY_S_NOCLOBBER(dst,dmax,src,len)   ((src != NULL) ? (len <= dmax ?  memcpy_s(dst,dmax,src,len) : ESNOSPC):ESNULLP)
-#endif
 
 #define STRCPY_S(dest,size,source)                      \
         { \
