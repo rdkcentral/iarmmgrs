@@ -45,6 +45,8 @@ CFLAGS      += $(INCLUDE)
 LDFLAGS     +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS     += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus
 
+override LDFLAGS += -lsafec
+
 ifeq ($(PLATFORM_SOC),L2HalMock)
 LDFLAGS+=-L$(IARM_PATH)/install -lIARMBus -lglib-2.0 -lsafec-3.5
 endif

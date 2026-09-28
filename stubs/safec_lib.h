@@ -53,44 +53,16 @@ typedef size_t rsize_t;
 #define ESNOSPC 406
 #endif
 
-static inline errno_t strcpy_s(char *dest, rsize_t dmax, const char *src)
-{
-    rsize_t len;
-    if(dest == NULL || src == NULL || dmax == 0) return ESNULLP;
-    len = strnlen(src, dmax);
-    if(len == dmax) {
-        dest[0] = '\0';
-        return ESNOSPC;
-    }
-    memcpy(dest, src, len + 1);
-    return EOK;
+#ifdef __cplusplus
+extern "C" {
+#endif
+errno_t strcpy_s(char *dest, rsize_t dmax, const char *src);
+errno_t memcpy_s(void *dest, rsize_t dmax, const void *src, rsize_t smax);
+errno_t memset_s(void *dest, rsize_t dmax, int value, rsize_t n);
+errno_t strcmp_s(const char *dest, rsize_t dmax, const char *src, int *result);
+#ifdef __cplusplus
 }
-
-static inline errno_t memcpy_s(void *dest, rsize_t dmax, const void *src, rsize_t smax)
-{
-    if(dest == NULL || src == NULL) return ESNULLP;
-    if(smax > dmax) return ESNOSPC;
-    if(smax > 0) memcpy(dest, src, smax);
-    return EOK;
-}
-
-static inline errno_t memset_s(void *dest, rsize_t dmax, int value, rsize_t n)
-{
-    volatile unsigned char *out;
-    if(dest == NULL) return ESNULLP;
-    if(n > dmax) return ESNOSPC;
-    out = (volatile unsigned char *)dest;
-    while(n-- > 0) *out++ = (unsigned char)value;
-    return EOK;
-}
-
-static inline errno_t strcmp_s(const char *dest, rsize_t dmax, const char *src, int *result)
-{
-    if(dest == NULL || src == NULL || result == NULL || dmax == 0) return ESNULLP;
-    if(strnlen(dest, dmax) == dmax) return ESNOSPC;
-    *result = strcmp(dest, src);
-    return EOK;
-}
+#endif
 #endif
 
 /* Macro is defined for non clobbering of the safec secure string API strcpy_s & memcpy_s function*/

@@ -15,7 +15,7 @@ export NM=nm
 export RANLIB=ranlib
 export STRIP=strip
 
-apt-get update && apt-get install -y libsoup-3.0 libcjson-dev libdbus-1-dev
+apt-get update && apt-get install -y libsoup-3.0 libcjson-dev libdbus-1-dev libsafec-dev
 
 mkdir -p /usr/local/include/wdmp-c
 cp $WORKDIR/stubs/wdmp-c.h /usr/local/include/wdmp-c/
