@@ -248,7 +248,7 @@ static IARM_Result_t _SetHDCPProfile(void *arg)
 
         {
             __TIMESTAMP(); printf ("The hdcp profile is set to %d\n", new_profile);
-			IARM_Bus_SYSMgr_EventData_t eventData;
+			IARM_Bus_SYSMgr_EventData_t eventData = {0};
 			eventData.data.hdcpProfileData.hdcpProfile = new_profile;
 			__TIMESTAMP(); printf("<<<<<<< Send HDCP Profile UPdate Event is %d>>>>>>>>",eventData.data.hdcpProfileData.hdcpProfile);
 			retStatus = IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_HDCP_PROFILE_UPDATE,(void *)&eventData,sizeof(eventData));
