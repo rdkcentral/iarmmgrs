@@ -100,7 +100,6 @@ noinst_PROGRAMS = run_L1Tests
 
 run_L1Tests_SOURCES = \
     test_main.cpp \
-    stubs/safec_test_shim.cpp \
     utils/test_rdkProfile.cpp \
     sysmgr/test_sysMgr.cpp \
     dsmgr/test_dsMgr.cpp \
@@ -111,7 +110,7 @@ run_L1Tests_SOURCES = \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.cpp
 
-run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl
+run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl -lsafec
 
 # Run tests on 'make check'
 TESTS = run_L1Tests security/test_safec_production_guard.sh
