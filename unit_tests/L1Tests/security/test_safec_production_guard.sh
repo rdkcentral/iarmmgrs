@@ -27,3 +27,8 @@ if ! grep -Fq '#include "safe_str_lib.h"' "$header" || ! grep -Fq '#include "saf
     echo "Production header does not require the real Safe C API" >&2
     exit 1
 fi
+
+if grep -Eq 'static[[:space:]]+inline[[:space:]]+errno_t[[:space:]]+(strcpy_s|memcpy_s|memset_s|strcmp_s)' "$header"; then
+    echo "Production header must not provide a local Safe C implementation" >&2
+    exit 1
+fi
