@@ -27,8 +27,14 @@
 
 #if defined(__has_include)
 # if __has_include("safe_str_lib.h") && __has_include("safe_mem_lib.h")
+#  ifdef __cplusplus
+extern "C" {
+#  endif
 #  include "safe_str_lib.h"
 #  include "safe_mem_lib.h"
+#  ifdef __cplusplus
+}
+#  endif
 #  define IARMMGRS_HAS_SAFEC_HEADERS 1
 # endif
 #endif
