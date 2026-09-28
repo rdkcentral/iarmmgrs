@@ -34,4 +34,4 @@ AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11 $(CFLAGS_CLIENT
 bin_PROGRAMS = mfrMgrMain
 
 mfrMgrMain_SOURCES = mfrMgr.c mfrMgrMain.c mfrMgrInternal.h
-mfrMgrMain_LDADD = $(LDFLAGS_CLIENT) -lsafec-3.5
+mfrMgrMain_LDADD = $(LDFLAGS_CLIENT)

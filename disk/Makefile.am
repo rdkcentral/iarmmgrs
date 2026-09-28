@@ -36,4 +36,4 @@ AM_CFLAGS = $(INCLUDES) -fPIC -D_REENTRANT -Wall -DGP_VERSION_11
 bin_PROGRAMS = diskMgrMain
 
 diskMgrMain_SOURCES = diskMgrMain.c diskMgr.c diskMgrInternal.h
-diskMgrMain_LDADD = -L=/usr/lib -lsafec-3.5
+diskMgrMain_LDADD = -L=/usr/lib
