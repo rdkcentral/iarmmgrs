@@ -216,6 +216,29 @@ TEST_F(SysMgrTest, IarmSetKeyCodeLoggingPref_InvalidValueIgnored)
     EXPECT_EQ(1, getKeyCodeLoggingPref());  /* unchanged */
 }
 
+TEST_F(SysMgrTest, IarmSetKeyCodeLoggingPref_BroadcastEventZeroInitialized)
+{
+    /* Test that the event payload is zero-initialized before broadcast.
+     * This prevents disclosure of uninitialized stack memory (CWE-457). */
+    IARM_BUS_SYSMGR_KEYCodeLoggingInfo_Param_t param;
+    IARM_Bus_SYSMgr_EventData_t captured;
+    memset(&captured, 0xff, sizeof(captured));
+    param.logStatus = 0;  /* change from default 1 to trigger broadcast */
+
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        _, static_cast<IARM_EventId_t>(IARM_BUS_SYSMGR_EVENT_KEYCODE_LOGGING_CHANGED), _, sizeof(captured)))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            captured = *static_cast<IARM_Bus_SYSMgr_EventData_t *>(data);
+            return IARM_RESULT_SUCCESS;
+        });
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, _SetKeyCodeLoggingPref(&param));
+    EXPECT_EQ(0, captured.data.keyCodeLogData.logStatus);
+    captured.data.keyCodeLogData.logStatus = 0;
+    IARM_Bus_SYSMgr_EventData_t zero = {};
+    EXPECT_EQ(0, memcmp(&zero, &captured, sizeof(captured)));
+}
+
 /* =======================================================================
  * Section 3 – _GetSystemStates
  * ====================================================================== */
@@ -832,7 +855,20 @@ TEST_F(SysMgrTest, SetHDCPProfile_Profile1WhenCurrentIs0_ReturnsSuccess)
      * open() to create the file may fail if /opt is not writable (CI),
      * but the function still completes and returns IARM_RESULT_SUCCESS. */
     IARM_BUS_SYSMGR_HDCPProfileInfo_Param_t param;
+    IARM_Bus_SYSMgr_EventData_t captured;
+    memset(&captured, 0xff, sizeof(captured));
     param.HdcpProfile = 1;
 
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        _, static_cast<IARM_EventId_t>(IARM_BUS_SYSMGR_EVENT_HDCP_PROFILE_UPDATE), _, sizeof(captured)))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            captured = *static_cast<IARM_Bus_SYSMgr_EventData_t *>(data);
+            return IARM_RESULT_SUCCESS;
+        });
+
     EXPECT_EQ(IARM_RESULT_SUCCESS, _SetHDCPProfile(&param));
+    EXPECT_EQ(1, captured.data.hdcpProfileData.hdcpProfile);
+    captured.data.hdcpProfileData.hdcpProfile = 0;
+    IARM_Bus_SYSMgr_EventData_t zero = {};
+    EXPECT_EQ(0, memcmp(&zero, &captured, sizeof(captured)));
 }
