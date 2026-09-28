@@ -2,11 +2,14 @@
 set -eu
 
 source_file="${srcdir:-.}/../../mfr/common/rpc/srv/mfrSrv.c"
+manager_file="${srcdir:-.}/../../mfr/mfrMgr.c"
 
-if [ ! -r "$source_file" ]; then
-    echo "Legacy MFR RPC source is not readable: $source_file" >&2
-    exit 1
-fi
+for file in "$source_file" "$manager_file"; do
+    if [ ! -r "$file" ]; then
+        echo "MFR RPC source is not readable: $file" >&2
+        exit 1
+    fi
+done
 
 if grep -Eq 'find_func\(RDK_MFRCRYPTOLIB_NAME,[[:space:]]*param->crypto\)' "$source_file"; then
     echo "Caller-controlled crypto symbols must not reach dynamic resolution" >&2
@@ -27,5 +30,17 @@ fi
 
 if ! grep -Fq 'strnlen(param->crypto, sizeof(param->crypto))' "$source_file"; then
     echo "Crypto field termination is not validated" >&2
+    exit 1
+fi
+
+for field in name path; do
+    if ! grep -Fq "memchr(param->$field, '\\0', sizeof(param->$field))" "$manager_file"; then
+        echo "Write-image $field termination is not validated" >&2
+        exit 1
+    fi
+done
+
+if [ "$(grep -Fc 'isValidWriteImageParam(pParam)' "$manager_file")" -lt 2 ]; then
+    echo "Write and verify image RPCs must reject invalid string fields" >&2
     exit 1
 fi
