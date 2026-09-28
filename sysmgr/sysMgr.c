@@ -319,6 +319,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
     errno_t rc = -1;	
 	/* Only handle state events */
     if (eventId != IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE) return;
+    if (data == NULL || len < sizeof(IARM_Bus_SYSMgr_EventData_t)) return;
 
 	/*Handle only Sys Manager Events */
 	if (strcmp(owner, IARM_BUS_SYSMGR_NAME)  == 0) 
