@@ -1,7 +1,12 @@
 #!/bin/sh
 set -eu
 
-header="${srcdir:-.}/../../../stubs/safec_lib.h"
+header="${srcdir:-.}/../../stubs/safec_lib.h"
+
+if [ ! -r "$header" ]; then
+    echo "Production Safe C header is not readable: $header" >&2
+    exit 1
+fi
 
 if grep -Eq '^[[:space:]]*#define[[:space:]]+SAFEC_DUMMY_API' "$header"; then
     echo "SAFEC_DUMMY_API must not be enabled by the production header" >&2
