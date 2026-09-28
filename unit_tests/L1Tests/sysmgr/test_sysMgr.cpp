@@ -302,6 +302,16 @@ TEST_F(SysMgrTest, SysEventHandler_IgnoresWrongEventId)
     EXPECT_EQ(0, systemStates.channel_map.state);  /* unchanged */
 }
 
+TEST_F(SysMgrTest, SysEventHandler_IgnoresNullOwner)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CHANNELMAP, 5, 0);
+    _sysEventHandler(nullptr,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(0, systemStates.channel_map.state);
+}
+
 TEST_F(SysMgrTest, SysEventHandler_IgnoresNullPayload)
 {
     _sysEventHandler(IARM_BUS_SYSMGR_NAME,
