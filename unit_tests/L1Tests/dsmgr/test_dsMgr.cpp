@@ -732,7 +732,7 @@ TEST_F(DsMgrTest, EventHandler_HdcpAuthFail_BroadcastsHdcpDisabledEvent)
     /* Verify the broadcast payload was zero-initialized */
     EXPECT_EQ(IARM_BUS_SYSMGR_SYSSTATE_HDCP_ENABLED, captured.data.systemStates.stateId);
     EXPECT_EQ(0, captured.data.systemStates.state);
-    captured.data.systemStates.stateId = 0;
+    captured.data.systemStates.stateId = static_cast<IARM_Bus_SYSMgr_SystemState_t>(0);
     captured.data.systemStates.state = 0;
     captured.data.systemStates.error = 0;
     IARM_Bus_SYSMgr_EventData_t zero = {};
