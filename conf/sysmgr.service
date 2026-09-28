@@ -22,6 +22,11 @@ Requires=iarmbusd.service
 After=lighttpd.service iarmbusd.service
 
 [Service]
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+RestrictSUIDSGID=true
+LockPersonality=true
 ExecStart=/bin/sh -c '/usr/bin/sysMgrMain'
 Type=notify
 Restart=always
