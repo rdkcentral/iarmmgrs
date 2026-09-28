@@ -92,6 +92,13 @@ static mfrUpgradeStatus_t lastStatus;
 
 static profile_t profileType = PROFILE_INVALID;
 
+static int isValidWriteImageParam(const IARM_Bus_MFRLib_WriteImage_Param_t *param)
+{
+    return param != NULL &&
+           memchr(param->name, '\0', sizeof(param->name)) != NULL &&
+           memchr(param->path, '\0', sizeof(param->path)) != NULL;
+}
+
 static IARM_Result_t getSerializedData_(void *arg)
 {
 
@@ -462,7 +469,10 @@ static IARM_Result_t writeImage_(void *arg)
     if (func) {
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
-        
+
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
 
         notifyStruct.cbData = pParam->cbData;
         notifyStruct.interval = pParam->interval;
@@ -527,6 +537,11 @@ static IARM_Result_t verifyImage_(void *arg)
 	if (func) {
 		mfrError_t err;
 		IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
+
+		if (!isValidWriteImageParam(pParam)) {
+			return IARM_RESULT_INVALID_PARAM;
+		}
+
 		/* init callback struct */
 		notifyStruct.cbData = pParam->cbData;
 		notifyStruct.interval = pParam->interval;
