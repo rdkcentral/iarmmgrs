@@ -40,4 +40,4 @@ endif
 bin_PROGRAMS = deviceUpdateMgrMain
 
 deviceUpdateMgrMain_SOURCES = deviceUpdateMgrMain.cpp jsonParser.cpp utils.cpp jsonParser.h utils.h
-deviceUpdateMgrMain_LDADD = -lyajl -lcurl -lssl -lcrypto
+deviceUpdateMgrMain_LDADD = -lyajl -lcurl -lssl -lcrypto -lsafec-3.5
