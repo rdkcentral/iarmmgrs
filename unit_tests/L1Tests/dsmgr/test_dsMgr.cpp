@@ -711,17 +711,32 @@ TEST_F(DsMgrTest, EventHandler_HdcpAuthenticated_BroadcastsHdcpEnabledEvent)
 
 TEST_F(DsMgrTest, EventHandler_HdcpAuthFail_BroadcastsHdcpDisabledEvent)
 {
+    IARM_Bus_SYSMgr_EventData_t captured;
+    memset(&captured, 0xff, sizeof(captured));
+
     EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
         StrEq(IARM_BUS_SYSMGR_NAME),
         static_cast<IARM_EventId_t>(IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE),
-        _, _))
-        .WillOnce(Return(IARM_RESULT_SUCCESS));
+        _, sizeof(captured)))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            captured = *static_cast<IARM_Bus_SYSMgr_EventData_t *>(data);
+            return IARM_RESULT_SUCCESS;
+        });
 
     IARM_Bus_DSMgr_EventData_t ev = {};
     ev.data.hdmi_hdcp.hdcpStatus = dsHDCP_STATUS_AUTHENTICATIONFAILURE;
     _EventHandler(IARM_BUS_DSMGR_NAME,
                   IARM_BUS_DSMGR_EVENT_HDCP_STATUS,
                   &ev, sizeof(ev));
+
+    /* Verify the broadcast payload was zero-initialized */
+    EXPECT_EQ(IARM_BUS_SYSMGR_SYSSTATE_HDCP_ENABLED, captured.data.systemStates.stateId);
+    EXPECT_EQ(0, captured.data.systemStates.state);
+    captured.data.systemStates.stateId = 0;
+    captured.data.systemStates.state = 0;
+    captured.data.systemStates.error = 0;
+    IARM_Bus_SYSMgr_EventData_t zero = {};
+    EXPECT_EQ(0, memcmp(&zero, &captured, sizeof(captured)));
 }
 
 TEST_F(DsMgrTest, EventHandler_HdcpAuthenticated_SetsBHDCPAuthenticatedTrue)

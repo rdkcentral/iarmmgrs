@@ -395,12 +395,12 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
 
 static void writeImageCb(mfrUpgradeStatus_t * status)
 {
-    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t param;
+    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t param = {0};
 
     IARM_Result_t retVal;
     memcpy(&param.status, status, sizeof(mfrUpgradeStatus_t));
     strncpy(param.cbData, notifyStruct.cbData, MAX_BUF);
-    param.cbData[MAX_BUF-1] = '\0'; 
+    param.cbData[MAX_BUF-1] = '\0';
     LOG("In writeImage callback: cbData=%s, progress=%d, error = %d, error_str=%s, percentage = %d\n", param.cbData, param.status.progress, param.status.error, param.status.error_string, param.status.percentage/100);
 
 

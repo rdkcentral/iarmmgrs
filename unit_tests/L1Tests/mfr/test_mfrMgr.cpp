@@ -312,6 +312,41 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastFails_StillUpdatesLastStatus)
     EXPECT_EQ(mfrUPGRADE_PROGRESS_COMPLETED, lastStatus.progress);
 }
 
+TEST_F(MfrMgrTest, WriteImageCb_BroadcastEventZeroInitialized)
+{
+    /* Test that the event payload is zero-initialized before broadcast.
+     * This prevents disclosure of uninitialized stack memory (CWE-457). */
+    notifyStruct.cbData = (char *)"test_module";
+
+    mfrUpgradeStatus_t status;
+    memset(&status, 0, sizeof(status));
+    status.progress   = mfrUPGRADE_PROGRESS_STARTED;
+    status.error      = mfrERR_NONE;
+    status.percentage = 5000;
+
+    IARM_BUS_MfrMgr_StatusUpdate_EventData_t captured;
+    memset(&captured, 0xff, sizeof(captured));
+
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        StrEq(IARM_BUS_MFRLIB_NAME),
+        IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE,
+        _, sizeof(captured)))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            captured = *static_cast<IARM_BUS_MfrMgr_StatusUpdate_EventData_t *>(data);
+            return IARM_RESULT_SUCCESS;
+        });
+
+    writeImageCb(&status);
+
+    /* Verify the broadcast payload was zero-initialized */
+    EXPECT_EQ(mfrUPGRADE_PROGRESS_STARTED, captured.status.progress);
+    captured.status.progress = 0;
+    captured.status.error = 0;
+    captured.status.percentage = 0;
+    IARM_BUS_MfrMgr_StatusUpdate_EventData_t zero = {};
+    EXPECT_EQ(0, memcmp(&zero, &captured, sizeof(captured)));
+}
+
 /* ===================================================================== *
  * writeImage_ / verifyImage_ back-to-back guard
  *

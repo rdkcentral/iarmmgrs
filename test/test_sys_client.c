@@ -67,7 +67,7 @@ static void _evtHandler(const char *owner, IARM_EventId_t eventId, void *data, s
 int main()
 {
 	IARM_Result_t retCode = IARM_RESULT_SUCCESS;
-	IARM_Bus_SYSMgr_EventData_t eventData;
+	IARM_Bus_SYSMgr_EventData_t eventData = {0};
 
 	/* Install signal handlers for graceful shutdown */
 	signal(SIGINT, signal_handler);

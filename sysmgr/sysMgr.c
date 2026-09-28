@@ -666,7 +666,7 @@ static void setKeyCodeLoggingPref(int logStatus)
     if(prevKeyLogStatus != keyLogStatus)
     {
          __TIMESTAMP(); printf ("The Key Code Logging Preference is set to %d\n", keyLogStatus);
-	IARM_Bus_SYSMgr_EventData_t eventData;
+	IARM_Bus_SYSMgr_EventData_t eventData = {0};
 	eventData.data.keyCodeLogData.logStatus = keyLogStatus;
         __TIMESTAMP(); printf("<<<<<<< Send KEYCODE LOGGING CHANGED Event with log status %d>>>>>>>>", eventData.data.keyCodeLogData.logStatus);
 	IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_KEYCODE_LOGGING_CHANGED,(void *)&eventData,sizeof(eventData));
