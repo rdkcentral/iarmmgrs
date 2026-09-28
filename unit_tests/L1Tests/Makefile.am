@@ -100,6 +100,7 @@ noinst_PROGRAMS = run_L1Tests
 
 run_L1Tests_SOURCES = \
     test_main.cpp \
+    stubs/safec_test_shim.cpp \
     utils/test_rdkProfile.cpp \
     sysmgr/test_sysMgr.cpp \
     dsmgr/test_dsMgr.cpp \
