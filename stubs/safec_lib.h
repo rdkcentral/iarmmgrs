@@ -36,6 +36,16 @@ extern "C" {
 }
 #  endif
 #  define IARMMGRS_HAS_SAFEC_HEADERS 1
+# elif __has_include(<safeclib/safe_str_lib.h>) && __has_include(<safeclib/safe_mem_lib.h>)
+#  ifdef __cplusplus
+extern "C" {
+#  endif
+#  include <safeclib/safe_str_lib.h>
+#  include <safeclib/safe_mem_lib.h>
+#  ifdef __cplusplus
+}
+#  endif
+#  define IARMMGRS_HAS_SAFEC_HEADERS 1
 # endif
 #endif
 
