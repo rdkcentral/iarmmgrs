@@ -60,7 +60,7 @@ all:clean executable
 
 executable: $(OBJS)
 	@echo "Creating Final Executable ..$(EXECUTABLE) "
-	$(CXX) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $(EXECUTABLE)
+	$(CXX) $(CFLAGS) $(LDFLAGS) $(OBJS) -o $(EXECUTABLE) -lsafec
 
 %.o: %.c
 	@echo "Building $@ ...."

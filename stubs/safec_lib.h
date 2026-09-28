@@ -15,12 +15,71 @@
  * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
  * See the License for the specific language governing permissions and
  * limitations under the License.
-*/
+ */
 
-#define SAFEC_DUMMY_API 1
-#ifndef SAFEC_DUMMY_API
-#include "safe_str_lib.h"
-#include "safe_mem_lib.h"
+#ifdef SAFEC_DUMMY_API
+#error "SAFEC_DUMMY_API is not permitted in production builds"
+#endif
+
+#include <stddef.h>
+#include <stdio.h>
+#include <string.h>
+
+#if defined(__has_include)
+# if __has_include("safe_str_lib.h") && __has_include("safe_mem_lib.h")
+#  ifdef __cplusplus
+extern "C" {
+#  endif
+#  include "safe_str_lib.h"
+#  include "safe_mem_lib.h"
+#  ifdef __cplusplus
+}
+#  endif
+#  define IARMMGRS_HAS_SAFEC_HEADERS 1
+# elif __has_include(<safeclib/safe_str_lib.h>) && __has_include(<safeclib/safe_mem_lib.h>)
+#  ifdef __cplusplus
+extern "C" {
+#  endif
+#  include <safeclib/safe_str_lib.h>
+#  include <safeclib/safe_mem_lib.h>
+#  ifdef __cplusplus
+}
+#  endif
+#  define IARMMGRS_HAS_SAFEC_HEADERS 1
+# endif
+#endif
+
+#ifndef IARMMGRS_HAS_SAFEC_HEADERS
+/*
+ * Some component build environments provide the Safe C runtime library but
+ * not its development headers. Keep these declarations ABI-compatible with
+ * safeclib; unlike the former dummy macros, every call still resolves to the
+ * real library at link/runtime.
+ */
+typedef int errno_t;
+typedef size_t rsize_t;
+
+#ifndef EOK
+#define EOK 0
+#endif
+#ifndef ESNULLP
+#define ESNULLP 400
+#endif
+#ifndef ESNOSPC
+#define ESNOSPC 406
+#endif
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+errno_t strcpy_s(char *dest, rsize_t dmax, const char *src);
+errno_t memcpy_s(void *dest, rsize_t dmax, const void *src, rsize_t smax);
+errno_t memset_s(void *dest, rsize_t dmax, int value, rsize_t n);
+errno_t strcmp_s(const char *dest, rsize_t dmax, const char *src, int *result);
+#ifdef __cplusplus
+}
+#endif
+#endif
 
 /* Macro is defined for non clobbering of the safec secure string API strcpy_s & memcpy_s function*/
 /* strcpy_s overwrites the old value and nulls the dest when encounters an error*/
@@ -28,7 +87,6 @@
  #define STRCPY_S_NOCLOBBER(dst,dmax,src)   ((src != NULL) ? (strlen(src) < dmax ?  strcpy_s(dst,dmax,src) : ESNOSPC):ESNULLP)
 #endif
 #define MEMCPY_S_NOCLOBBER(dst,dmax,src,len)   ((src != NULL) ? (len <= dmax ?  memcpy_s(dst,dmax,src,len) : ESNOSPC):ESNULLP)
-#endif
 
 #define STRCPY_S(dest,size,source)                      \
         { \
@@ -58,114 +116,3 @@
     if(rc !=EOK) {                                              \
         RDK_SAFECLIB_ERR(rc);                                   \
     }
-
-#ifdef SAFEC_DUMMY_API
-#include <stdarg.h>
-#include <string.h>
-#include <strings.h>
-typedef int errno_t;
-#define EOK 0
-#define ESNULLP          400        /* null ptr                    */
-#define ESLEMAX          403       /* length exceeds RSIZE_MAX    */
-#define ESNOSPC          406       /* not enough space for s2     */
-
-#define strcpy_s(dst,max,src) \
- ((src != NULL && dst != NULL && max > 0) ? \
-  ((strlen(src) < max) ? \
-   (strcpy(dst,src), EOK) : ESLEMAX) : ESNULLP)
-
-#define strncpy_s(dst,max,src,len) (src != NULL)?((len <= max)?EOK:ESLEMAX):ESNULLP; \
- if((src != NULL) && (len <= max)) strncpy(dst,src,len);
-
-#define memset_s(dst,max_1,c,max) EOK; \
- memset(dst,c,max);
-
-#define strcat_s(dst,max,src) (src != NULL)?((max > strlen(src))?EOK:ESLEMAX):ESNULLP; \
- if((src != NULL) && (max > strlen(src))) strcat(dst,src);
-
-#define strncat_s(dst,max,src,len) (src != NULL)?((len <= max)?EOK:ESLEMAX):ESNULLP; \
- if((src != NULL) && (len <= max)) strncat(dst,src,len);
-
-#define memcpy_s(dst,max,src,len) \
- ((src != NULL && dst != NULL && len <= max && len > 0) ? \
-  (memcpy(dst,src,len), EOK) : \
-  ((src == NULL || dst == NULL) ? ESNULLP : ESLEMAX))
-
-#ifndef STRCPY_S_NOCLOBBER
- #define STRCPY_S_NOCLOBBER(dst,max,src) (src != NULL)?((max > strlen(src))?EOK:ESLEMAX):ESNULLP; \
-  if((src != NULL) && (strlen(src) < max)) strcpy(dst, src);
-#endif
-
-#define MEMCPY_S_NOCLOBBER(dst,max,src,len) (src != NULL) ? ((len <= max)?EOK:ESLEMAX):ESNULLP; \
-  if((src != NULL) && (len <= max)) memcpy(dst, src, len);
-
-#define strtok_s(dest, dmax, delim, ptr) strtok_r(dest, delim, ptr)
-
-#define sprintf_s( dst, max, fmt, ... ) \
- ((dst != NULL && fmt != NULL && max > 0) ? \
-  ((snprintf(dst, max, fmt, ##__VA_ARGS__) >= 0) ? EOK : -ESLEMAX) : -ESNULLP)
-
-#define STRCPY_S(dest,size,source)                      \
-	{ \
-	errno_t rc=-1; \
-        rc=strcpy_s(dest, size, source);                \
-        if(rc!=EOK)                                     \
-        {                                               \
-             RDK_SAFECLIB_ERR(rc);  \
-        }\
-}
-#define MEMCPY_S(dest,dsize,source,ssize)                      \
-	{                                                  \
-	errno_t safec_rc=-1; \
-        safec_rc=memcpy_s(dest, dsize, source, ssize);                \
-        if(safec_rc!=EOK)                                     \
-        {                                               \
-             RDK_SAFECLIB_ERR(safec_rc);  \
-        }\
-}
-
-static inline int parseFormat(const char *dst, int max, const char *fmt, ...)
-{
-    va_list argp;
-    int len = 0;
-
-    if((fmt == NULL) || (dst == NULL) || (max == 0))
-    {
-        return 0;
-    }
-
-    va_start(argp, fmt);
-
-    len = vsnprintf((char *)dst, (size_t)max, fmt, argp);
-
-    va_end(argp);
-
-    return (max > len) ? 1 : 0;
-}
-
-static inline int strcmp_s(const char *dst, int dmax, const char *src, int *r) {
-        if((src ==  NULL) || (dst == NULL) || (dmax == 0))
-            return ESNULLP;
-
-        *r = strcmp(dst, src);
-        return EOK;
-}
-
-static inline int strcasecmp_s(const char *dst, int dmax, const char *src, int *r) {
-         if((src ==  NULL) || (dst == NULL) || (dmax == 0))
-            return ESNULLP;
-
-         *r = strcasecmp(dst, src);
-         return EOK;
-}
-
-static inline int memcmp_s(const void *dst, int dmax, const void *src, int len, int *r) {
-        if((src ==  NULL) || (dst == NULL) || (dmax == 0))
-            return ESNULLP;
-        if(len > dmax)
-            return ESNOSPC;
-
-        *r = memcmp(dst, src,len);
-        return EOK;
-}
-#endif

@@ -58,7 +58,8 @@ LDFLAGS +=-Wl,-rpath,$(SDK_FSROOT)/usr/local/lib
 LDFLAGS += -L$(SDK_FSROOT)/usr/local/lib -lIARMBus -lnexus
 
 LDFLAGS += -L${WORK_DIR}/${MFR_LIB_PATH} $(MFR_LIB_NAME) -L$(UTILS_PATH)/ -liarmUtils 
-LDFLAGS += -L$(OPENSSL_PATH)/lib -lcrypto -lrt 
+LDFLAGS += -L$(OPENSSL_PATH)/lib -lcrypto -lrt
+override LDFLAGS += -lsafec
 
 
 all:clean executable
