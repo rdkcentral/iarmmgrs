@@ -41,6 +41,7 @@
 #include <unistd.h>
 #include "libIARMCore.h"
 #include "safec_lib.h"
+#include "mfrStringValidation.h"
 
 static int m_initialized =0;
 static pthread_mutex_t mfrLock = PTHREAD_MUTEX_INITIALIZER;
@@ -270,7 +271,13 @@ IARM_Result_t _mfrGetSerializedData(void *arg)
 	mfrError_t err;
 	IARM_Bus_MFRLib_SerializedData_Param_t *param = (IARM_Bus_MFRLib_SerializedData_Param_t*) arg;
 
-        safec_rc = strcmp_s(param->crypto, strlen(param->crypto), "", &ind);
+        if(param == NULL || !mfrStringIsTerminated(param->crypto, sizeof(param->crypto)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
+        safec_rc = strcmp_s(param->crypto, sizeof(param->crypto), "", &ind);
         ERR_CHK(safec_rc);
         if((safec_rc == EOK) && ind))
 	{
@@ -344,7 +351,13 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 	mfrCrypto_Decrypt_t *func_ptr = NULL;
 	mfrError_t err;
 	IARM_Bus_MFRLib_SerializedData_Param_t *param = (IARM_Bus_MFRLib_SerializedData_Param_t*) arg;
-        safec_rc = strcmp_s(param->crypto, strlen(param->crypto), "", &ind);
+
+        if(param == NULL || !mfrStringIsTerminated(param->crypto, sizeof(param->crypto)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        safec_rc = strcmp_s(param->crypto, sizeof(param->crypto), "", &ind);
         ERR_CHK(safec_rc);
         if((safec_rc == EOK) && ind)
         {
@@ -431,6 +444,13 @@ IARM_Result_t _mfrWriteImage(void *arg)
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
         mfrUpgradeStatusNotify_t notifyStruct;
+        if(pParam == NULL ||
+           !mfrStringIsTerminated(pParam->name, sizeof(pParam->name)) ||
+           !mfrStringIsTerminated(pParam->path, sizeof(pParam->path)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
         notifyStruct.interval = pParam->interval;
         notifyStruct.cb = writeImageCb;
         lastStatus.progress = mfrUPGRADE_PROGRESS_NOT_STARTED;
@@ -494,6 +514,12 @@ IARM_Result_t _mfrGetImageWriteProgress(void *arg)
     {
 
         IARM_Bus_MFRLib_GetImageWriteProgress_Param_t *pParam = (IARM_Bus_MFRLib_GetImageWriteProgress_Param_t *) arg;
+        if(pParam == NULL ||
+           !mfrStringIsTerminated(pParam->imageName, sizeof(pParam->imageName)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
         err = func(pParam->imageName,pParam->imageType,&(pParam->progress));
         if(mfrERR_NONE == err)
         {
@@ -537,6 +563,12 @@ IARM_Result_t _mfrSetImageWriteProgress(void *arg)
     {
 
         IARM_Bus_MFRLib_SetImageWriteProgress_Param_t *pParam = (IARM_Bus_MFRLib_SetImageWriteProgress_Param_t *) arg;
+        if(pParam == NULL ||
+           !mfrStringIsTerminated(pParam->imageName, sizeof(pParam->imageName)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
         err = func(pParam->imageName, pParam->imageType, pParam->progress);
         if(mfrERR_NONE == err)
         {
@@ -705,6 +737,13 @@ IARM_Result_t _mfrReboot(void *arg)
     {
 	IARM_Bus_MFRLib_Reboot_Param_t *pParam = (IARM_Bus_MFRLib_Reboot_Param_t *)arg;
 
+        if(pParam == NULL ||
+           !mfrStringIsTerminated(pParam->imageName, sizeof(pParam->imageName)))
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
         err = func(pParam->imageName);
         if(mfrERR_NONE == err)
         {
@@ -791,6 +830,13 @@ IARM_Result_t _mfrSetHostFirmwareInfo(void *arg)
     {
 	IARM_Bus_MFRLib_SetHostFirmwareInfo_Param_t *pParam = (IARM_Bus_MFRLib_SetHostFirmwareInfo_Param_t *)arg;
 	mfrHostFirmwareInfo_t host_firmware_info;
+
+    if(pParam == NULL ||
+       !mfrStringIsTerminated(pParam->version, sizeof(pParam->version)))
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_PARAM;
+    }
 
 	host_firmware_info.firmwareDay = pParam->day;
 	host_firmware_info.firmwareMonth = pParam->month;

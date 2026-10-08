@@ -113,7 +113,12 @@ run_L1Tests_SOURCES = \
 run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl
 
 # Run tests on 'make check'
-TESTS = run_L1Tests
+check_PROGRAMS = security/test_mfr_string_validation
+security_test_mfr_string_validation_SOURCES = security/test_mfr_string_validation.c
+security_test_mfr_string_validation_CPPFLAGS = -I$(top_srcdir)/mfr/include
+
+TESTS = run_L1Tests security/test_legacy_mfr_rpc_guard.sh security/test_mfr_string_validation
+EXTRA_DIST = security/test_legacy_mfr_rpc_guard.sh
 
 # Clean up test artifacts
 CLEANFILES = *.log *.trs
