@@ -92,6 +92,20 @@ static mfrUpgradeStatus_t lastStatus;
 
 static profile_t profileType = PROFILE_INVALID;
 
+static int isTerminatedString(const char *value, size_t capacity)
+{
+    return value != NULL && memchr(value, '\0', capacity) != NULL;
+}
+
+static int isValidWriteImageParam(const IARM_Bus_MFRLib_WriteImage_Param_t *param)
+{
+    return param != NULL &&
+           isTerminatedString(param->name, sizeof(param->name)) &&
+           isTerminatedString(param->path, sizeof(param->path)) &&
+           isTerminatedString(param->callerModuleName, sizeof(param->callerModuleName)) &&
+           isTerminatedString(param->cbData, sizeof(param->cbData));
+}
+
 static IARM_Result_t getSerializedData_(void *arg)
 {
 
@@ -332,8 +346,19 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
     WIFI_DATA data;
     errno_t safec_rc = -1;
 
+    if (param == NULL)
+    {
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
     if (param->requestType == WIFI_SET_CREDENTIALS)
     {
+            if (!isTerminatedString(param->wifiCredentials.cSSID, sizeof(param->wifiCredentials.cSSID)) ||
+                !isTerminatedString(param->wifiCredentials.cPassword, sizeof(param->wifiCredentials.cPassword)))
+            {
+                return IARM_RESULT_INVALID_PARAM;
+            }
+
             safec_rc = strcpy_s(data.cSSID, sizeof(data.cSSID), param->wifiCredentials.cSSID);
             if(safec_rc != EOK)
             {
@@ -462,7 +487,10 @@ static IARM_Result_t writeImage_(void *arg)
     if (func) {
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
-        
+
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
 
         notifyStruct.cbData = pParam->cbData;
         notifyStruct.interval = pParam->interval;
@@ -527,6 +555,11 @@ static IARM_Result_t verifyImage_(void *arg)
 	if (func) {
 		mfrError_t err;
 		IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
+
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
 		/* init callback struct */
 		notifyStruct.cbData = pParam->cbData;
 		notifyStruct.interval = pParam->interval;
@@ -727,6 +760,10 @@ static IARM_Result_t mirrorImage(void *arg)
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
 
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
         notifyStruct.cbData = pParam->cbData;
         notifyStruct.interval = pParam->interval;
         notifyStruct.cb = writeImageCb;
@@ -788,6 +825,10 @@ static IARM_Result_t mfrSetBlSplashScreen_(void *arg)
          IARM_Bus_MFRLib_SetBLSplashScreen_Param_t *param = (IARM_Bus_MFRLib_SetBLSplashScreen_Param_t *) arg;
          if (func)
          {
+             if (!isTerminatedString(param->path, sizeof(param->path)))
+             {
+                 return IARM_RESULT_INVALID_PARAM;
+             }
              err = func(param->path);
              if(mfrERR_NONE == err)
              {
