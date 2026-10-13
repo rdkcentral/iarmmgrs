@@ -137,10 +137,19 @@ int main(int argc, char *argv[])
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
         INT_INFO("Calling SD_NOTIFY");
-           sd_notifyf(0, "READY=1\n"
+        int sdNotifyRet = sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
               "MAINPID=%lu", (unsigned long) getpid());
-        INT_INFO("SD_NOTIFY done");
+        if (sdNotifyRet > 0) {
+            INT_INFO("SD_NOTIFY done, READY=1 sent to systemd (ret=%d)", sdNotifyRet);
+        }
+        else if (sdNotifyRet == 0) {
+            INT_WARNING("SD_NOTIFY not sent, NOTIFY_SOCKET is not set (ret=%d)", sdNotifyRet);
+        }
+        else {
+            INT_ERROR("SD_NOTIFY failed to send READY=1 to systemd (ret=%d, errno=%d: %s)",
+                      sdNotifyRet, -sdNotifyRet, strerror(-sdNotifyRet));
+        }
     #endif
 
 #ifdef PID_FILE_PATH
