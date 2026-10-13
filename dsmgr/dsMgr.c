@@ -822,7 +822,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	    Getparam.toPersist = false;
     }
     
-    INT_INFO("Retrieve Resolution: toPersist[%u]", Getparam.toPersist);
+    INT_INFO("Retrieve Resolution: toPersist[%d]", Getparam.toPersist);
 
 	_dsGetResolution(&Getparam);
 	dsVideoPortResolution_t *presolution = &Getparam.resolution;
@@ -1067,6 +1067,9 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 
 	_dsSetResolution(&Setparam);
 
+	/* setResn may point into edidData (HDMI path), so log before it is freed */
+	INT_INFO("Exiting _SetResolution with resolution - %s..\r\n", setResn->name);
+
 	if (Edidparam)
 	{
 		free(Edidparam);
@@ -1076,8 +1079,6 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	{
 		free(edidData);
 	}
-
-    INT_INFO("Exiting _SetResolution with resolution - %s..\r\n", setResn->name);
 
 	return 0 ;
 }
