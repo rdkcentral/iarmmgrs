@@ -54,17 +54,30 @@
 #include <telemetry_busmessage_sender.h>
 
 #include <string.h>
-#if (defined(RDK_LOGGER_ENABLED))
+#include <stdio.h>
+
+/* Helper to extract the file name from the full path (Unix style paths only) */
+static inline const char* fileName(const char* path) {
+    const char* slash = strrchr(path, '/');
+    return slash ? slash + 1 : path;
+}
+
+#define PREFIX(FORMAT)  "[%s:%d] %s: " FORMAT
+
+/* RDK logger module used by the logging macros, a component can define its own before including this header */
+#ifndef IARMUTILS_LOG_MODULE
+#define IARMUTILS_LOG_MODULE "LOG.RDK.IARMUTILS"
+#endif
+
+#if (defined(RDK_LOGGER_ENABLED) || defined(DSMGR_LOGGER_ENABLED))
 #include "rdk_debug.h"
 #include "iarmUtil.h"
 
-#define INT_ERROR(FORMAT, ...)       LOG_ERROR(PREFIX(FORMAT), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_WARNING(FORMAT,  ...)       LOG_WARNING(PREFIX(FORMAT),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_INFO(FORMAT,  ...)       LOG_INFO(PREFIX(FORMAT),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_DEBUG(FORMAT, ...)       LOG_DEBUG(PREFIX(FORMAT), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_TRACE(FORMAT, ...)       LOG_TRACE(PREFIX(FORMAT), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-
-#define PREFIX(FORMAT)  "%d\t: %s - " FORMAT
+#define INT_ERROR(FORMAT, ...)       LOG_ERROR(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_WARNING(FORMAT,  ...)    LOG_WARNING(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_INFO(FORMAT,  ...)       LOG_INFO(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_DEBUG(FORMAT, ...)       LOG_DEBUG(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_TRACE(FORMAT, ...)       LOG_TRACE(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
 
 extern int b_rdk_logger_enabled;
 
@@ -81,7 +94,7 @@ extern int b_rdk_logger_enabled;
 
 #define LOG_DEBUG(FORMAT, ...)  do { \
     if(b_rdk_logger_enabled) { \
-        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.IARMUTILS", FORMAT , ##__VA_ARGS__); \
+        RDK_LOG(RDK_LOG_DEBUG, IARMUTILS_LOG_MODULE, FORMAT , ##__VA_ARGS__); \
     } \
     else { \
         printf(FORMAT, ##__VA_ARGS__); \
@@ -90,7 +103,7 @@ extern int b_rdk_logger_enabled;
 
 #define LOG_ERROR(FORMAT, ...)  do { \
     if(b_rdk_logger_enabled) { \
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.IARMUTILS", FORMAT , ##__VA_ARGS__); \
+        RDK_LOG(RDK_LOG_ERROR, IARMUTILS_LOG_MODULE, FORMAT , ##__VA_ARGS__); \
     } \
     else { \
         printf(FORMAT, ##__VA_ARGS__); \
@@ -99,7 +112,7 @@ extern int b_rdk_logger_enabled;
 
 #define LOG_INFO(FORMAT, ...)   do { \
     if(b_rdk_logger_enabled) { \
-        RDK_LOG(RDK_LOG_INFO, "LOG.RDK.IARMUTILS", FORMAT , ##__VA_ARGS__); \
+        RDK_LOG(RDK_LOG_INFO, IARMUTILS_LOG_MODULE, FORMAT , ##__VA_ARGS__); \
     } \
     else { \
         printf(FORMAT, ##__VA_ARGS__); \
@@ -108,7 +121,7 @@ extern int b_rdk_logger_enabled;
 
 #define LOG_WARNING(FORMAT, ...)  do { \
     if(b_rdk_logger_enabled) { \
-        RDK_LOG(RDK_LOG_WARN, "LOG.RDK.IARMUTILS", FORMAT , ##__VA_ARGS__); \
+        RDK_LOG(RDK_LOG_WARN, IARMUTILS_LOG_MODULE, FORMAT , ##__VA_ARGS__); \
     } \
     else { \
         printf(FORMAT, ##__VA_ARGS__); \
@@ -117,20 +130,22 @@ extern int b_rdk_logger_enabled;
 
 #else
 
-/* Fallback macros for non-RDK logger builds - consistent formatting */
+/* Fallback macros for non-RDK logger builds - same format as the RDK logger build */
 #ifndef INT_DEBUG
-#define INT_DEBUG(FORMAT, ...)     do { printf(FORMAT, ##__VA_ARGS__); } while(0)
-#endif
-#ifndef INT_ERROR
-#define INT_ERROR(FORMAT, ...)     do { printf(FORMAT, ##__VA_ARGS__); } while(0)
-#endif
-#ifndef INT_INFO
-#define INT_INFO(FORMAT, ...)      do { printf(FORMAT, ##__VA_ARGS__); } while(0)
-#endif
-#ifndef INT_WARNING
-#define INT_WARNING(FORMAT, ...)   do { printf(FORMAT, ##__VA_ARGS__); } while(0)
+#define INT_DEBUG(FORMAT, ...)     do { printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__); } while(0)
 #endif
 
+#ifndef INT_ERROR
+#define INT_ERROR(FORMAT, ...)     do { printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__); } while(0)
+#endif
+
+#ifndef INT_INFO
+#define INT_INFO(FORMAT, ...)      do { printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__); } while(0)
+#endif
+
+#ifndef INT_WARNING
+#define INT_WARNING(FORMAT, ...)   do { printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__); } while(0)
+#endif
 
 #endif
 
