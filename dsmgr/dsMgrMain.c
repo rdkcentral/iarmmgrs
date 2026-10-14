@@ -28,6 +28,7 @@
 
 
 #include "dsMgrInternal.h"
+#include "iarmutilslogger.h"
 #include "dsserverregisterlog.h"
 #ifdef __cplusplus 
 extern "C" {
@@ -118,6 +119,14 @@ int main(int argc, char *argv[])
 
     if (rdk_logger_init(PdebugConfigFile) == 0) {
        b_rdk_logger_enabled = 1;
+       /* Force INFO level only for the default /etc/debug.ini, a /opt/debug.ini override is left as configured */
+       if (PdebugConfigFile == DSMGR_DEBUG_ACTUAL_PATH) {
+           bool infoEnabled = rdk_logger_enable_logLevel(IARMUTILS_LOG_MODULE, RDK_LOG_INFO, TRUE);
+           INT_INFO("INFO log level for [%s] with [%s]: %s\n", IARMUTILS_LOG_MODULE, PdebugConfigFile, infoEnabled ? "enabled" : "failed to enable");
+       }
+       else {
+           INT_INFO("Using the override [%s], INFO log level left as configured\n", PdebugConfigFile);
+       }
     }
 
 //    IARM_Bus_RegisterForLog(logCallback);

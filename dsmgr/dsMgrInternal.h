@@ -48,76 +48,9 @@
 #include "libIBusDaemon.h"
 
 #define IARM_BUS_DSMGR_NAME		"DSMgr"
-#include <string.h>
 
-static inline const char* fileName(const char* path) {
-    const char* slash = strrchr(path, '/');
-    return slash ? slash + 1 : path;
-}
-
-#define PREFIX(FORMAT)  "[%s:%d] %s: " FORMAT
-
-#if (defined(RDK_LOGGER_ENABLED) || defined(DSMGR_LOGGER_ENABLED))
-#include "rdk_debug.h"
-#include "iarmUtil.h"
-
-#define INT_ERROR(FORMAT, ...)       LOG_ERROR(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_WARNING(FORMAT,  ...)    LOG_WARNING(PREFIX(FORMAT), fileName(__FILE__),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_INFO(FORMAT,  ...)       LOG_INFO(PREFIX(FORMAT), fileName(__FILE__),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_DEBUG(FORMAT, ...)       LOG_DEBUG(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_TRACE(FORMAT, ...)       LOG_TRACE(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-
-extern int b_rdk_logger_enabled;
-
-
-#define LOG_DEBUG(FORMAT, ...) do { \
-    if(b_rdk_logger_enabled) {\
-        RDK_LOG(RDK_LOG_DEBUG, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
-    }\
-    else\
-    {\
-        printf(FORMAT, __VA_ARGS__);\
-    }\
-} while(0)
-
-#define LOG_ERROR(FORMAT, ...) do { \
-    if(b_rdk_logger_enabled) {\
-        RDK_LOG(RDK_LOG_ERROR, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
-    }\
-    else\
-    {\
-        printf(FORMAT, __VA_ARGS__);\
-    }\
-} while(0)
-
-#define LOG_INFO(FORMAT, ...) do { \
-    if(b_rdk_logger_enabled) {\
-        RDK_LOG(RDK_LOG_INFO, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
-    }\
-    else\
-    {\
-        printf(FORMAT, __VA_ARGS__);\
-    }\
-} while(0)
-
-#define LOG_WARNING(FORMAT, ...) do { \
-    if(b_rdk_logger_enabled) {\
-        RDK_LOG(RDK_LOG_WARN, "LOG.RDK.DSMGR", FORMAT , __VA_ARGS__);\
-    }\
-    else\
-    {\
-        printf(FORMAT, __VA_ARGS__);\
-    }\
-} while(0)
-
-#else
-
-#define INT_DEBUG(FORMAT, ...)        printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_ERROR(FORMAT, ...)        printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_INFO(FORMAT, ...)         printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-#define INT_WARNING(FORMAT, ...)      printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-
-#endif
+/* RDK logger module used by the INT_* logging macros (defined in iarmutilslogger.h) for DS Manager */
+#define IARMUTILS_LOG_MODULE "LOG.RDK.DSMGR"
 
 extern IARM_Bus_Daemon_SysMode_t isEAS; // Default is Normal Mode
 
