@@ -39,6 +39,8 @@
 #include <sys/stat.h>
 #include <limits.h>     /* For PATH_MAX */
 
+/* rdkProfile.c is built into libiarmUtils.so, see iarmutilslogger.h */
+#define IARMUTILS_LIB_BUILD
 #include "iarmutilslogger.h"
 #include "rdkProfile.h"
 
