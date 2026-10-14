@@ -69,7 +69,10 @@ static inline const char* fileName(const char* path) {
 #define IARMUTILS_LOG_MODULE "LOG.RDK.IARMUTILS"
 #endif
 
-#if (defined(RDK_LOGGER_ENABLED) || defined(DSMGR_LOGGER_ENABLED))
+/* IARMUTILS_LIB_BUILD: code built into the shared libiarmUtils.so is linked by several managers (dsmgr, mfr, ...)
+ * and must not depend on a b_rdk_logger_enabled symbol unless every one of them defines it. DSMGR_LOGGER_ENABLED only
+ * guarantees that for dsMgrMain, so the library ignores it and keeps using the RDK_LOGGER_ENABLED gate. */
+#if (defined(RDK_LOGGER_ENABLED) || (defined(DSMGR_LOGGER_ENABLED) && !defined(IARMUTILS_LIB_BUILD)))
 #include "rdk_debug.h"
 #include "iarmUtil.h"
 
