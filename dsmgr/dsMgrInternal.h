@@ -49,22 +49,23 @@
 
 #define IARM_BUS_DSMGR_NAME		"DSMgr"
 #include <string.h>
-#if (defined(RDK_LOGGER_ENABLED) || defined(DSMGR_LOGGER_ENABLED))
-#include "rdk_debug.h"
-#include "iarmUtil.h"
 
 static inline const char* fileName(const char* path) {
     const char* slash = strrchr(path, '/');
     return slash ? slash + 1 : path;
 }
 
+#define PREFIX(FORMAT)  "[%s:%d] %s: " FORMAT
+
+#if (defined(RDK_LOGGER_ENABLED) || defined(DSMGR_LOGGER_ENABLED))
+#include "rdk_debug.h"
+#include "iarmUtil.h"
+
 #define INT_ERROR(FORMAT, ...)       LOG_ERROR(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
 #define INT_WARNING(FORMAT,  ...)    LOG_WARNING(PREFIX(FORMAT), fileName(__FILE__),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
 #define INT_INFO(FORMAT,  ...)       LOG_INFO(PREFIX(FORMAT), fileName(__FILE__),  __LINE__, __FUNCTION__, ##__VA_ARGS__)
 #define INT_DEBUG(FORMAT, ...)       LOG_DEBUG(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
 #define INT_TRACE(FORMAT, ...)       LOG_TRACE(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
-
-#define PREFIX(FORMAT)  "[%s:%d] %s: " FORMAT
 
 extern int b_rdk_logger_enabled;
 
@@ -111,10 +112,10 @@ extern int b_rdk_logger_enabled;
 
 #else
 
-#define INT_DEBUG(FORMAT, ...)        printf(FORMAT, ##__VA_ARGS__)
-#define INT_ERROR(FORMAT, ...)        printf(FORMAT, ##__VA_ARGS__)
-#define INT_INFO(FORMAT, ...)         printf(FORMAT, ##__VA_ARGS__)
-#define INT_WARNING(FORMAT, ...)      printf(FORMAT, ##__VA_ARGS__)
+#define INT_DEBUG(FORMAT, ...)        printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_ERROR(FORMAT, ...)        printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_INFO(FORMAT, ...)         printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
+#define INT_WARNING(FORMAT, ...)      printf(PREFIX(FORMAT), fileName(__FILE__), __LINE__, __FUNCTION__, ##__VA_ARGS__)
 
 #endif
 
