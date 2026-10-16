@@ -28,6 +28,7 @@
 
 
 #include "dsMgrInternal.h"
+#include "iarmutilslogger.h"
 #include "dsserverregisterlog.h"
 #ifdef __cplusplus 
 extern "C" {
@@ -64,7 +65,7 @@ void dslogCallback(int priority,const char *buff)
     }
     else if(priority == 1)
     {
-        INT_WARN("%s",buff);
+        INT_WARNING("%s",buff);
     }
     else if(priority == 2)
     {
@@ -116,6 +117,14 @@ int main(int argc, char *argv[])
 
     if (rdk_logger_init(PdebugConfigFile) == 0) {
        b_rdk_logger_enabled = 1;
+       /* Force INFO level only for the default /etc/debug.ini, a /opt/debug.ini override is left as configured */
+       if (PdebugConfigFile == DSMGR_DEBUG_ACTUAL_PATH) {
+           bool infoEnabled = rdk_logger_enable_logLevel(IARMUTILS_LOG_MODULE, RDK_LOG_INFO, TRUE);
+           INT_INFO("INFO log level for [%s] with [%s]: %s\n", IARMUTILS_LOG_MODULE, PdebugConfigFile, infoEnabled ? "enabled" : "failed to enable");
+       }
+       else {
+           INT_INFO("Using the override [%s], INFO log level left as configured\n", PdebugConfigFile);
+       }
     }
 
 //    IARM_Bus_RegisterForLog(logCallback);
@@ -131,9 +140,20 @@ int main(int argc, char *argv[])
 
     usleep(10000); // Sleep for 10 milliseconds to allow the d-bus to initialize
     #ifdef ENABLE_SD_NOTIFY
-           sd_notifyf(0, "READY=1\n"
+        INT_INFO("Calling SD_NOTIFY");
+        int sdNotifyRet = sd_notifyf(0, "READY=1\n"
            "STATUS=DsMgr is Successfully Initialized\n"
               "MAINPID=%lu", (unsigned long) getpid());
+        if (sdNotifyRet > 0) {
+            INT_INFO("SD_NOTIFY done, READY=1 sent to systemd (ret=%d)", sdNotifyRet);
+        }
+        else if (sdNotifyRet == 0) {
+            INT_WARNING("SD_NOTIFY not sent, NOTIFY_SOCKET is not set (ret=%d)", sdNotifyRet);
+        }
+        else {
+            INT_ERROR("SD_NOTIFY failed to send READY=1 to systemd (ret=%d, errno=%d: %s)",
+                      sdNotifyRet, -sdNotifyRet, strerror(-sdNotifyRet));
+        }
     #endif
 
 #ifdef PID_FILE_PATH
