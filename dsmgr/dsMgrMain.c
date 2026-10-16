@@ -65,7 +65,7 @@ void dslogCallback(int priority,const char *buff)
     }
     else if(priority == 1)
     {
-        INT_WARN("%s",buff);
+        INT_WARNING("%s",buff);
     }
     else if(priority == 2)
     {

@@ -41,6 +41,7 @@
 #include "libIARM.h"
 #include "libIBusDaemon.h"
 #include "dsMgrInternal.h"
+#include "iarmutilslogger.h"
 #include "libIBus.h"
 #include "iarmUtil.h"
 
