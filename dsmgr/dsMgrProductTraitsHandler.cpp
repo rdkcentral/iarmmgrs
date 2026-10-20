@@ -24,6 +24,7 @@
 #include <unistd.h>
 #include <glib.h>
 #include "dsMgrInternal.h"
+#include "iarmutilslogger.h"
 #include "mfrTypes.h"
 #include "mfrMgr.h"
 #include "dsMgrProductTraitsHandler.h"
