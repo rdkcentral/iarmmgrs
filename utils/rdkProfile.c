@@ -38,6 +38,9 @@
 #include <sys/types.h>
 #include <sys/stat.h>
 
+/* rdkProfile.c is built into libiarmUtils.so, see iarmutilslogger.h */
+#define IARMUTILS_LIB_BUILD
+
 #include "iarmutilslogger.h"
 #include "rdkProfile.h"
 
