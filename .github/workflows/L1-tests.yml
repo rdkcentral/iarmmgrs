@@ -236,6 +236,7 @@ jobs:
         run: |
           cd "$GITHUB_WORKSPACE/iarmmgrs/unit_tests/L1Tests"
           ./run_L1Tests --gtest_output="json:$GITHUB_WORKSPACE/iarmmgrsL1TestResults.json"
+          ./security/test_mfr_security_guards.sh
           cp "$GITHUB_WORKSPACE/iarmmgrsL1TestResults.json" \
              "$GITHUB_WORKSPACE/iarmmgrsL1TestResultsWithoutValgrind.json"
 
