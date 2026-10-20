@@ -232,6 +232,34 @@ void __wrap_g_main_loop_unref(GMainLoop *loop)
  * --------------------------------------------------------------------- */
 #include "dsMgr.c"
 
+/* _EventHandler only queues the event for the worker thread, which is never
+ * started in the unit tests.  Queue the event and then drain the queue on the
+ * calling thread so that tests observe the processed result synchronously. */
+static void dispatchEventSync(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
+{
+    _EventHandler(owner, eventId, data, len);
+
+    while (true) {
+        pthread_mutex_lock(&evtQMutex);
+        DSMgrEventItem_t *item = evtQHead;
+        if (item) {
+            evtQHead = item->next;
+            if (NULL == evtQHead) {
+                evtQTail = NULL;
+            }
+            evtQCount--;
+        }
+        pthread_mutex_unlock(&evtQMutex);
+
+        if (NULL == item) {
+            break;
+        }
+        _ProcessEvent(item->owner, item->eventId, item->data, item->len);
+        freeEventItem(item);
+    }
+}
+#define _EventHandler dispatchEventSync
+
 
 using ::testing::_;
 using ::testing::Invoke;

@@ -465,6 +465,12 @@ static void setBGColor(dsVideoBackgroundColor_t color)
  */
 #define DSMGR_EVENT_QUEUE_MAX 256
 
+/* libIARM.h defines this on-device; the L1 unit-test build substitutes an
+ * empty stub for libIARM.h, so fall back to the real RDK value here. */
+#ifndef IARM_MAX_NAME_LEN
+#define IARM_MAX_NAME_LEN 64
+#endif
+
 typedef struct _DSMgrEventItem {
     char owner[IARM_MAX_NAME_LEN];
     IARM_EventId_t eventId;
@@ -584,10 +590,11 @@ static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data,
     }
 
     pthread_mutex_lock(&evtQMutex);
-    if (evtQStop || (evtQCount >= DSMGR_EVENT_QUEUE_MAX)) {
+    bool stopped = evtQStop;
+    if (stopped || (evtQCount >= DSMGR_EVENT_QUEUE_MAX)) {
         pthread_mutex_unlock(&evtQMutex);
         INT_ERROR("Dropping event %d from [%s], %s\r\n", (int)eventId, owner,
-                  evtQStop ? "event worker is stopped" : "event queue is full");
+                  stopped ? "event worker is stopped" : "event queue is full");
         freeEventItem(item);
         return;
     }
@@ -635,6 +642,10 @@ static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data,
             INT_INFO("Exiting - owner[%s] eventId[%d] not a system state event, ignored\r\n", owner, (int)eventId);
             return;
         }
+        if (NULL == data) {
+            INT_ERROR("Exiting - owner[%s] eventId[%d] system state event without data, ignored\r\n", owner, (int)eventId);
+            return;
+        }
         //	INT_DEBUG("_sysMgrEventHandler invoked in DS Manager\r\n");
         IARM_Bus_SYSMgr_EventData_t *sysEventData = (IARM_Bus_SYSMgr_EventData_t*)data;
         IARM_Bus_SYSMgr_SystemState_t stateId = sysEventData->data.systemStates.stateId;
@@ -667,6 +678,10 @@ static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data,
             case IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG:
                 {
                     IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
+                    if (NULL == eventData) {
+                        INT_ERROR("HDMI hotplug event without data, ignored\r\n");
+                        break;
+                    }
 
                     INT_INFO("[DsMgr] Got HDMI %s Event  \r\n",(eventData->data.hdmi_hpd.event == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"));
 
@@ -683,6 +698,10 @@ static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data,
                 {
                     IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
                     IARM_Bus_SYSMgr_EventData_t HDCPeventData;
+                    if (NULL == eventData) {
+                        INT_ERROR("HDCP status event without data, ignored\r\n");
+                        break;
+                    }
                     int status = eventData->data.hdmi_hdcp.hdcpStatus;
                     //INT_DEBUG("%s: IARM_BUS_DSMGR_EVENT_HDCP_STATUS  event status :%d \r\n",__FUNCTION__, status);
 
