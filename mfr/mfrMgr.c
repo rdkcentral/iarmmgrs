@@ -395,11 +395,12 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
 
 static void writeImageCb(mfrUpgradeStatus_t * status)
 {
-    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t param = {0};
+    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t param;
+    memset(&param, 0, sizeof(param));
 
     IARM_Result_t retVal;
     memcpy(&param.status, status, sizeof(mfrUpgradeStatus_t));
-    strncpy(param.cbData, notifyStruct.cbData, MAX_BUF);
+    strncpy(param.cbData, (const char *)notifyStruct.cbData, MAX_BUF);
     param.cbData[MAX_BUF-1] = '\0'; 
     LOG("In writeImage callback: cbData=%s, progress=%d, error = %d, error_str=%s, percentage = %d\n", param.cbData, param.status.progress, param.status.error, param.status.error_string, param.status.percentage/100);
 
@@ -1277,16 +1278,16 @@ IARM_Result_t getConfigData_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_SUCCESS;
     mfrError_t err = mfrERR_NONE;
     IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
-    IARM_Bus_MFRLib_Platformblockdata_Param_t bl = {0} ;
+    unsigned int blocklist = 0;
 
-    err = func(&bl);
+    err = func(&blocklist);
     if(mfrERR_NONE != err)
     {
         LOG("Calling mfr_getConfigData returned error 0x%x\n", err);
         retCode = IARM_RESULT_INVALID_PARAM;
     }
     else {
-        memcpy(bl_rt_blocklist, &bl,sizeof(IARM_Bus_MFRLib_Platformblockdata_Param_t));
+        bl_rt_blocklist->blocklist = blocklist;
         LOG(" BL runtime blocklist value is 0x%x\n",(unsigned int) bl_rt_blocklist->blocklist);
 	// handle the blocklist version set
     }

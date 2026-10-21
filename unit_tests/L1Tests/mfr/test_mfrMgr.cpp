@@ -322,26 +322,24 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastEventZeroInitialized)
     status.error = mfrERR_NONE;
     status.percentage = 5000;
 
-    IARM_BUS_MfrMgr_StatusUpdate_EventData_t captured;
+    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t captured;
     memset(&captured, 0xff, sizeof(captured));
 
     EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
         StrEq(IARM_BUS_MFRLIB_NAME),
         IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE,
-        _, sizeof(captured)))
+        _, sizeof(IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t)))
         .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
-            captured = *static_cast<IARM_BUS_MfrMgr_StatusUpdate_EventData_t *>(data);
+            captured = *static_cast<IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t *>(data);
             return IARM_RESULT_SUCCESS;
         });
 
     writeImageCb(&status);
 
-    EXPECT_EQ(mfrUPGRADE_PROGRESS_STARTED, captured.status.progress);
-    captured.status.progress = 0;
-    captured.status.error = 0;
-    captured.status.percentage = 0;
-    IARM_BUS_MfrMgr_StatusUpdate_EventData_t zero = {};
-    EXPECT_EQ(0, memcmp(&zero, &captured, sizeof(captured)));
+    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t expected = {};
+    expected.status = status;
+    strcpy(expected.cbData, "test_module");
+    EXPECT_EQ(0, memcmp(&expected, &captured, sizeof(expected)));
 }
 
 /* ===================================================================== *

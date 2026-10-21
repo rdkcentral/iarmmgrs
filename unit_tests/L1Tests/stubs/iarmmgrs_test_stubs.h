@@ -282,7 +282,9 @@ typedef struct _dsAudioSetStereoAutoParam_t {
 #ifdef __cplusplus
 extern "C" {
 #endif
+#ifdef IARM_RESULT_SUCCESS
 IARM_Result_t _dsEnableHDCP(void *arg);
+#endif
 #ifdef __cplusplus
 }
 #endif
