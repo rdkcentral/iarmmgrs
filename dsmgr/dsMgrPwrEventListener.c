@@ -40,6 +40,7 @@
 
 #include "dsRpc.h"
 #include "dsMgrPwrEventListener.h"
+#include "iarmutilslogger.h"
 #include "frontPanelIndicator.hpp"
 #include "videoOutputPort.hpp"
 #include "host.hpp"
