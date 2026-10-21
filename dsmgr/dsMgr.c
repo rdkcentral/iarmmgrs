@@ -697,7 +697,7 @@ static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data,
             case IARM_BUS_DSMGR_EVENT_HDCP_STATUS:
                 {
                     IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
-                    IARM_Bus_SYSMgr_EventData_t HDCPeventData;
+                    IARM_Bus_SYSMgr_EventData_t HDCPeventData = {0};
                     if (NULL == eventData) {
                         INT_ERROR("HDCP status event without data, ignored\r\n");
                         break;
