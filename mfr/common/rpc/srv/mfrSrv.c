@@ -269,14 +269,31 @@ IARM_Result_t _mfrGetSerializedData(void *arg)
 	mfrCrypto_Encrypt_t *func_ptr = NULL;
 	mfrError_t err;
 	IARM_Bus_MFRLib_SerializedData_Param_t *param = (IARM_Bus_MFRLib_SerializedData_Param_t*) arg;
+        size_t crypto_len;
 
-        safec_rc = strcmp_s(param->crypto, strlen(param->crypto), "", &ind);
+        if(param == NULL)
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        crypto_len = strnlen(param->crypto, sizeof(param->crypto));
+        if(crypto_len == sizeof(param->crypto))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        safec_rc = strcmp_s(param->crypto, sizeof(param->crypto), "", &ind);
         ERR_CHK(safec_rc);
-        if((safec_rc == EOK) && ind))
+        if((safec_rc == EOK) && ind)
 	{
+            if(strcmp(param->crypto, "mfrCrypto_Encrypt") != 0)
+            {
+                IARM_Bus_Unlock(lock);
+                return IARM_RESULT_INVALID_PARAM;
+            }
 	    if(encrypt_func == 0)
 	    {
-		    encrypt_func = (mfrCrypto_Encrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, param->crypto);
+		    encrypt_func = (mfrCrypto_Encrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, "mfrCrypto_Encrypt");
     		if(!encrypt_func)
     		{
     		    printf("Exiting %s\n",__func__);
@@ -344,13 +361,31 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 	mfrCrypto_Decrypt_t *func_ptr = NULL;
 	mfrError_t err;
 	IARM_Bus_MFRLib_SerializedData_Param_t *param = (IARM_Bus_MFRLib_SerializedData_Param_t*) arg;
-        safec_rc = strcmp_s(param->crypto, strlen(param->crypto), "", &ind);
+        size_t crypto_len;
+
+        if(param == NULL || param->bufLen <= 0 || param->bufLen > sizeof(param->buffer))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        crypto_len = strnlen(param->crypto, sizeof(param->crypto));
+        if(crypto_len == sizeof(param->crypto))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        safec_rc = strcmp_s(param->crypto, sizeof(param->crypto), "", &ind);
         ERR_CHK(safec_rc);
         if((safec_rc == EOK) && ind)
         {
+            if(strcmp(param->crypto, "mfrCrypto_Decrypt") != 0)
+            {
+                IARM_Bus_Unlock(lock);
+                return IARM_RESULT_INVALID_PARAM;
+            }
 	    if(decrypt_func == 0)
 	    {
-		decrypt_func = (mfrCrypto_Decrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, param->crypto);
+		decrypt_func = (mfrCrypto_Decrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, "mfrCrypto_Decrypt");
 		if(!decrypt_func)
 		{
 		    printf("Exiting %s\n",__func__);
@@ -362,6 +397,11 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 	}
 
 	data.buf = (char *) malloc (param->bufLen);
+        if(data.buf == NULL)
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_STATE;
+        }
 	data.bufLen = param->bufLen;
 	data.freeBuf = free;
 	safec_rc = memcpy_s(data.buf, param->bufLen, ((char *)param->buffer), param->bufLen);

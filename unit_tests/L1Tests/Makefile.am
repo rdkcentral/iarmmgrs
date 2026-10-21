@@ -113,7 +113,8 @@ run_L1Tests_SOURCES = \
 run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl
 
 # Run tests on 'make check'
-TESTS = run_L1Tests
+TESTS = run_L1Tests security/test_legacy_mfr_rpc_guard.sh
+EXTRA_DIST = security/test_legacy_mfr_rpc_guard.sh
 
 # Clean up test artifacts
 CLEANFILES = *.log *.trs
