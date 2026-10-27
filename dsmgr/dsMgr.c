@@ -94,6 +94,9 @@ static dsDisplayEvent_t edisplayEventStatus = dsDISPLAY_EVENT_MAX;
 static pthread_t edsHDMIHPDThreadID; // HDMI HPD - HDMI Hot Plug detect events
 static pthread_mutex_t tdsMutexLock;
 static pthread_cond_t  tdsMutexCond;
+static bool resolution_thread_stop = false;
+static bool resolution_thread_started = false;
+static bool resolution_event_pending = false;
 static void* _DSMgrResnThreadFunc(void *arg);
 static void _setAudioMode();
 void _setEASAudioMode();
@@ -193,9 +196,57 @@ GMainLoop *dsMgr_Gloop = NULL;
 static gboolean heartbeatMsg(gpointer data);
 static gboolean _SetResolutionHandler(gpointer data);
 static guint hotplug_event_src = 0;
+static guint hotplug_event_generation = 0;
+static pthread_mutex_t hotplug_event_src_lock = PTHREAD_MUTEX_INITIALIZER;
 static gboolean dumpEdidOnChecksumDiff(gpointer data);
 static bool IsIgnoreEdid_gs = false;
 static bool bootup_flag_enabled = true;
+
+static gboolean removeHotplugEventSourceOnMain(gpointer data)
+{
+	(void)data;
+	guint source_id;
+
+	pthread_mutex_lock(&hotplug_event_src_lock);
+	source_id = hotplug_event_src;
+	hotplug_event_src = 0;
+	pthread_mutex_unlock(&hotplug_event_src_lock);
+
+	if (source_id != 0) {
+		g_source_remove(source_id);
+	}
+	return G_SOURCE_REMOVE;
+}
+
+static void removeHotplugEventSource(void)
+{
+	pthread_mutex_lock(&hotplug_event_src_lock);
+	hotplug_event_generation++;
+	pthread_mutex_unlock(&hotplug_event_src_lock);
+
+	g_idle_add(removeHotplugEventSourceOnMain, NULL);
+}
+
+static gboolean scheduleHotplugEventSourceOnMain(gpointer data)
+{
+	guint generation = GPOINTER_TO_UINT(data);
+	guint source_id = 0;
+
+	pthread_mutex_lock(&hotplug_event_src_lock);
+	if (generation == hotplug_event_generation) {
+		if (hotplug_event_src != 0) {
+			source_id = hotplug_event_src;
+			hotplug_event_src = 0;
+		}
+		hotplug_event_src = g_timeout_add_seconds((guint)5, _SetResolutionHandler, dsMgr_Gloop);
+	}
+	pthread_mutex_unlock(&hotplug_event_src_lock);
+
+	if (source_id != 0) {
+		g_source_remove(source_id);
+	}
+	return G_SOURCE_REMOVE;
+}
 
 static intptr_t getVideoPortHandle(_dsVideoPortType_t port)
 {
@@ -298,10 +349,15 @@ IARM_Result_t DSMgr_Start()
 		INT_ERROR("Failed to create pthread_cond_init tdsMutexCond.");
 		return IARM_RESULT_IPCCORE_FAIL;
 	}
+	pthread_mutex_lock(&tdsMutexLock);
+	resolution_thread_stop = false;
+	resolution_event_pending = false;
+	pthread_mutex_unlock(&tdsMutexLock);
 	if (pthread_create(&edsHDMIHPDThreadID, NULL, _DSMgrResnThreadFunc, NULL) != 0) {
 		INT_ERROR("Failed pthread_create _DSMgrResnThreadFunc.");
 		return IARM_RESULT_IPCCORE_FAIL;
 	}
+	resolution_thread_started = true;
 	/* Read the HDMI DDC Line delay to be introduced 
 	 * for setting  the resolution
 	 * The DDC line is used for EDID and HDCP Negotiation
@@ -371,6 +427,14 @@ IARM_Result_t DSMgr_Stop()
     {
         g_main_loop_quit(dsMgr_Gloop);
     }
+	pthread_mutex_lock(&tdsMutexLock);
+	resolution_thread_stop = true;
+	pthread_cond_signal(&tdsMutexCond);
+	pthread_mutex_unlock(&tdsMutexLock);
+	if (resolution_thread_started) {
+		pthread_join(edsHDMIHPDThreadID, NULL);
+		resolution_thread_started = false;
+	}
     dsMgrDeinitPwrControllerEvt();
     PowerController_Term();
     TELEMETRY_UNINIT();
@@ -664,6 +728,7 @@ static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data,
 
                     /* Un-block the Resolution Settings Thread */
                     pthread_mutex_lock(&tdsMutexLock);
+					resolution_event_pending = true;
                     pthread_cond_signal(&tdsMutexCond);
                     pthread_mutex_unlock(&tdsMutexLock);
                 }
@@ -690,6 +755,7 @@ static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data,
                     /* Un-Block the Resolution Settings Thread */
                     pthread_mutex_lock(&tdsMutexLock);
                     edisplayEventStatus = ((eventData->data.hdmi_hpd.event == dsDISPLAY_EVENT_CONNECTED) ? dsDISPLAY_EVENT_CONNECTED : dsDISPLAY_EVENT_DISCONNECTED);
+					resolution_event_pending = true;
                     pthread_cond_signal(&tdsMutexCond);
                     pthread_mutex_unlock(&tdsMutexLock);
                 }
@@ -713,12 +779,10 @@ static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data,
                         INT_INFO("Changed status to HDCP Authentication Pass  !!!!!!!! ..\r\n");
                         HDCPeventData.data.systemStates.state = 1;
                         bHDCPAuthenticated = true;
-                        INT_INFO("HDCP success - Removed hotplug_event_src Time source %d and set resolution immediately \r\n",hotplug_event_src);
-                        if(hotplug_event_src)
-                        {
-                            g_source_remove(hotplug_event_src);
-                            hotplug_event_src = 0;
-                        }
+						pthread_mutex_lock(&hotplug_event_src_lock);
+						INT_INFO("HDCP success - Removed hotplug_event_src Time source %d and set resolution immediately \r\n",hotplug_event_src);
+						pthread_mutex_unlock(&hotplug_event_src_lock);
+						removeHotplugEventSource();
                         setBGColor(dsVIDEO_BGCOLOR_NONE);
                         /* allows dsmgr to set initial resolution irrespective of ignore edid only during boot */
                         if ((!IsIgnoreEdid_gs) || bootup_flag_enabled) {
@@ -1299,19 +1363,21 @@ static void* _DSMgrResnThreadFunc(void *arg)
 
 		/*Wait for the Event*/
 		pthread_mutex_lock(&tdsMutexLock);
-		pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
+		while (!resolution_thread_stop && !resolution_event_pending) {
+			pthread_cond_wait(&tdsMutexCond, &tdsMutexLock);
+		}
+		if (resolution_thread_stop) {
+			pthread_mutex_unlock(&tdsMutexLock);
+			break;
+		}
+		resolution_event_pending = false;
 		edisplayEventStatusLocal = edisplayEventStatus;
 		pthread_mutex_unlock(&tdsMutexLock);
 		INT_INFO("%s: Setting Resolution On:: HDMI %s Event  with TuneReady status = %d \r\n",
 			__FUNCTION__, (edisplayEventStatusLocal == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"),iTuneReady);
 
-		//On hot plug event , Remove event source 
-		if(hotplug_event_src)
-		{
-			g_source_remove(hotplug_event_src);
-			INT_INFO("Removed Hot Plug Event Time source %d  \r\n",hotplug_event_src);
-			hotplug_event_src = 0;
-		}
+		/* On hot plug event, request source removal on the GLib context. */
+		removeHotplugEventSource();
 
 		/*Set the Resolution only on HDMI Hot plug Connect and Tune Ready events */
 		if((1 == iTuneReady) && (dsDISPLAY_EVENT_CONNECTED == edisplayEventStatusLocal)) {
@@ -1331,8 +1397,11 @@ static void* _DSMgrResnThreadFunc(void *arg)
 			bHDCPAuthenticated = false;
 			if(isComponentPortPresent())
 			{
-				hotplug_event_src = g_timeout_add_seconds((guint)5,_SetResolutionHandler,dsMgr_Gloop); 
-				INT_INFO("Schedule a handler to set the resolution after 5 sec for %d time src.. \r\n",hotplug_event_src);
+				guint generation;
+				pthread_mutex_lock(&hotplug_event_src_lock);
+				generation = hotplug_event_generation;
+				pthread_mutex_unlock(&hotplug_event_src_lock);
+				g_idle_add(scheduleHotplugEventSourceOnMain, GUINT_TO_POINTER(generation));
 			}
 		}
 
@@ -1345,7 +1414,13 @@ static gboolean _SetResolutionHandler(gpointer data)
 {
         INT_INFO("Set Video Resolution after delayed time .. \r\n");
 	_SetVideoPortResolution();
-	hotplug_event_src = 0;
+	pthread_mutex_lock(&hotplug_event_src_lock);
+	GSource *source = g_main_current_source();
+	guint source_id = source != NULL ? g_source_get_id(source) : 0;
+	if (source_id == 0 || hotplug_event_src == source_id) {
+		hotplug_event_src = 0;
+	}
+	pthread_mutex_unlock(&hotplug_event_src_lock);
 	return FALSE;
 }
 
