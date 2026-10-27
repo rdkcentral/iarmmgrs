@@ -83,6 +83,10 @@ extern bool dsGetHDMIDDCLineStatus(void);
 static int _SetVideoPortResolution();
 static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType);
 static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
+static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
+static void* _EventWorkerThreadFunc(void *arg);
+static int startEventWorker();
+static void stopEventWorker();
 static IARM_Result_t _SysModeChange(void *arg);
 static void dumpHdmiEdidInfo(dsDisplayEDID_t* pedidData);
 static int iTuneReady = 0;
@@ -256,6 +260,10 @@ IARM_Result_t DSMgr_Start()
         _dsGetIgnoreEDIDStatus(&ignoreEdidParam);
 	IsIgnoreEdid_gs = ignoreEdidParam.ignoreEDID;
 	INT_INFO("ResOverride DSMgr_Start IsIgnoreEdid_gs: %d\n", IsIgnoreEdid_gs);
+	/* Events are processed on a worker thread, it must run before the handlers are registered */
+	if (0 != startEventWorker()) {
+		return IARM_RESULT_IPCCORE_FAIL;
+	}
 	/*Register the Events */
 	iarmStatus = IARM_Bus_RegisterEventHandler(IARM_BUS_SYSMGR_NAME,IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,_EventHandler);
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
@@ -366,6 +374,7 @@ IARM_Result_t DSMgr_Stop()
     dsMgrDeinitPwrControllerEvt();
     PowerController_Term();
     TELEMETRY_UNINIT();
+    stopEventWorker();
     iarmStatus = IARM_Bus_Disconnect();
     if (IARM_RESULT_SUCCESS != iarmStatus) {
         INT_ERROR("DSMgr_Stop: Failed to disconnect IARM Bus\r\n");
@@ -448,112 +457,300 @@ static void setBGColor(dsVideoBackgroundColor_t color)
 }
 
 
-/*Event Handler for DS Manager And Sys Manager Events */
+/*
+ * IARM event callbacks run on the IARM dispatch thread with the IARM bus lock held. Processing them there
+ * (which takes DS locks and may call back into the IARM bus) can deadlock against threads holding a DS lock
+ * while waiting for the IARM bus lock. So _EventHandler only queues a copy of the event and returns;
+ * the event is processed in _ProcessEvent on a dedicated worker thread, in arrival order.
+ */
+#define DSMGR_EVENT_QUEUE_MAX 256
+
+/* libIARM.h defines this on-device; the L1 unit-test build substitutes an
+ * empty stub for libIARM.h, so fall back to the real RDK value here. */
+#ifndef IARM_MAX_NAME_LEN
+#define IARM_MAX_NAME_LEN 64
+#endif
+
+typedef struct _DSMgrEventItem {
+    char owner[IARM_MAX_NAME_LEN];
+    IARM_EventId_t eventId;
+    size_t len;
+    void *data;
+    struct _DSMgrEventItem *next;
+} DSMgrEventItem_t;
+
+static DSMgrEventItem_t *evtQHead = NULL;
+static DSMgrEventItem_t *evtQTail = NULL;
+static int evtQCount = 0;
+static bool evtQStop = false;
+static bool evtWorkerStarted = false;
+static pthread_t evtWorkerThreadID;
+static pthread_mutex_t evtQMutex = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t evtQCond = PTHREAD_COND_INITIALIZER;
+
+static void freeEventItem(DSMgrEventItem_t *item)
+{
+    if (item) {
+        free(item->data);
+        free(item);
+    }
+}
+
+static int startEventWorker()
+{
+    pthread_mutex_lock(&evtQMutex);
+    evtQStop = false;
+    pthread_mutex_unlock(&evtQMutex);
+
+    if (pthread_create(&evtWorkerThreadID, NULL, _EventWorkerThreadFunc, NULL) != 0) {
+        INT_ERROR("Failed to create the DSMgr event worker thread\r\n");
+        return -1;
+    }
+    evtWorkerStarted = true;
+    return 0;
+}
+
+static void stopEventWorker()
+{
+    if (!evtWorkerStarted) {
+        return;
+    }
+    pthread_mutex_lock(&evtQMutex);
+    evtQStop = true;
+    pthread_cond_signal(&evtQCond);
+    pthread_mutex_unlock(&evtQMutex);
+
+    pthread_join(evtWorkerThreadID, NULL);
+    evtWorkerStarted = false;
+}
+
+static void* _EventWorkerThreadFunc(void *arg)
+{
+    INT_INFO("_EventWorkerThreadFunc: Entry\r\n");
+    while (1)
+    {
+        pthread_mutex_lock(&evtQMutex);
+        while ((NULL == evtQHead) && !evtQStop) {
+            pthread_cond_wait(&evtQCond, &evtQMutex);
+        }
+        if (evtQStop) {
+            /* drop the events that are still pending */
+            DSMgrEventItem_t *item = evtQHead;
+            while (item) {
+                DSMgrEventItem_t *next = item->next;
+                freeEventItem(item);
+                item = next;
+            }
+            evtQHead = evtQTail = NULL;
+            evtQCount = 0;
+            pthread_mutex_unlock(&evtQMutex);
+            break;
+        }
+        DSMgrEventItem_t *item = evtQHead;
+        evtQHead = item->next;
+        if (NULL == evtQHead) {
+            evtQTail = NULL;
+        }
+        evtQCount--;
+        pthread_mutex_unlock(&evtQMutex);
+
+        _ProcessEvent(item->owner, item->eventId, item->data, item->len);
+        freeEventItem(item);
+    }
+    INT_INFO("_EventWorkerThreadFunc: Exit\r\n");
+    return NULL;
+}
+
+/*IARM Event callback for DS Manager And Sys Manager Events. Runs in the IARM dispatch context: queue only, do not block. */
 static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
 {
+    if (NULL == owner) {
+        return;
+    }
+
+    /* Events are decoded as IARM_Bus_SYSMgr_EventData_t / IARM_Bus_DSMgr_EventData_t, so never hand out a smaller buffer */
+    size_t bufSize = len;
+    if (bufSize < sizeof(IARM_Bus_SYSMgr_EventData_t)) bufSize = sizeof(IARM_Bus_SYSMgr_EventData_t);
+    if (bufSize < sizeof(IARM_Bus_DSMgr_EventData_t)) bufSize = sizeof(IARM_Bus_DSMgr_EventData_t);
+
+    DSMgrEventItem_t *item = (DSMgrEventItem_t *)calloc(1, sizeof(*item));
+    if (item) {
+        item->data = calloc(1, bufSize);
+    }
+    if ((NULL == item) || (NULL == item->data)) {
+        INT_ERROR("Failed to allocate memory to queue event %d from [%s]\r\n", (int)eventId, owner);
+        freeEventItem(item);
+        return;
+    }
+    snprintf(item->owner, sizeof(item->owner), "%s", owner);
+    item->eventId = eventId;
+    item->len = len;
+    if (data && len) {
+        memcpy(item->data, data, len);
+    }
+
+    pthread_mutex_lock(&evtQMutex);
+    bool stopped = evtQStop;
+    if (stopped || (evtQCount >= DSMGR_EVENT_QUEUE_MAX)) {
+        pthread_mutex_unlock(&evtQMutex);
+        INT_ERROR("Dropping event %d from [%s], %s\r\n", (int)eventId, owner,
+                  stopped ? "event worker is stopped" : "event queue is full");
+        freeEventItem(item);
+        return;
+    }
+    if (evtQTail) {
+        evtQTail->next = item;
+    }
+    else {
+        evtQHead = item;
+    }
+    evtQTail = item;
+    evtQCount++;
+    pthread_cond_signal(&evtQCond);
+    pthread_mutex_unlock(&evtQMutex);
+}
+
+/*Event processing for DS Manager And Sys Manager Events, runs on the event worker thread */
+static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data, size_t len)
+{
+    char details[96] = "";
+
+    if (data) {
+        if (strcmp(owner, IARM_BUS_SYSMGR_NAME) == 0) {
+            IARM_Bus_SYSMgr_EventData_t *sysEventData = (IARM_Bus_SYSMgr_EventData_t *)data;
+            snprintf(details, sizeof(details), "stateId=%d state=%d",
+                     (int)sysEventData->data.systemStates.stateId, sysEventData->data.systemStates.state);
+        }
+        else if (strcmp(owner, IARM_BUS_DSMGR_NAME) == 0) {
+            IARM_Bus_DSMgr_EventData_t *dsEventData = (IARM_Bus_DSMgr_EventData_t *)data;
+            if (eventId == IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG) {
+                snprintf(details, sizeof(details), "hdmiHotplugEvent=%d", (int)dsEventData->data.hdmi_hpd.event);
+            }
+            else if (eventId == IARM_BUS_DSMGR_EVENT_HDCP_STATUS) {
+                snprintf(details, sizeof(details), "hdcpStatus=%d", (int)dsEventData->data.hdmi_hdcp.hdcpStatus);
+            }
+        }
+    }
+
+    INT_INFO("Entering - owner[%s] eventId[%d] len[%zu] %s\r\n", owner, (int)eventId, len, details);
 
     /*Handle only Sys Manager Events */
-	if (strcmp(owner, IARM_BUS_SYSMGR_NAME)  == 0) 
-	{
-		/* Only handle state events */
-	    if (eventId != IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE) return;
-		//	INT_DEBUG("_sysMgrEventHandler invoked in DS Manager\r\n");
-		IARM_Bus_SYSMgr_EventData_t *sysEventData = (IARM_Bus_SYSMgr_EventData_t*)data;
-		IARM_Bus_SYSMgr_SystemState_t stateId = sysEventData->data.systemStates.stateId;
-		int state = sysEventData->data.systemStates.state;
-		INT_INFO("_sysEventHandler invoked for stateid %d of state %d \r\n", stateId, state);
-		switch(stateId) {
-			case IARM_BUS_SYSMGR_SYSSTATE_TUNEREADY:
-					INT_DEBUG("Tune Ready Evenets in DS Manager \r\n");
-				
-					if (0 == iTuneReady)
-					{
-						iTuneReady = 1;
+    if (strcmp(owner, IARM_BUS_SYSMGR_NAME) == 0)
+    {
+        /* Only handle state events */
+        if (eventId != IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE) {
+            INT_INFO("Exiting - owner[%s] eventId[%d] not a system state event, ignored\r\n", owner, (int)eventId);
+            return;
+        }
+        if (NULL == data) {
+            INT_ERROR("Exiting - owner[%s] eventId[%d] system state event without data, ignored\r\n", owner, (int)eventId);
+            return;
+        }
+        //	INT_DEBUG("_sysMgrEventHandler invoked in DS Manager\r\n");
+        IARM_Bus_SYSMgr_EventData_t *sysEventData = (IARM_Bus_SYSMgr_EventData_t*)data;
+        IARM_Bus_SYSMgr_SystemState_t stateId = sysEventData->data.systemStates.stateId;
+        int state = sysEventData->data.systemStates.state;
+        INT_INFO("_sysEventHandler invoked for stateid %d of state %d \r\n", stateId, state);
+        switch(stateId) {
+            case IARM_BUS_SYSMGR_SYSSTATE_TUNEREADY:
+                INT_DEBUG("Tune Ready Evenets in DS Manager \r\n");
 
-						/* Set audio mode from persistent */
-						_setAudioMode();
-						
-						/* Un-block the Resolution Settings Thread */
-						pthread_mutex_lock(&tdsMutexLock);
-						pthread_cond_signal(&tdsMutexCond);
-						pthread_mutex_unlock(&tdsMutexLock);
-					}
-  			break;
-			default:
-				break;
-		}
-	}else if (strcmp(owner,IARM_BUS_DSMGR_NAME) == 0)
+                if (0 == iTuneReady)
+                {
+                    iTuneReady = 1;
+
+                    /* Set audio mode from persistent */
+                    _setAudioMode();
+
+                    /* Un-block the Resolution Settings Thread */
+                    pthread_mutex_lock(&tdsMutexLock);
+                    pthread_cond_signal(&tdsMutexCond);
+                    pthread_mutex_unlock(&tdsMutexLock);
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    else if (strcmp(owner, IARM_BUS_DSMGR_NAME) == 0)
     {
         switch (eventId) {
-			case IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG:
-				{
-					
-					IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
-					
-					INT_INFO("[DsMgr] Got HDMI %s Event  \r\n",(eventData->data.hdmi_hpd.event == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"));
+            case IARM_BUS_DSMGR_EVENT_HDMI_HOTPLUG:
+                {
+                    IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
+                    if (NULL == eventData) {
+                        INT_ERROR("HDMI hotplug event without data, ignored\r\n");
+                        break;
+                    }
 
-                                        setBGColor(dsVIDEO_BGCOLOR_NONE);
+                    INT_INFO("[DsMgr] Got HDMI %s Event  \r\n",(eventData->data.hdmi_hpd.event == dsDISPLAY_EVENT_CONNECTED ? "Connect" : "Disconnect"));
 
-					/* Un-Block the Resolution Settings Thread */
-					pthread_mutex_lock(&tdsMutexLock);
-					edisplayEventStatus = ((eventData->data.hdmi_hpd.event == dsDISPLAY_EVENT_CONNECTED) ? dsDISPLAY_EVENT_CONNECTED : dsDISPLAY_EVENT_DISCONNECTED);
-					pthread_cond_signal(&tdsMutexCond);
-					pthread_mutex_unlock(&tdsMutexLock);
-										
-				}
+                    setBGColor(dsVIDEO_BGCOLOR_NONE);
+
+                    /* Un-Block the Resolution Settings Thread */
+                    pthread_mutex_lock(&tdsMutexLock);
+                    edisplayEventStatus = ((eventData->data.hdmi_hpd.event == dsDISPLAY_EVENT_CONNECTED) ? dsDISPLAY_EVENT_CONNECTED : dsDISPLAY_EVENT_DISCONNECTED);
+                    pthread_cond_signal(&tdsMutexCond);
+                    pthread_mutex_unlock(&tdsMutexLock);
+                }
                 break;
-			case IARM_BUS_DSMGR_EVENT_HDCP_STATUS:
-				{
-					IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
-					IARM_Bus_SYSMgr_EventData_t HDCPeventData;
-					int status = eventData->data.hdmi_hdcp.hdcpStatus;
-					//INT_DEBUG("%s: IARM_BUS_DSMGR_EVENT_HDCP_STATUS  event status :%d \r\n",__FUNCTION__, status);
-					
-					/* HDCP is enabled */
-					HDCPeventData.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_HDCP_ENABLED;
-					HDCPeventData.data.systemStates.state = 1;
-					if (status == dsHDCP_STATUS_AUTHENTICATED )
-					{
-						INT_INFO("Changed status to HDCP Authentication Pass  !!!!!!!! ..\r\n");
-						HDCPeventData.data.systemStates.state =  1;
-                                                bHDCPAuthenticated = true;
-						INT_INFO("HDCP success - Removed hotplug_event_src Time source %d and set resolution immediately \r\n",hotplug_event_src);
-                                                if(hotplug_event_src)
-                                                {
-                                                    g_source_remove(hotplug_event_src);
-                                                    hotplug_event_src = 0;
-                                                }
-                                                setBGColor(dsVIDEO_BGCOLOR_NONE);
-						/* allows dsmgr to set initial resolution irrespective of ignore edid only during boot */
-						if ((!IsIgnoreEdid_gs) || bootup_flag_enabled){
-                                                    _SetVideoPortResolution();
-						    if(bootup_flag_enabled)
-						        bootup_flag_enabled = false;
-						}
-                                                g_timeout_add_seconds((guint)1,dumpEdidOnChecksumDiff,NULL);
-					} 
-					else if (status == dsHDCP_STATUS_AUTHENTICATIONFAILURE )
-					{
-						INT_ERROR("Changed status to HDCP Authentication Fail   !!!!!!!! ..\r\n");
-						HDCPeventData.data.systemStates.state =  0;
-						
-						bHDCPAuthenticated = false;
-						if (!IsIgnoreEdid_gs) {
-                                                    _SetVideoPortResolution();
-						}
-                                                g_timeout_add_seconds((guint)1,dumpEdidOnChecksumDiff,NULL);
-					}
+            case IARM_BUS_DSMGR_EVENT_HDCP_STATUS:
+                {
+                    IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
+                    IARM_Bus_SYSMgr_EventData_t HDCPeventData;
+                    if (NULL == eventData) {
+                        INT_ERROR("HDCP status event without data, ignored\r\n");
+                        break;
+                    }
+                    int status = eventData->data.hdmi_hdcp.hdcpStatus;
+                    //INT_DEBUG("%s: IARM_BUS_DSMGR_EVENT_HDCP_STATUS  event status :%d \r\n",__FUNCTION__, status);
 
-					if (IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
-								(void *)&HDCPeventData, sizeof(HDCPeventData)) != IARM_RESULT_SUCCESS) {
-						INT_ERROR("Failed to broadcast HDCP status for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
-					}
-				}
-                break;	
-			default:
-				break;
-			}
-	}
+                    /* HDCP is enabled */
+                    HDCPeventData.data.systemStates.stateId = IARM_BUS_SYSMGR_SYSSTATE_HDCP_ENABLED;
+                    HDCPeventData.data.systemStates.state = 1;
+                    if (status == dsHDCP_STATUS_AUTHENTICATED )
+                    {
+                        INT_INFO("Changed status to HDCP Authentication Pass  !!!!!!!! ..\r\n");
+                        HDCPeventData.data.systemStates.state = 1;
+                        bHDCPAuthenticated = true;
+                        INT_INFO("HDCP success - Removed hotplug_event_src Time source %d and set resolution immediately \r\n",hotplug_event_src);
+                        if(hotplug_event_src)
+                        {
+                            g_source_remove(hotplug_event_src);
+                            hotplug_event_src = 0;
+                        }
+                        setBGColor(dsVIDEO_BGCOLOR_NONE);
+                        /* allows dsmgr to set initial resolution irrespective of ignore edid only during boot */
+                        if ((!IsIgnoreEdid_gs) || bootup_flag_enabled) {
+                            _SetVideoPortResolution();
+                            if(bootup_flag_enabled)
+                                bootup_flag_enabled = false;
+                        }
+                        g_timeout_add_seconds((guint)1,dumpEdidOnChecksumDiff,NULL);
+                    }
+                    else if (status == dsHDCP_STATUS_AUTHENTICATIONFAILURE )
+                    {
+                        INT_ERROR("Changed status to HDCP Authentication Fail   !!!!!!!! ..\r\n");
+                        HDCPeventData.data.systemStates.state = 0;
+
+                        bHDCPAuthenticated = false;
+                        if (!IsIgnoreEdid_gs) {
+                            _SetVideoPortResolution();
+                        }
+                        g_timeout_add_seconds((guint)1,dumpEdidOnChecksumDiff,NULL);
+                    }
+
+                    if (IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                                (void *)&HDCPeventData, sizeof(HDCPeventData)) != IARM_RESULT_SUCCESS) {
+                        INT_ERROR("Failed to broadcast HDCP status for [%s] \r\n", IARM_BUS_SYSMGR_NAME);
+                    }
+                }
+                break;
+            default:
+                break;
+        }
+    }
+    INT_INFO("Exiting - owner[%s] eventId[%d] %s\r\n", owner, (int)eventId, details);
 }
 
 /* Set Video resolution on HDMI Hot Plug or Tune Ready events  */
@@ -603,6 +800,7 @@ static int _SetVideoPortResolution()
 			_SetResolution(&_hdmihandle,dsVIDEOPORT_TYPE_HDMI);
 		}
 		else {
+            INT_INFO("HDMI not connected, checking other video ports...\r\n");
 			_comphandle = getVideoPortHandle(dsVIDEOPORT_TYPE_COMPONENT);
 			
 			if (NULL != _comphandle)
@@ -614,27 +812,27 @@ static int _SetVideoPortResolution()
 			{
 			    INT_INFO("%s: NULL Handle for component\r\n",__FUNCTION__);
 
-                            intptr_t _compositehandle = getVideoPortHandle(dsVIDEOPORT_TYPE_BB);
+                intptr_t _compositehandle = getVideoPortHandle(dsVIDEOPORT_TYPE_BB);
 
-                            if (NULL != _compositehandle)
-                            {
-                                INT_INFO("Setting BB Composite Resolution.......... \r\n");
-                                _SetResolution(&_compositehandle,dsVIDEOPORT_TYPE_BB);
-                            }
-                            else
-                            {
-                                 INT_INFO("%s: NULL Handle for Composite \r\n",__FUNCTION__);
-                                 intptr_t _rfhandle = getVideoPortHandle(dsVIDEOPORT_TYPE_RF);
-                                 if (NULL != _rfhandle)
-                                 {
-                                     INT_INFO("Setting RF Resolution.......... \r\n");
-                                     _SetResolution(&_rfhandle,dsVIDEOPORT_TYPE_RF);
-                                 }
-                                 else
-                                 {
-                                     INT_INFO("%s: NULL Handle for RF \r\n",__FUNCTION__);
-                                 }
-                            }
+                if (NULL != _compositehandle)
+                {
+                    INT_INFO("Setting BB Composite Resolution.......... \r\n");
+                    _SetResolution(&_compositehandle,dsVIDEOPORT_TYPE_BB);
+                }
+                else
+                {
+                    INT_INFO("%s: NULL Handle for Composite \r\n",__FUNCTION__);
+                    intptr_t _rfhandle = getVideoPortHandle(dsVIDEOPORT_TYPE_RF);
+                    if (NULL != _rfhandle)
+                    {
+                        INT_INFO("Setting RF Resolution.......... \r\n");
+                        _SetResolution(&_rfhandle,dsVIDEOPORT_TYPE_RF);
+                    }
+                    else
+                    {
+                        INT_INFO("%s: NULL Handle for RF \r\n",__FUNCTION__);
+                    }
+                }
 			}
 		
 		}
@@ -762,6 +960,8 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	int resolutionsSize = 0;
 	dsVideoPortResolution_t *pResolutions = NULL;
 
+    INT_INFO("[DsMgr] _SetResolution called for PortType %d\n", PortType);
+
 	if (_dsGetVideoPortResolutions(&resolutionsSize, &pResolutions) != dsERR_NONE) {
 		INT_ERROR("Failed to get video port resolutions\n");
 		return 0;
@@ -811,21 +1011,27 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	/*Get the User Persisted Resolution Based on Handle */
 	memset(&Getparam,0,sizeof(Getparam));
 	Getparam.handle = _handle;
-        gboolean hotplug_edid_diff = dumpEdidOnChecksumDiff(NULL);
+    gboolean hotplug_edid_diff = dumpEdidOnChecksumDiff(NULL);
 	if(bootup_flag_enabled || hotplug_edid_diff){
 	    Getparam.toPersist = true;
-        }else{
+    }
+    else{
 	    Getparam.toPersist = false;
-        }
+    }
+    
+    INT_INFO("Retrieve Resolution: toPersist[%d]", Getparam.toPersist);
+
 	_dsGetResolution(&Getparam);
 	dsVideoPortResolution_t *presolution = &Getparam.resolution;
 	if(bootup_flag_enabled||hotplug_edid_diff){
 	    INT_INFO("Got User Persisted Resolution - %s..\r\n",presolution->name);
-        }else{
+    }
+    else{
 	    INT_INFO("Got Platform Resolution - %s..\r\n",presolution->name);
-        }
+    }
 
 	if (PortType == dsVIDEOPORT_TYPE_HDMI)	{
+        INT_INFO("Setting resolution for HDMI port..\r\n");
 		/*Get The Display Handle */
 		dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
 		if (_displayHandle)
@@ -858,7 +1064,6 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 			*/
 			if ((0 == numResolutions) || (!(edidData->hdmiDeviceType)))
 			{
-
 				INT_ERROR("Do not Set Resolution..The HDMI is not Ready  !! \r\n");
 				INT_ERROR("numResolutions  = %d edidData.hdmiDeviceType = %d !! \r\n",numResolutions,edidData->hdmiDeviceType);
 				free(Edidparam);
@@ -1003,6 +1208,7 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	}
 	else if (PortType == dsVIDEOPORT_TYPE_COMPONENT || PortType == dsVIDEOPORT_TYPE_BB || PortType == dsVIDEOPORT_TYPE_RF)
 	{
+        INT_INFO("Setting resolution for Component/Composite/RF port..\r\n");
 		/* Set the Component / Composite  Resolution */	
     	for (i = 0; i < resolutionsSize; i++)
     	{
@@ -1057,6 +1263,9 @@ static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType)
 	#endif
 
 	_dsSetResolution(&Setparam);
+
+	/* setResn may point into edidData (HDMI path), so log before it is freed */
+	INT_INFO("Exiting _SetResolution with resolution - %s..\r\n", setResn->name);
 
 	if (Edidparam)
 	{
@@ -1334,42 +1543,45 @@ static void dumpHdmiEdidInfo(dsDisplayEDID_t* pedidData)
 
 
 static gboolean dumpEdidOnChecksumDiff(gpointer data) {
-        INT_INFO("dumpEdidOnChecksumDiff HDMI-EDID Dump>>>>>>>>>>>>>>\r\n");
-        intptr_t _displayHandle = 0;
-        dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
-        if (_displayHandle) {
-                int length = 0;
-                dsDisplayGetEDIDBytesParam_t EdidBytesParam;
-                static int cached_EDID_checksum = 0;
-                int current_EDID_checksum = 0;
-                memset(&EdidBytesParam,0,sizeof(EdidBytesParam));
-                EdidBytesParam.handle = _displayHandle;
-                _dsGetEDIDBytes(&EdidBytesParam);
-		length = EdidBytesParam.length;
+    INT_INFO("dumpEdidOnChecksumDiff HDMI-EDID Dump>>>>>>>>>>>>>>\r\n");
+    intptr_t _displayHandle = 0;
+    dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, &_displayHandle);
+    if (_displayHandle) {
+        int length = 0;
+        dsDisplayGetEDIDBytesParam_t EdidBytesParam;
+        static int cached_EDID_checksum = 0;
+        int current_EDID_checksum = 0;
+        memset(&EdidBytesParam,0,sizeof(EdidBytesParam));
+        EdidBytesParam.handle = _displayHandle;
+        _dsGetEDIDBytes(&EdidBytesParam);
+        length = EdidBytesParam.length;
 
-		if((length > 0) && (length <= 512)) {
-                    unsigned char* edidBytes = EdidBytesParam.bytes;
-                    for (int i = 0; i < (length / 128); i++)
-                            current_EDID_checksum += edidBytes[(i+1)*128 - 1];
+        INT_INFO("Current EDID length is %d bytes\r\n", length);
 
-                    if((cached_EDID_checksum == 0) || (current_EDID_checksum != cached_EDID_checksum)) {
-                            cached_EDID_checksum = current_EDID_checksum;
-                            INT_DEBUG("HDMI-EDID Dump BEGIN>>>>>>>>>>>>>>\r\n");
-                            for (int i = 0; i < length; i++) {
-                                    if (i % 16 == 0) {
-                                            INT_DEBUG("\r\n");
-                                    }
-                                    if (i % 128 == 0) {
-                                            INT_DEBUG("\r\n");
-                                    }
-                                    INT_DEBUG("%02X ", edidBytes[i]);
-                            }
-                            INT_INFO("\nHDMI-EDID Dump END>>>>>>>>>>>>>>\r\n");
-			    return true;
+        if((length > 0) && (length <= 512)) {
+            unsigned char* edidBytes = EdidBytesParam.bytes;
+            for (int i = 0; i < (length / 128); i++)
+                current_EDID_checksum += edidBytes[(i+1)*128 - 1];
+
+            if((cached_EDID_checksum == 0) || (current_EDID_checksum != cached_EDID_checksum)) {
+                cached_EDID_checksum = current_EDID_checksum;
+                INT_DEBUG("HDMI-EDID Dump BEGIN>>>>>>>>>>>>>>\r\n");
+                for (int i = 0; i < length; i++) {
+                    if (i % 16 == 0) {
+                        INT_DEBUG("\r\n");
                     }
-		}
+                    if (i % 128 == 0) {
+                        INT_DEBUG("\r\n");
+                    }
+                    printf("%02X ", edidBytes[i]);
+                }
+                INT_INFO("\nHDMI-EDID Dump END>>>>>>>>>>>>>>\r\n");
+                return true;
+            }
         }
-        return false;
+    }
+    INT_INFO("No change in EDID checksum or EDID length is invalid\r\n");
+    return false;
 }
 
 /** @} */
