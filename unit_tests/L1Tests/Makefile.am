@@ -117,8 +117,9 @@ run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl
 
 # Run tests on 'make check'
 AM_TESTS_ENVIRONMENT = srcdir='$(srcdir)'; export srcdir;
-TESTS = run_L1Tests security/test_mfr_security_guards.sh
+TESTS = run_L1Tests security/test_mfr_security_guards.sh security/test_service_hardening.sh
 EXTRA_DIST = security/test_mfr_security_guards.sh \
+    security/test_service_hardening.sh \
     ../../mfr/common/rpc/srv/mfrSrv.c \
     ../../mfr/mfrMgr.c
 

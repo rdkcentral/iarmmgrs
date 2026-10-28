@@ -21,6 +21,11 @@ Description=IARM Mgr Daemon DISK MGR
 After=lighttpd.service iarmbusd.service
 
 [Service]
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+RestrictSUIDSGID=true
+LockPersonality=true
 ExecStart=/usr/bin/diskMgrMain
 Restart=always
 
