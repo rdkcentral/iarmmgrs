@@ -109,7 +109,6 @@ run_L1Tests_SOURCES = \
     dsmgr/test_dsMgr.cpp \
     disk/test_diskMgr.cpp \
     deviceUpdateMgr/test_deviceUpdateMgr.cpp \
-    mfr/test_mfrMgr.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Iarm.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.cpp \
