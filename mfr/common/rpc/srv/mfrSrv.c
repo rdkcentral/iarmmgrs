@@ -387,7 +387,7 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 
 static void writeImageCb(mfrUpgradeStatus_t status, void *cbData)
 {
-    IARM_BUS_MfrMgr_StatusUpdate_EventData_t param;
+    IARM_BUS_MfrMgr_StatusUpdate_EventData_t param = {0};
 
     param.status = status;
 

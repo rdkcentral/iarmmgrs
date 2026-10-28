@@ -54,6 +54,7 @@ AM_CPPFLAGS = -I$(top_srcdir)/unit_tests/L1Tests/stubs \
               -I$(top_srcdir)/disk/include \
               -I$(top_srcdir)/deviceUpdateMgr \
               -I$(top_srcdir)/deviceUpdateMgr/include \
+              -DRDK_MFRLIB_NAME='"librdkmfr.so"' \
               -DUSE_YAJL2 \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.h \
               -UMAX_LANGUAGE_LEN -UdsFPDColor_Make \
@@ -105,6 +106,7 @@ run_L1Tests_SOURCES = \
     dsmgr/test_dsMgr.cpp \
     disk/test_diskMgr.cpp \
     deviceUpdateMgr/test_deviceUpdateMgr.cpp \
+    mfr/test_mfrMgr.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Iarm.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Wraps.cpp \
     $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.cpp \
@@ -113,8 +115,8 @@ run_L1Tests_SOURCES = \
 run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl
 
 # Run tests on 'make check'
-TESTS = run_L1Tests security/test_standby_port_guard.sh
-EXTRA_DIST = security/test_standby_port_guard.sh
+TESTS = run_L1Tests security/test_standby_port_guard.sh security/test_service_hardening.sh
+EXTRA_DIST = security/test_standby_port_guard.sh security/test_service_hardening.sh
 
 # Clean up test artifacts
 CLEANFILES = *.log *.trs
