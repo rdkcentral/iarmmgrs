@@ -49,6 +49,18 @@ static char writeImageCbModule[MAX_BUF] = "";
 
 static mfrUpgradeStatus_t lastStatus;
 
+static int isTerminatedString(const char *value, size_t capacity)
+{
+    return value != NULL && memchr(value, '\0', capacity) != NULL;
+}
+
+static int isValidWriteImageParam(const IARM_Bus_MFRLib_WriteImage_Param_t *param)
+{
+    return param != NULL &&
+           isTerminatedString(param->name, sizeof(param->name)) &&
+           isTerminatedString(param->path, sizeof(param->path));
+}
+
 
 #define IARM_Bus_Lock(lock) pthread_mutex_lock(&mfrLock)
 #define IARM_Bus_Unlock(lock) pthread_mutex_unlock(&mfrLock)
@@ -270,13 +282,23 @@ IARM_Result_t _mfrGetSerializedData(void *arg)
 	mfrError_t err;
 	IARM_Bus_MFRLib_SerializedData_Param_t *param = (IARM_Bus_MFRLib_SerializedData_Param_t*) arg;
 
-        safec_rc = strcmp_s(param->crypto, strlen(param->crypto), "", &ind);
+        if (param == NULL || !isTerminatedString(param->crypto, sizeof(param->crypto)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        safec_rc = strcmp_s(param->crypto, sizeof(param->crypto), "", &ind);
         ERR_CHK(safec_rc);
-        if((safec_rc == EOK) && ind))
+        if((safec_rc == EOK) && ind)
 	{
+            if (strcmp(param->crypto, "mfrCrypto_Encrypt") != 0)
+            {
+                IARM_Bus_Unlock(lock);
+                return IARM_RESULT_INVALID_PARAM;
+            }
 	    if(encrypt_func == 0)
 	    {
-		    encrypt_func = (mfrCrypto_Encrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, param->crypto);
+                    encrypt_func = (mfrCrypto_Encrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, "mfrCrypto_Encrypt");
     		if(!encrypt_func)
     		{
     		    printf("Exiting %s\n",__func__);
@@ -344,13 +366,25 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 	mfrCrypto_Decrypt_t *func_ptr = NULL;
 	mfrError_t err;
 	IARM_Bus_MFRLib_SerializedData_Param_t *param = (IARM_Bus_MFRLib_SerializedData_Param_t*) arg;
-        safec_rc = strcmp_s(param->crypto, strlen(param->crypto), "", &ind);
+
+        if (param == NULL || param->bufLen <= 0 || param->bufLen > sizeof(param->buffer) ||
+            !isTerminatedString(param->crypto, sizeof(param->crypto)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+        safec_rc = strcmp_s(param->crypto, sizeof(param->crypto), "", &ind);
         ERR_CHK(safec_rc);
         if((safec_rc == EOK) && ind)
         {
+            if (strcmp(param->crypto, "mfrCrypto_Decrypt") != 0)
+            {
+                IARM_Bus_Unlock(lock);
+                return IARM_RESULT_INVALID_PARAM;
+            }
 	    if(decrypt_func == 0)
 	    {
-		decrypt_func = (mfrCrypto_Decrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, param->crypto);
+                decrypt_func = (mfrCrypto_Decrypt_t) find_func(RDK_MFRCRYPTOLIB_NAME, "mfrCrypto_Decrypt");
 		if(!decrypt_func)
 		{
 		    printf("Exiting %s\n",__func__);
@@ -361,7 +395,12 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 	    func_ptr = decrypt_func;
 	}
 
-	data.buf = (char *) malloc (param->bufLen);
+        data.buf = (char *) malloc (param->bufLen);
+        if (data.buf == NULL)
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_STATE;
+        }
 	data.bufLen = param->bufLen;
 	data.freeBuf = free;
 	safec_rc = memcpy_s(data.buf, param->bufLen, ((char *)param->buffer), param->bufLen);
@@ -430,6 +469,13 @@ IARM_Result_t _mfrWriteImage(void *arg)
     {
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
+
+        if (!isValidWriteImageParam(pParam))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
         mfrUpgradeStatusNotify_t notifyStruct;
         notifyStruct.interval = pParam->interval;
         notifyStruct.cb = writeImageCb;
@@ -494,6 +540,11 @@ IARM_Result_t _mfrGetImageWriteProgress(void *arg)
     {
 
         IARM_Bus_MFRLib_GetImageWriteProgress_Param_t *pParam = (IARM_Bus_MFRLib_GetImageWriteProgress_Param_t *) arg;
+        if (pParam == NULL || !isTerminatedString(pParam->imageName, sizeof(pParam->imageName)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
         err = func(pParam->imageName,pParam->imageType,&(pParam->progress));
         if(mfrERR_NONE == err)
         {
@@ -537,6 +588,11 @@ IARM_Result_t _mfrSetImageWriteProgress(void *arg)
     {
 
         IARM_Bus_MFRLib_SetImageWriteProgress_Param_t *pParam = (IARM_Bus_MFRLib_SetImageWriteProgress_Param_t *) arg;
+        if (pParam == NULL || !isTerminatedString(pParam->imageName, sizeof(pParam->imageName)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
         err = func(pParam->imageName, pParam->imageType, pParam->progress);
         if(mfrERR_NONE == err)
         {
@@ -705,6 +761,12 @@ IARM_Result_t _mfrReboot(void *arg)
     {
 	IARM_Bus_MFRLib_Reboot_Param_t *pParam = (IARM_Bus_MFRLib_Reboot_Param_t *)arg;
 
+        if (pParam == NULL || !isTerminatedString(pParam->imageName, sizeof(pParam->imageName)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
         err = func(pParam->imageName);
         if(mfrERR_NONE == err)
         {
@@ -791,6 +853,12 @@ IARM_Result_t _mfrSetHostFirmwareInfo(void *arg)
     {
 	IARM_Bus_MFRLib_SetHostFirmwareInfo_Param_t *pParam = (IARM_Bus_MFRLib_SetHostFirmwareInfo_Param_t *)arg;
 	mfrHostFirmwareInfo_t host_firmware_info;
+
+        if (pParam == NULL || !isTerminatedString(pParam->version, sizeof(pParam->version)))
+        {
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_PARAM;
+        }
 
 	host_firmware_info.firmwareDay = pParam->day;
 	host_firmware_info.firmwareMonth = pParam->month;
