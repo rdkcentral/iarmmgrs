@@ -419,6 +419,7 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
 static void writeImageCb(mfrUpgradeStatus_t * status)
 {
     IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t param;
+    memset(&param, 0, sizeof(param));
 
     IARM_Result_t retVal;
     memcpy(&param.status, status, sizeof(mfrUpgradeStatus_t));
