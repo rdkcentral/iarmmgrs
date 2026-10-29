@@ -662,6 +662,9 @@ static IARM_Result_t _SetStandbyVideoState(void *arg)
 	return IARM_RESULT_INVALID_PARAM;
     }
     dsMgrStandbyVideoStateParam_t *param = (dsMgrStandbyVideoStateParam_t *)arg;
+    if (memchr(param->port, '\0', sizeof(param->port)) == NULL) {
+        return IARM_RESULT_INVALID_PARAM;
+    }
     
     param->result = 0;
 
@@ -725,6 +728,9 @@ static IARM_Result_t _GetStandbyVideoState(void *arg)
 	return IARM_RESULT_INVALID_PARAM;
     }
     dsMgrStandbyVideoStateParam_t *param = (dsMgrStandbyVideoStateParam_t *)arg;
+    if (memchr(param->port, '\0', sizeof(param->port)) == NULL) {
+        return IARM_RESULT_INVALID_PARAM;
+    }
 
     try
     {
