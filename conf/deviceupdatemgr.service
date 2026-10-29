@@ -21,6 +21,11 @@ Description=IARM Mgr Daemon Device Update Mgr
 After=lighttpd.service iarmbusd.service
 
 [Service]
+NoNewPrivileges=true
+ProtectSystem=full
+ProtectHome=true
+RestrictSUIDSGID=true
+LockPersonality=true
 ExecStart=/usr/bin/deviceUpdateMgrMain
 
 [Install]

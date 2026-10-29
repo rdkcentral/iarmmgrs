@@ -302,6 +302,35 @@ TEST_F(SysMgrTest, SysEventHandler_IgnoresWrongEventId)
     EXPECT_EQ(0, systemStates.channel_map.state);  /* unchanged */
 }
 
+TEST_F(SysMgrTest, SysEventHandler_IgnoresNullOwner)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CHANNELMAP, 5, 0);
+    _sysEventHandler(nullptr,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev));
+
+    EXPECT_EQ(0, systemStates.channel_map.state);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_IgnoresNullPayload)
+{
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     nullptr, sizeof(IARM_Bus_SYSMgr_EventData_t));
+
+    EXPECT_EQ(0, systemStates.channel_map.state);
+}
+
+TEST_F(SysMgrTest, SysEventHandler_IgnoresTruncatedPayload)
+{
+    auto ev = makeStateEvent(IARM_BUS_SYSMGR_SYSSTATE_CHANNELMAP, 5, 0);
+    _sysEventHandler(IARM_BUS_SYSMGR_NAME,
+                     IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE,
+                     &ev, sizeof(ev) - 1);
+
+    EXPECT_EQ(0, systemStates.channel_map.state);
+}
+
 /* =======================================================================
  * Section 5 – _sysEventHandler: individual stateId switch-case branches
  * ====================================================================== */

@@ -248,7 +248,7 @@ static IARM_Result_t _SetHDCPProfile(void *arg)
 
         {
             __TIMESTAMP(); printf ("The hdcp profile is set to %d\n", new_profile);
-			IARM_Bus_SYSMgr_EventData_t eventData;
+			IARM_Bus_SYSMgr_EventData_t eventData = {0};
 			eventData.data.hdcpProfileData.hdcpProfile = new_profile;
 			__TIMESTAMP(); printf("<<<<<<< Send HDCP Profile UPdate Event is %d>>>>>>>>",eventData.data.hdcpProfileData.hdcpProfile);
 			retStatus = IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_HDCP_PROFILE_UPDATE,(void *)&eventData,sizeof(eventData));
@@ -319,6 +319,7 @@ static void _sysEventHandler(const char *owner, IARM_EventId_t eventId, void *da
     errno_t rc = -1;	
 	/* Only handle state events */
     if (eventId != IARM_BUS_SYSMGR_EVENT_SYSTEMSTATE) return;
+	if (owner == NULL || data == NULL || len < sizeof(IARM_Bus_SYSMgr_EventData_t)) return;
 
 	/*Handle only Sys Manager Events */
 	if (strcmp(owner, IARM_BUS_SYSMGR_NAME)  == 0) 
@@ -666,7 +667,7 @@ static void setKeyCodeLoggingPref(int logStatus)
     if(prevKeyLogStatus != keyLogStatus)
     {
          __TIMESTAMP(); printf ("The Key Code Logging Preference is set to %d\n", keyLogStatus);
-	IARM_Bus_SYSMgr_EventData_t eventData;
+	IARM_Bus_SYSMgr_EventData_t eventData = {0};
 	eventData.data.keyCodeLogData.logStatus = keyLogStatus;
         __TIMESTAMP(); printf("<<<<<<< Send KEYCODE LOGGING CHANGED Event with log status %d>>>>>>>>", eventData.data.keyCodeLogData.logStatus);
 	IARM_Bus_BroadcastEvent(IARM_BUS_SYSMGR_NAME, (IARM_EventId_t)IARM_BUS_SYSMGR_EVENT_KEYCODE_LOGGING_CHANGED,(void *)&eventData,sizeof(eventData));
