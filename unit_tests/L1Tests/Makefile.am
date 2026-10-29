@@ -54,10 +54,13 @@ AM_CPPFLAGS = -I$(top_srcdir)/unit_tests/L1Tests/stubs \
               -I$(top_srcdir)/disk/include \
               -I$(top_srcdir)/deviceUpdateMgr \
               -I$(top_srcdir)/deviceUpdateMgr/include \
+              -DRDK_MFRLIB_NAME='"librdkmfr.so"' \
               -DUSE_YAJL2 \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/Telemetry.h \
               -UMAX_LANGUAGE_LEN -UdsFPDColor_Make \
               -include $(TESTFRAMEWORK_DIR)/Tests/mocks/devicesettings.h \
+              -DENABLE_MFR_WIFI \
+              -DRDK_MFRLIB_NAME=\"librdkmfr.so\" \
               -I/usr/include/libdrm \
               -I$(top_srcdir)/unit_tests/L1Tests/stubs \
               $(GLIB_CFLAGS)
@@ -101,6 +104,7 @@ noinst_PROGRAMS = run_L1Tests
 run_L1Tests_SOURCES = \
     test_main.cpp \
     utils/test_rdkProfile.cpp \
+    mfr/test_mfrMgr.cpp \
     sysmgr/test_sysMgr.cpp \
     dsmgr/test_dsMgr.cpp \
     disk/test_diskMgr.cpp \
@@ -113,7 +117,12 @@ run_L1Tests_SOURCES = \
 run_L1Tests_LDADD = -lgtest -lgmock $(GLIB_LIBS) -lyajl
 
 # Run tests on 'make check'
-TESTS = run_L1Tests
+AM_TESTS_ENVIRONMENT = srcdir='$(srcdir)'; export srcdir;
+TESTS = run_L1Tests security/test_mfr_security_guards.sh security/test_service_hardening.sh
+EXTRA_DIST = security/test_mfr_security_guards.sh \
+    security/test_service_hardening.sh \
+    ../../mfr/common/rpc/srv/mfrSrv.c \
+    ../../mfr/mfrMgr.c
 
 # Clean up test artifacts
 CLEANFILES = *.log *.trs
