@@ -321,20 +321,10 @@ bool ux_controller_tv_eu::applyPreMaintenanceRebootConfig(PowerController_PowerS
 bool ux_controller_tv_eu::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
+    sync_display_ports_with_power_state(POWER_STATE_ON);
     /* Note: the product requires a special LED pattern that's set by bootloader/kernel as it boots. Since power manager
        doesn't support any fancy patterns yet, skip setting the LED configuration here so that we retain the boot pattern
        until app takes over. */
-    if ((POWER_STATE_ON == last_known_state) && (POWER_STATE_STANDBY == target_state))
-    {
-        /* Special handling. Although the new power state is standby, leave display enabled. App will transition TV to ON state immediately afterwards anyway,
-           and if we turn off the display to match standby state here, it'll confuse the user into thinking that TV has gone into standby for good. */
-        sync_display_ports_with_power_state(POWER_STATE_ON);
-    }
-    else
-    {
-        sync_display_ports_with_power_state(target_state);
-    }
-
     /*  Reset applicable 'silent reboot' flags to appropriate values.
         This device is booting into 'target_state' power state. Sync the bootloader flags to match the this state. That means, if the new state is ON,
         set up BL display and LED flags to match ON state. If the new state is STANDBY, set up BL and LED flags to match STANDBY state.
@@ -398,21 +388,7 @@ bool ux_controller_stb_eu::applyPreMaintenanceRebootConfig(PowerController_Power
 bool ux_controller_stb_eu::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
-    if ((POWER_STATE_ON == last_known_state) && (POWER_STATE_STANDBY == target_state))
-    {
-        //Special handling. Although the new power state is standby, leave display and LED enabled.
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
-        sync_power_led_with_power_state(POWER_STATE_ON);
-#endif
-        sync_display_ports_with_power_state(POWER_STATE_ON);
-    }
-    else
-    {
-#ifndef DISABLE_LED_SYNC_IN_BOOTUP
-        sync_power_led_with_power_state(target_state);
-#endif
-        sync_display_ports_with_power_state(target_state);
-    }
+    sync_display_ports_with_power_state(POWER_STATE_ON);
 
     /*  Reset applicable 'silent reboot' flags to appropriate values.*/
     ret = set_bootloader_pattern_fault_tolerant(mfrBL_PATTERN_NORMAL);
@@ -463,18 +439,7 @@ bool ux_controller_tv::applyPreMaintenanceRebootConfig(PowerController_PowerStat
 bool ux_controller_tv::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
-    sync_power_led_with_power_state(target_state);
-
-    if ((POWER_STATE_ON == last_known_state) && (POWER_STATE_STANDBY == target_state))
-    {
-        /* Special handling. Although the new power state is standby, leave display enabled. App will transition TV to ON state immediately afterwards anyway,
-           and if we turn off the display to match standby state here, it'll confuse the user into thinking that TV has gone into standby for good. */
-        sync_display_ports_with_power_state(POWER_STATE_ON);
-    }
-    else
-    {
-        sync_display_ports_with_power_state(target_state);
-    }
+    sync_display_ports_with_power_state(POWER_STATE_ON);
 
     /*  Reset applicable 'silent reboot' flags to appropriate values.
         This device is booting into 'target_state' power state. Sync the bootloader flags to match the this state. That means, if the new state is ON,
@@ -548,8 +513,7 @@ bool ux_controller_stb::applyPreMaintenanceRebootConfig(PowerController_PowerSta
 bool ux_controller_stb::applyPostRebootConfig(PowerController_PowerState_t target_state, PowerController_PowerState_t last_known_state /*last knnown power state from previous power cycle*/)
 {
     bool ret = true;
-    sync_power_led_with_power_state(target_state);
-    sync_display_ports_with_power_state(target_state);
+    sync_display_ports_with_power_state(POWER_STATE_ON);
     return ret;
 }
 
