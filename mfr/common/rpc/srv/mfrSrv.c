@@ -40,14 +40,23 @@
 #include <memory.h>
 #include <dlfcn.h>
 #include <unistd.h>
+#include <errno.h>
+#include <time.h>
 #include "libIARMCore.h"
 #include "safec_lib.h"
+
+#ifndef MFR_WRITE_IMAGE_CALLBACK_TIMEOUT_SEC
+#define MFR_WRITE_IMAGE_CALLBACK_TIMEOUT_SEC 30
+#endif
 
 static int m_initialized =0;
 static pthread_mutex_t mfrLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t writeImageOperationLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_mutex_t writeImageStatusLock = PTHREAD_MUTEX_INITIALIZER;
 static pthread_cond_t writeImageStatusCond = PTHREAD_COND_INITIALIZER;
+static bool writeImageOperationActive = false;
+static bool writeImageWaiterActive = false;
+static bool writeImageCompletionPending = false;
 
 static char writeImageCbModule[MAX_BUF] = "";
 
@@ -72,6 +81,49 @@ static bool writeImageStatusIsPending(mfrUpgradeProgress_t progress)
            progress == mfrUPGRADE_PROGRESS_VERIFYING ||
            progress == mfrUPGRADE_PROGRESS_FLASHING ||
            progress == mfrUPGRADE_PROGRESS_REBOOTING;
+}
+
+static bool writeImageStatusIsTerminal(mfrUpgradeProgress_t progress)
+{
+    return progress == mfrUPGRADE_PROGRESS_COMPLETED ||
+           progress == mfrUPGRADE_PROGRESS_ABORTED;
+}
+
+static bool beginWriteImageOperation(bool waiterActive)
+{
+    bool available = false;
+
+    pthread_mutex_lock(&writeImageOperationLock);
+    if (!writeImageOperationActive)
+    {
+        writeImageOperationActive = true;
+        writeImageWaiterActive = waiterActive;
+        writeImageCompletionPending = false;
+        available = true;
+    }
+    pthread_mutex_unlock(&writeImageOperationLock);
+    return available;
+}
+
+static void finishWriteImageOperation(void)
+{
+    pthread_mutex_lock(&writeImageOperationLock);
+    writeImageOperationActive = false;
+    writeImageWaiterActive = false;
+    writeImageCompletionPending = false;
+    pthread_mutex_unlock(&writeImageOperationLock);
+}
+
+static void abandonWriteImageWaiter(void)
+{
+    pthread_mutex_lock(&writeImageOperationLock);
+    writeImageWaiterActive = false;
+    if (writeImageCompletionPending)
+    {
+        writeImageOperationActive = false;
+        writeImageCompletionPending = false;
+    }
+    pthread_mutex_unlock(&writeImageOperationLock);
 }
 
 #define IARM_Bus_Lock(lock) pthread_mutex_lock(&mfrLock)
@@ -447,6 +499,18 @@ static void writeImageCb(mfrUpgradeStatus_t status, void *cbData)
     pthread_cond_broadcast(&writeImageStatusCond);
     pthread_mutex_unlock(&writeImageStatusLock);
 
+    if (writeImageStatusIsTerminal(status.progress))
+    {
+        pthread_mutex_lock(&writeImageOperationLock);
+        writeImageCompletionPending = true;
+        if (!writeImageWaiterActive)
+        {
+            writeImageOperationActive = false;
+            writeImageCompletionPending = false;
+        }
+        pthread_mutex_unlock(&writeImageOperationLock);
+    }
+
     LOG("In writeImage callback: error = %d, percentage = %02.02\n",status.error,status.percentage/100,status.percentage%100);
 
     IARM_Bus_BroadcastEvent(IARM_BUS_MFRLIB_NAME,
@@ -496,32 +560,59 @@ IARM_Result_t _mfrWriteImage(void *arg)
         }
         mfrUpgradeStatusNotify_t notifyStruct;
 
-		/* The vendor API is not thread-safe. Serialize image operations only;
-		 * do not hold the global MFR RPC lock while waiting for callbacks. */
-		pthread_mutex_lock(&writeImageOperationLock);
+        /* Reserve the async operation without holding the global MFR RPC lock
+         * while waiting for callbacks. */
+        if (!beginWriteImageOperation(true))
+        {
+            return IARM_RESULT_INVALID_STATE;
+        }
 		pthread_mutex_lock(&writeImageStatusLock);
 		lastStatus.progress = mfrUPGRADE_PROGRESS_NOT_STARTED;
 		pthread_mutex_unlock(&writeImageStatusLock);
 
         notifyStruct.interval = pParam->interval;
         notifyStruct.cb = writeImageCb;
+        pthread_mutex_lock(&mfrLock);
         err = func(pParam->name, pParam->path, pParam->type, notifyStruct);
+        pthread_mutex_unlock(&mfrLock);
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrWriteImage returned err %d\r\n", err);
             retCode = IARM_RESULT_SUCCESS;
 			pthread_mutex_lock(&writeImageStatusLock);
+            struct timespec deadline;
+            clock_gettime(CLOCK_REALTIME, &deadline);
+            deadline.tv_sec += MFR_WRITE_IMAGE_CALLBACK_TIMEOUT_SEC;
+            bool timedOut = false;
 			while (writeImageStatusIsPending(lastStatus.progress)) {
-				pthread_cond_wait(&writeImageStatusCond, &writeImageStatusLock);
+                int waitResult = pthread_cond_timedwait(&writeImageStatusCond,
+                    &writeImageStatusLock, &deadline);
+                if (waitResult == ETIMEDOUT)
+                {
+                    timedOut = true;
+                    break;
+                }
 			}
+            bool terminal = writeImageStatusIsTerminal(lastStatus.progress);
             printf("Update process complete..\n");
-            if(lastStatus.progress != mfrUPGRADE_PROGRESS_COMPLETED)
+            if (timedOut || lastStatus.progress != mfrUPGRADE_PROGRESS_COMPLETED)
             {
                retCode = IARM_RESULT_IPCCORE_FAIL;
             }
 			pthread_mutex_unlock(&writeImageStatusLock);
+            if (terminal)
+            {
+                finishWriteImageOperation();
+            }
+            else if (timedOut)
+            {
+                abandonWriteImageWaiter();
+            }
         }
-		pthread_mutex_unlock(&writeImageOperationLock);
+        else
+        {
+            finishWriteImageOperation();
+        }
     }
     printf("Exiting writeImage_\n");
     return retCode;
@@ -653,9 +744,14 @@ IARM_Result_t _mfrDeletePDRI(void *arg)
     mfrError_t err = mfrERR_NONE;
     if (func)
     {
-        pthread_mutex_lock(&writeImageOperationLock);
+        if (!beginWriteImageOperation(false))
+        {
+            return IARM_RESULT_INVALID_STATE;
+        }
+        pthread_mutex_lock(&mfrLock);
         err = func();
-        pthread_mutex_unlock(&writeImageOperationLock);
+        pthread_mutex_unlock(&mfrLock);
+        finishWriteImageOperation();
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrDeletePDRI returned err %d\r\n", err);
@@ -695,9 +791,14 @@ IARM_Result_t _mfrScrubAllBanks(void *arg)
     mfrError_t err = mfrERR_NONE;
     if (func)
     {
-        pthread_mutex_lock(&writeImageOperationLock);
+        if (!beginWriteImageOperation(false))
+        {
+            return IARM_RESULT_INVALID_STATE;
+        }
+        pthread_mutex_lock(&mfrLock);
         err = func();
-        pthread_mutex_unlock(&writeImageOperationLock);
+        pthread_mutex_unlock(&mfrLock);
+        finishWriteImageOperation();
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrScrubAllBanks returned err %d\r\n", err);
@@ -790,9 +891,14 @@ IARM_Result_t _mfrReboot(void *arg)
             return IARM_RESULT_INVALID_PARAM;
         }
 
-        pthread_mutex_lock(&writeImageOperationLock);
+        if (!beginWriteImageOperation(false))
+        {
+            return IARM_RESULT_INVALID_STATE;
+        }
+        pthread_mutex_lock(&mfrLock);
         err = func(pParam->imageName);
-        pthread_mutex_unlock(&writeImageOperationLock);
+        pthread_mutex_unlock(&mfrLock);
+        finishWriteImageOperation();
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrReboot returned err %d\r\n", err);
