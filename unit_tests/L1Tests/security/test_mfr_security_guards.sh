@@ -63,6 +63,56 @@ if ! sed -n '/^static IARM_Result_t mfrSetBlSplashScreen_(void \*arg)/,/^static 
     exit 1
 fi
 
+if ! grep -Fq 'pthread_cond_timedwait(&writeImageStatusCond' "$server_file"; then
+    echo "WriteImage callback wait has no bounded timeout" >&2
+    exit 1
+fi
+
+if ! grep -Fq 'MFR_WRITE_IMAGE_CALLBACK_TIMEOUT_SEC' "$server_file"; then
+    echo "WriteImage callback timeout is not configurable" >&2
+    exit 1
+fi
+
+if ! grep -Fq 'if (!beginWriteImageOperation(' "$server_file"; then
+    echo "WriteImage operation reservation is missing" >&2
+    exit 1
+fi
+
+if ! grep -Fq 'if (writeImageStatusIsTerminal(status.progress))' "$server_file" ||
+   ! grep -Fq 'finishWriteImageOperation();' "$server_file"; then
+    echo "Terminal callback does not release the operation reservation" >&2
+    exit 1
+fi
+
+callback_block=$(sed -n '/^static void writeImageCb/,/^IARM_Result_t _mfrWriteImage/p' "$server_file")
+if ! printf '%s\n' "$callback_block" | grep -Fq 'writeImageCompletionPending = true'; then
+    echo "Terminal callback does not preserve completion state" >&2
+    exit 1
+fi
+if printf '%s\n' "$callback_block" | grep -Fq 'finishWriteImageOperation();'; then
+    echo "Terminal callback releases the reservation before result consumption" >&2
+    exit 1
+fi
+
+if ! sed -n '/^IARM_Result_t _mfrWriteImage(void \*arg)/,/^IARM_Result_t /p' "$server_file" |
+    grep -Fq 'pthread_mutex_lock(&mfrLock)'; then
+    echo "WriteImage vendor invocation is not serialized with other MFR calls" >&2
+    exit 1
+fi
+
+for function in _mfrDeletePDRI _mfrScrubAllBanks _mfrReboot; do
+    if ! sed -n "/^IARM_Result_t $function(void \*arg)/,/^IARM_Result_t /p" "$server_file" |
+        grep -Fq 'if (!beginWriteImageOperation('; then
+        echo "$function is not serialized with image operations" >&2
+        exit 1
+    fi
+    if ! sed -n "/^IARM_Result_t $function(void \*arg)/,/^IARM_Result_t /p" "$server_file" |
+        grep -Fq 'pthread_mutex_lock(&mfrLock)'; then
+        echo "$function vendor invocation is not serialized with other MFR calls" >&2
+        exit 1
+    fi
+done
+
 for field in cSSID cPassword; do
     if ! grep -Fq "isTerminatedString(param->wifiCredentials.$field, sizeof(param->wifiCredentials.$field))" "$manager_file"; then
         echo "Wi-Fi credential $field termination is not validated" >&2
