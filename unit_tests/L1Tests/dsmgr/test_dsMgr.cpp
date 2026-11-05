@@ -53,6 +53,7 @@
 #include <cstring>
 #include <cerrno>
 #include <pthread.h>
+#include <thread>
 #include <unistd.h>
 #include <glib.h>
 
@@ -101,7 +102,13 @@ IARM_Result_t _dsIsDisplayConnected(void *arg) {
                 : IARM_RESULT_SUCCESS;
 }
 IARM_Result_t _dsGetIgnoreEDIDStatus(void *arg) { return IARM_RESULT_SUCCESS; }
-IARM_Result_t _dsSetResolution(void *arg)       { return IARM_RESULT_SUCCESS; }
+static int g_stub_set_resolution_calls = 0;
+IARM_Result_t _dsSetResolution(void *arg)
+{
+    (void)arg;
+    ++g_stub_set_resolution_calls;
+    return IARM_RESULT_SUCCESS;
+}
 IARM_Result_t _dsGetResolution(void *arg) {
     DsHal *impl = DsHal::getInstance();
     return impl ? impl->dsGetResolution(
@@ -360,6 +367,11 @@ protected:
         bootup_flag_enabled = true;
         IsIgnoreEdid_gs     = false;
         hotplug_event_src   = 0;
+        hotplug_event_generation = 0;
+        g_stub_set_resolution_calls = 0;
+        resolution_thread_stop = false;
+        resolution_thread_started = false;
+        resolution_event_pending = false;
         iResnCount          = 5;
         iInitResnFlag       = 0;
         dsMgr_Gloop         = nullptr;
@@ -1070,6 +1082,73 @@ TEST_F(DsMgrTest, SetResolutionHandler_ClearsHotplugSrc)
      * handle=0) _SetVideoPortResolution takes the NULL-handle branch. */
     hotplug_event_src = 1;
     EXPECT_FALSE(_SetResolutionHandler(nullptr));
+    EXPECT_EQ(hotplug_event_src, static_cast<guint>(0));
+}
+
+namespace {
+static void setupValidPlatformResolutions(
+        ::testing::NiceMock<DsHalMock> &mock,
+    int defaultIdx,
+    int numRes);
+}
+
+TEST_F(DsMgrTest, SetResolutionHandler_CurrentGenerationAppliesResolution)
+{
+    iInitResnFlag = 1;
+    hotplug_event_generation = 7;
+    hotplug_event_src = 1;
+    setupValidPlatformResolutions(dsHalMock, 1, 3);
+    EXPECT_CALL(dsHalMock, dsGetDisplay(dsVIDEOPORT_TYPE_HDMI, 0, _))
+        .WillRepeatedly(::testing::DoAll(
+            ::testing::SetArgPointee<2>(static_cast<intptr_t>(0x1000)),
+            Return(dsERR_NONE)));
+    ON_CALL(dsHalMock, dsGetEDID(_))
+        .WillByDefault(Invoke([](dsDisplayGetEDIDParam_t *p) {
+            p->edid.numOfSupportedResolution = 1;
+            p->edid.hdmiDeviceType = true;
+            strncpy(p->edid.suppResolutionList[0].name, "720p",
+                    sizeof(p->edid.suppResolutionList[0].name) - 1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetResolution(_))
+        .WillByDefault(Invoke([](dsVideoPortGetResolutionParam_t *p) {
+            strncpy(p->resolution.name, "720p", sizeof(p->resolution.name) - 1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsGetVideoPort(_))
+        .WillByDefault(Invoke([](dsVideoPortGetHandleParam_t *p) {
+            if (p->type == dsVIDEOPORT_TYPE_HDMI)
+                p->handle = static_cast<intptr_t>(1);
+            return IARM_RESULT_SUCCESS;
+        }));
+    ON_CALL(dsHalMock, dsIsDisplayConnected(_))
+        .WillByDefault(Invoke([](dsVideoPortIsDisplayConnectedParam_t *p) {
+            p->connected = true;
+            return IARM_RESULT_SUCCESS;
+        }));
+
+    EXPECT_FALSE(_SetResolutionHandler(GUINT_TO_POINTER(7)));
+    EXPECT_EQ(hotplug_event_src, static_cast<guint>(0));
+    EXPECT_EQ(g_stub_set_resolution_calls, 1);
+}
+
+TEST_F(DsMgrTest, HotplugSourceRemoval_IsDispatchedOnMainContext)
+{
+    GSource *source = g_timeout_source_new_seconds(60);
+    g_source_set_callback(source, heartbeatMsg, nullptr, nullptr);
+    guint source_id = g_source_attach(source, nullptr);
+    g_source_unref(source);
+    hotplug_event_src = source_id;
+
+    std::thread worker([] {
+        removeHotplugEventSource();
+    });
+    worker.join();
+
+    EXPECT_EQ(hotplug_event_src, source_id);
+    while (g_main_context_pending(nullptr)) {
+        g_main_context_iteration(nullptr, FALSE);
+    }
     EXPECT_EQ(hotplug_event_src, static_cast<guint>(0));
 }
 
@@ -1906,6 +1985,7 @@ TEST_F(DsMgrTest, ResnThread_ConnectedTuneHDCP_SetsResolution)
 
     pthread_mutex_lock(&tdsMutexLock);
     edisplayEventStatus = dsDISPLAY_EVENT_CONNECTED;
+    resolution_event_pending = true;
     pthread_cond_signal(&tdsMutexCond);
     pthread_mutex_unlock(&tdsMutexLock);
     realSleepMs(50);   /* let thread process and re-enter cond_wait */
@@ -1934,6 +2014,7 @@ TEST_F(DsMgrTest, ResnThread_DisconnectedTuneReady_SetsHotplugTimer)
 
     pthread_mutex_lock(&tdsMutexLock);
     edisplayEventStatus = dsDISPLAY_EVENT_DISCONNECTED;
+    resolution_event_pending = true;
     pthread_cond_signal(&tdsMutexCond);
     pthread_mutex_unlock(&tdsMutexLock);
     realSleepMs(50);
@@ -1942,8 +2023,11 @@ TEST_F(DsMgrTest, ResnThread_DisconnectedTuneReady_SetsHotplugTimer)
     pthread_join(t, nullptr);
 
     EXPECT_FALSE(bHDCPAuthenticated);
-    /* isComponentPortPresent() stub → true → g_timeout_add_seconds
-     * wrapped → returns 1 → hotplug_event_src = 1.                    */
+    while (g_main_context_pending(nullptr)) {
+        g_main_context_iteration(nullptr, FALSE);
+    }
+    /* isComponentPortPresent() stub → true → the main-context callback
+     * schedules g_timeout_add_seconds, which is wrapped to return 1. */
     EXPECT_EQ(hotplug_event_src, static_cast<guint>(1));
 }
 
@@ -1961,6 +2045,7 @@ TEST_F(DsMgrTest, ResnThread_DisconnectedTuneNotReady_NoAction)
 
     pthread_mutex_lock(&tdsMutexLock);
     edisplayEventStatus = dsDISPLAY_EVENT_DISCONNECTED;
+    resolution_event_pending = true;
     pthread_cond_signal(&tdsMutexCond);
     pthread_mutex_unlock(&tdsMutexLock);
     realSleepMs(50);
@@ -2068,8 +2153,8 @@ static dsVideoPortResolution_t g_testPlatformRes[4];
  * mock methods.  defaultIdx selects which entry is the platform default.*/
 static void setupValidPlatformResolutions(
         ::testing::NiceMock<DsHalMock> &mock,
-        int defaultIdx = 1,
-        int numRes     = 3)
+    int defaultIdx = 1,
+    int numRes = 3)
 {
     memset(g_testPlatformRes, 0, sizeof(g_testPlatformRes));
     strncpy(g_testPlatformRes[0].name, "480p",   sizeof(g_testPlatformRes[0].name)-1);
