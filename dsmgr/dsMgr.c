@@ -81,6 +81,12 @@ extern bool isComponentPortPresent();
 
 extern bool dsGetHDMIDDCLineStatus(void);
 static int _SetVideoPortResolution();
+
+#ifdef DEVICESETTINGS_PLUGIN_ENABLED
+static const bool dsMgrPluginEnabled = true;
+#else
+static const bool dsMgrPluginEnabled = false;
+#endif
 static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType);
 static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
 static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
@@ -761,6 +767,10 @@ static int _SetVideoPortResolution()
 	bool connected=false;
 	int iCount = 0;
 	
+	if (dsMgrPluginEnabled) {
+		INT_INFO("%s: DeviceSettings plugin owns the DS HAL, skipping resolution set\r\n",__FUNCTION__);
+		return 0;
+	}
 
 	INT_DEBUG("%s:Enter \r\n",__FUNCTION__);
 	 
