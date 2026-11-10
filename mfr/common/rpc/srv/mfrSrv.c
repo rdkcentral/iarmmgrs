@@ -48,6 +48,9 @@ static pthread_mutex_t mfrLock = PTHREAD_MUTEX_INITIALIZER;
 static char writeImageCbModule[MAX_BUF] = "";
 
 static mfrUpgradeStatus_t lastStatus;
+static pthread_mutex_t writeImageStateLock = PTHREAD_MUTEX_INITIALIZER;
+static pthread_cond_t writeImageStateCond = PTHREAD_COND_INITIALIZER;
+static int writeImageInProgress = 0;
 
 static int isTerminatedString(const char *value, size_t capacity)
 {
@@ -370,9 +373,12 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
         if (param == NULL || param->bufLen <= 0 || param->bufLen > sizeof(param->buffer) ||
             !isTerminatedString(param->crypto, sizeof(param->crypto)))
         {
+            printf("%s: rejected serialized-data request due to invalid parameters\n", __func__);
             IARM_Bus_Unlock(lock);
             return IARM_RESULT_INVALID_PARAM;
         }
+        printf("%s: request type=%d length=%d crypto=%s\n",
+               __func__, param->type, param->bufLen, param->crypto[0] != '\0' ? param->crypto : "none");
         safec_rc = strcmp_s(param->crypto, sizeof(param->crypto), "", &ind);
         ERR_CHK(safec_rc);
         if((safec_rc == EOK) && ind)
@@ -393,6 +399,7 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
 		}
 	    }
 	    func_ptr = decrypt_func;
+        printf("%s: decrypt callback selected\n", __func__);
 	}
 
         data.buf = (char *) malloc (param->bufLen);
@@ -412,7 +419,12 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
                IARM_Bus_Unlock(lock);
                return IARM_RESULT_INVALID_PARAM;
             }
+    printf("%s: serialized payload copied, length=%d\n", __func__, data.bufLen);
+        printf("%s: calling vendor function data=%p buffer=%p type=%d length=%d decrypt=%s\n",
+               __func__, (void *)&data, (void *)data.buf, param->type, data.bufLen,
+               func_ptr != NULL ? "yes" : "no");
 	err = func(param->type, &data, func_ptr);
+    printf("%s: vendor mfrSetSerializedData result=%d\n", __func__, err);
         if(mfrERR_NONE == err)
         {
 	    retCode = IARM_RESULT_SUCCESS;
@@ -430,13 +442,16 @@ static void writeImageCb(mfrUpgradeStatus_t status, void *cbData)
 
     param.status = status;
 
+    pthread_mutex_lock(&writeImageStateLock);
+    lastStatus = status;
+    pthread_cond_broadcast(&writeImageStateCond);
+    pthread_mutex_unlock(&writeImageStateLock);
+
     LOG("In writeImage callback: error = %d, percentage = %02.02\n",status.error,status.percentage/100,status.percentage%100);
 
     IARM_Bus_BroadcastEvent(IARM_BUS_MFRLIB_NAME,
 				IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE,
 				(void *) &param, sizeof(param));
-
-    lastStatus = status;
 }
 
 IARM_Result_t _mfrWriteImage(void *arg)
@@ -476,35 +491,49 @@ IARM_Result_t _mfrWriteImage(void *arg)
             return IARM_RESULT_INVALID_PARAM;
         }
 
-        mfrUpgradeStatusNotify_t notifyStruct;
+        pthread_mutex_lock(&writeImageStateLock);
+        if (writeImageInProgress)
+        {
+            pthread_mutex_unlock(&writeImageStateLock);
+            IARM_Bus_Unlock(lock);
+            return IARM_RESULT_INVALID_STATE;
+        }
+        writeImageInProgress = 1;
+        lastStatus.progress = mfrUPGRADE_PROGRESS_NOT_STARTED;
+        pthread_mutex_unlock(&writeImageStateLock);
+
+        mfrWriteImage_t writeImageFunc = func;
+        IARM_Bus_Unlock(lock);
+
+        mfrUpgradeStatusNotify_t notifyStruct = {0};
         notifyStruct.interval = pParam->interval;
         notifyStruct.cb = writeImageCb;
-        lastStatus.progress = mfrUPGRADE_PROGRESS_NOT_STARTED;
-        err = func(pParam->name, pParam->path, pParam->type, notifyStruct);
+        err = writeImageFunc(pParam->name, pParam->path, pParam->type, notifyStruct);
         if(mfrERR_NONE == err)
         {
             printf("Calling mfrWriteImage returned err %d\r\n", err);
             retCode = IARM_RESULT_SUCCESS;
-            /* Poll for upgrade start */
-            while( lastStatus.progress == mfrUPGRADE_PROGRESS_NOT_STARTED )
+            pthread_mutex_lock(&writeImageStateLock);
+            while (lastStatus.progress != mfrUPGRADE_PROGRESS_ABORTED &&
+                   lastStatus.progress != mfrUPGRADE_PROGRESS_COMPLETED)
             {
-               printf("Waiting for upgrade to start\n");
-               sleep(1);
-            }
-            /* Poll for completion */
-            while( lastStatus.progress == mfrUPGRADE_PROGRESS_STARTED )
-            {
-               printf("Waiting for upgrade to complete\n");
-               sleep(1);
+                pthread_cond_wait(&writeImageStateCond, &writeImageStateLock);
             }
             printf("Update process complete..\n");
             if(lastStatus.progress != mfrUPGRADE_PROGRESS_COMPLETED)
             {
                retCode = IARM_RESULT_IPCCORE_FAIL;
             }
+            writeImageInProgress = 0;
+            pthread_mutex_unlock(&writeImageStateLock);
+        }
+        else
+        {
+            pthread_mutex_lock(&writeImageStateLock);
+            writeImageInProgress = 0;
+            pthread_mutex_unlock(&writeImageStateLock);
         }
     }
-	IARM_Bus_Unlock(lock);
     printf("Exiting writeImage_\n");
     return retCode;
 #endif

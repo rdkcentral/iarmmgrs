@@ -136,6 +136,7 @@ static mfrError_t g_stub_hal_result  = mfrERR_NONE;
 static int         g_writeimage_calls = 0;
 static int         g_mirror_calls     = 0;
 static int         g_splash_calls     = 0;
+static mfrUpgradeStatusNotify_t g_last_notify = {};
 
 /* ---- Stub HAL implementations ----------------------------------------
  * Each function has the exact signature that mfrMgr.c casts dlsym's result
@@ -149,8 +150,8 @@ static mfrError_t stub_void(void)
 static mfrError_t stub_writeimage(const char * /*name*/,
                                    const char * /*path*/,
                                    mfrImageType_t /*type*/,
-                                   mfrUpgradeStatusNotify_t /*notify*/)
-    { ++g_writeimage_calls; return g_stub_hal_result; }
+                                   mfrUpgradeStatusNotify_t notify)
+    { ++g_writeimage_calls; g_last_notify = notify; return g_stub_hal_result; }
 
 static mfrError_t stub_mirror(mfrUpgradeStatusNotify_t /*notify*/)
     { ++g_mirror_calls; return g_stub_hal_result; }
@@ -243,7 +244,8 @@ protected:
 
         /* Reset file-static state in mfrMgr.c that affects test outcomes */
         memset(&lastStatus,   0, sizeof(lastStatus));   /* progress = NOT_STARTED */
-        memset(&notifyStruct, 0, sizeof(notifyStruct));
+        memset(asyncImageCbData, 0, sizeof(asyncImageCbData));
+        asyncImageInProgress = 0;
         profileType  = PROFILE_INVALID;
         is_connected = 0;
 
@@ -268,6 +270,7 @@ protected:
         g_writeimage_calls = 0;
         g_mirror_calls     = 0;
         g_splash_calls     = 0;
+        memset(&g_last_notify, 0, sizeof(g_last_notify));
     }
 
     void TearDown() override
@@ -366,7 +369,7 @@ TEST_F(MfrMgrTest, Stop_Connected_DisconnectFails_ReturnsFailure)
 
 TEST_F(MfrMgrTest, WriteImageCb_BroadcastsEventAndUpdatesProgress)
 {
-    notifyStruct.cbData = (char *)"test_module";
+    strcpy(asyncImageCbData, "test_module");
 
     mfrUpgradeStatus_t status;
     memset(&status, 0, sizeof(status));
@@ -387,7 +390,7 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastsEventAndUpdatesProgress)
 
 TEST_F(MfrMgrTest, WriteImageCb_BroadcastFails_StillUpdatesLastStatus)
 {
-    notifyStruct.cbData = (char *)"any_module";
+    strcpy(asyncImageCbData, "any_module");
 
     mfrUpgradeStatus_t status;
     memset(&status, 0, sizeof(status));
@@ -404,7 +407,7 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastFails_StillUpdatesLastStatus)
 
 TEST_F(MfrMgrTest, WriteImageCb_BroadcastEventZeroInitialized)
 {
-    notifyStruct.cbData = (char *)"test_module";
+    strcpy(asyncImageCbData, "test_module");
 
     mfrUpgradeStatus_t status;
     memset(&status, 0, sizeof(status));
@@ -435,34 +438,34 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastEventZeroInitialized)
 /* ===================================================================== *
  * writeImage_ / verifyImage_ back-to-back guard
  *
- * When lastStatus.progress is VERIFYING or FLASHING the functions must
- * return IARM_RESULT_INVALID_STATE immediately (before any dlopen).
+ * When an image operation is active the functions must return
+ * IARM_RESULT_INVALID_STATE.
  * ===================================================================== */
 
 TEST_F(MfrMgrTest, WriteImage_RejectsWhenVerifying)
 {
-    lastStatus.progress = mfrUPGRADE_PROGRESS_VERIFYING;
+    asyncImageInProgress = 1;
     IARM_Bus_MFRLib_WriteImage_Param_t param{};
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, writeImage_(&param));
 }
 
 TEST_F(MfrMgrTest, WriteImage_RejectsWhenFlashing)
 {
-    lastStatus.progress = mfrUPGRADE_PROGRESS_FLASHING;
+    asyncImageInProgress = 1;
     IARM_Bus_MFRLib_WriteImage_Param_t param{};
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, writeImage_(&param));
 }
 
 TEST_F(MfrMgrTest, VerifyImage_RejectsWhenVerifying)
 {
-    lastStatus.progress = mfrUPGRADE_PROGRESS_VERIFYING;
+    asyncImageInProgress = 1;
     IARM_Bus_MFRLib_WriteImage_Param_t param{};
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, verifyImage_(&param));
 }
 
 TEST_F(MfrMgrTest, VerifyImage_RejectsWhenFlashing)
 {
-    lastStatus.progress = mfrUPGRADE_PROGRESS_FLASHING;
+    asyncImageInProgress = 1;
     IARM_Bus_MFRLib_WriteImage_Param_t param{};
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, verifyImage_(&param));
 }
@@ -923,6 +926,35 @@ TEST_F(MfrMgrTest, WriteImage_FuncLoaded_HalSucceeds_ReturnsSuccess)
     strncpy(param.path, "/tmp/test.bin", sizeof(param.path) - 1);
     param.type = mfrIMAGE_TYPE_CDL;
     EXPECT_EQ(IARM_RESULT_SUCCESS, writeImage_(&param));
+}
+
+TEST_F(MfrMgrTest, WriteImage_CallbackOwnsDataAfterRpcReturns)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    strcpy(param.name, "test_image");
+    strcpy(param.path, "/tmp/test.bin");
+    strcpy(param.cbData, "original_module");
+    param.type = mfrIMAGE_TYPE_CDL;
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, writeImage_(&param));
+    strcpy(param.cbData, "reused_rpc_buffer");
+
+    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t captured{};
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        StrEq(IARM_BUS_MFRLIB_NAME),
+        IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE,
+        _, sizeof(IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t)))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            captured = *static_cast<IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t *>(data);
+            return IARM_RESULT_SUCCESS;
+        });
+
+    mfrUpgradeStatus_t status{};
+    status.progress = mfrUPGRADE_PROGRESS_COMPLETED;
+    g_last_notify.cb(&status);
+
+    EXPECT_STREQ("original_module", captured.cbData);
 }
 
 TEST_F(MfrMgrTest, WriteImage_FuncLoaded_HalFails_ReturnsIpcCoreFail)
