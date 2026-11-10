@@ -85,12 +85,25 @@ static IARM_Result_t getCPUClockSpeed_(void *arg);
 
 static int is_connected = 0;
 
-static char writeImageCbModule[MAX_BUF] = "";
 static mfrUpgradeStatusNotify_t notifyStruct;
 
 static mfrUpgradeStatus_t lastStatus;
 
 static profile_t profileType = PROFILE_INVALID;
+
+static int isTerminatedString(const char *value, size_t capacity)
+{
+    return value != NULL && memchr(value, '\0', capacity) != NULL;
+}
+
+static int isValidWriteImageParam(const IARM_Bus_MFRLib_WriteImage_Param_t *param)
+{
+    return param != NULL &&
+           isTerminatedString(param->name, sizeof(param->name)) &&
+           isTerminatedString(param->path, sizeof(param->path)) &&
+           isTerminatedString(param->callerModuleName, sizeof(param->callerModuleName)) &&
+           isTerminatedString(param->cbData, sizeof(param->cbData));
+}
 
 static IARM_Result_t getSerializedData_(void *arg)
 {
@@ -100,7 +113,6 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrError_t err = mfrERR_NONE;
     mfrSerializedData_t data = {0};
     errno_t safec_rc = -1;
-    int i;
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
@@ -279,7 +291,7 @@ static IARM_Result_t scrubAllBanks_(void *arg)
 #ifdef ENABLE_MFR_WIFI
 static IARM_Result_t mfrWifiEraseAllData_(void *arg)
 {
-    typedef mfrError_t (*mfrWifiEraseAllData_t)(void);
+    typedef WIFI_API_RESULT (*mfrWifiEraseAllData_t)(void);
 
 #ifndef RDK_MFRLIB_NAME
     LOG("Please define RDK_MFRLIB_NAME\r\n");
@@ -332,8 +344,19 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
     WIFI_DATA data;
     errno_t safec_rc = -1;
 
+    if (param == NULL)
+    {
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
     if (param->requestType == WIFI_SET_CREDENTIALS)
     {
+            if (!isTerminatedString(param->wifiCredentials.cSSID, sizeof(param->wifiCredentials.cSSID)) ||
+                !isTerminatedString(param->wifiCredentials.cPassword, sizeof(param->wifiCredentials.cPassword)))
+            {
+                return IARM_RESULT_INVALID_PARAM;
+            }
+
             safec_rc = strcpy_s(data.cSSID, sizeof(data.cSSID), param->wifiCredentials.cSSID);
             if(safec_rc != EOK)
             {
@@ -396,10 +419,11 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
 static void writeImageCb(mfrUpgradeStatus_t * status)
 {
     IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t param;
+    memset(&param, 0, sizeof(param));
 
     IARM_Result_t retVal;
     memcpy(&param.status, status, sizeof(mfrUpgradeStatus_t));
-    strncpy(param.cbData, notifyStruct.cbData, MAX_BUF);
+    strncpy(param.cbData, (const char *)notifyStruct.cbData, MAX_BUF);
     param.cbData[MAX_BUF-1] = '\0'; 
     LOG("In writeImage callback: cbData=%s, progress=%d, error = %d, error_str=%s, percentage = %d\n", param.cbData, param.status.progress, param.status.error, param.status.error_string, param.status.percentage/100);
 
@@ -462,7 +486,10 @@ static IARM_Result_t writeImage_(void *arg)
     if (func) {
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
-        
+
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
 
         notifyStruct.cbData = pParam->cbData;
         notifyStruct.interval = pParam->interval;
@@ -527,6 +554,11 @@ static IARM_Result_t verifyImage_(void *arg)
 	if (func) {
 		mfrError_t err;
 		IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
+
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
 		/* init callback struct */
 		notifyStruct.cbData = pParam->cbData;
 		notifyStruct.interval = pParam->interval;
@@ -727,6 +759,10 @@ static IARM_Result_t mirrorImage(void *arg)
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
 
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
         notifyStruct.cbData = pParam->cbData;
         notifyStruct.interval = pParam->interval;
         notifyStruct.cb = writeImageCb;
@@ -788,6 +824,10 @@ static IARM_Result_t mfrSetBlSplashScreen_(void *arg)
          IARM_Bus_MFRLib_SetBLSplashScreen_Param_t *param = (IARM_Bus_MFRLib_SetBLSplashScreen_Param_t *) arg;
          if (func)
          {
+             if (!isTerminatedString(param->path, sizeof(param->path)))
+             {
+                 return IARM_RESULT_INVALID_PARAM;
+             }
              err = func(param->path);
              if(mfrERR_NONE == err)
              {
@@ -1277,16 +1317,16 @@ IARM_Result_t getConfigData_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_SUCCESS;
     mfrError_t err = mfrERR_NONE;
     IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
-    IARM_Bus_MFRLib_Platformblockdata_Param_t bl = {0} ;
+    unsigned int blocklist = 0;
 
-    err = func(&bl);
+    err = func(&blocklist);
     if(mfrERR_NONE != err)
     {
         LOG("Calling mfr_getConfigData returned error 0x%x\n", err);
         retCode = IARM_RESULT_INVALID_PARAM;
     }
     else {
-        memcpy(bl_rt_blocklist, &bl,sizeof(IARM_Bus_MFRLib_Platformblockdata_Param_t));
+        bl_rt_blocklist->blocklist = blocklist;
         LOG(" BL runtime blocklist value is 0x%x\n",(unsigned int) bl_rt_blocklist->blocklist);
 	// handle the blocklist version set
     }
