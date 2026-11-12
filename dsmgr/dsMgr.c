@@ -81,6 +81,12 @@ extern bool isComponentPortPresent();
 
 extern bool dsGetHDMIDDCLineStatus(void);
 static int _SetVideoPortResolution();
+
+#ifdef DEVICESETTINGS_PLUGIN_ENABLED
+static const bool dsMgrPluginEnabled = true;
+#else
+static const bool dsMgrPluginEnabled = false;
+#endif
 static int  _SetResolution(intptr_t* handle,dsVideoPortType_t PortType);
 static void _EventHandler(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
 static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data, size_t len);
@@ -242,6 +248,16 @@ IARM_Result_t DSMgr_Start()
 	/* Initialize Telemetry 2 */
 	TELEMETRY_INIT(IARM_BUS_DSMGR_NAME);
 
+	if (dsMgrPluginEnabled) {
+		INT_INFO("%s: DeviceSettings plugin owns the DS HAL, skipping legacy hardware control\r\n", __FUNCTION__);
+		dsMgr_Gloop = g_main_loop_new(NULL, FALSE);
+		if (dsMgr_Gloop == NULL) {
+			return IARM_RESULT_IPCCORE_FAIL;
+		}
+		g_timeout_add_seconds(300, heartbeatMsg, dsMgr_Gloop);
+		return IARM_RESULT_SUCCESS;
+	}
+
 	iarmStatus = IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
@@ -371,10 +387,14 @@ IARM_Result_t DSMgr_Stop()
     {
         g_main_loop_quit(dsMgr_Gloop);
     }
-    dsMgrDeinitPwrControllerEvt();
-    PowerController_Term();
+	if (!dsMgrPluginEnabled) {
+		dsMgrDeinitPwrControllerEvt();
+		PowerController_Term();
+	}
     TELEMETRY_UNINIT();
-    stopEventWorker();
+	if (!dsMgrPluginEnabled) {
+		stopEventWorker();
+	}
     iarmStatus = IARM_Bus_Disconnect();
     if (IARM_RESULT_SUCCESS != iarmStatus) {
         INT_ERROR("DSMgr_Stop: Failed to disconnect IARM Bus\r\n");
@@ -385,8 +405,10 @@ IARM_Result_t DSMgr_Stop()
         INT_ERROR("DSMgr_Stop: Failed to terminate IARM Bus\r\n");
         return iarmStatus;
     }
-    pthread_mutex_destroy (&tdsMutexLock);
-    pthread_cond_destroy  (&tdsMutexCond);
+	if (!dsMgrPluginEnabled) {
+		pthread_mutex_destroy (&tdsMutexLock);
+		pthread_cond_destroy  (&tdsMutexCond);
+	}
 
     return IARM_RESULT_SUCCESS;
 }
@@ -697,7 +719,7 @@ static void _ProcessEvent(const char *owner, IARM_EventId_t eventId, void *data,
             case IARM_BUS_DSMGR_EVENT_HDCP_STATUS:
                 {
                     IARM_Bus_DSMgr_EventData_t *eventData = (IARM_Bus_DSMgr_EventData_t *)data;
-                    IARM_Bus_SYSMgr_EventData_t HDCPeventData;
+                    IARM_Bus_SYSMgr_EventData_t HDCPeventData = {0};
                     if (NULL == eventData) {
                         INT_ERROR("HDCP status event without data, ignored\r\n");
                         break;
@@ -761,6 +783,10 @@ static int _SetVideoPortResolution()
 	bool connected=false;
 	int iCount = 0;
 	
+	if (dsMgrPluginEnabled) {
+		INT_INFO("%s: DeviceSettings plugin owns the DS HAL, skipping resolution set\r\n",__FUNCTION__);
+		return 0;
+	}
 
 	INT_DEBUG("%s:Enter \r\n",__FUNCTION__);
 	 

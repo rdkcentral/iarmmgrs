@@ -67,6 +67,11 @@ static mfrError_t g_mfr_init_result            = mfrERR_NONE;
 static mfrError_t g_mfr_gsd_result             = mfrERR_NONE;
 static char       g_mfr_gsd_buf[MAX_SERIALIZED_BUF];
 static int        g_mfr_gsd_bufLen              = 0;
+static WIFI_API_RESULT g_wifi_set_result        = WIFI_API_RESULT_SUCCESS;
+static WIFI_API_RESULT g_wifi_get_result        = WIFI_API_RESULT_SUCCESS;
+static int        g_wifi_set_calls              = 0;
+static int        g_wifi_get_calls              = 0;
+static WIFI_DATA  g_wifi_get_data              = {};
 
 /* __wrap_ functions intercept the real HAL symbols at link time. */
 extern "C" {
@@ -85,6 +90,22 @@ mfrError_t __wrap_mfrGetSerializedData(mfrSerializedType_t /*type*/,
         data->freeBuf = nullptr; /* no dynamic allocation in the stub */
     }
     return g_mfr_gsd_result;
+}
+
+WIFI_API_RESULT WIFI_SetCredentials(WIFI_DATA *data)
+{
+    (void)data;
+    ++g_wifi_set_calls;
+    return g_wifi_set_result;
+}
+
+WIFI_API_RESULT WIFI_GetCredentials(WIFI_DATA *data)
+{
+    ++g_wifi_get_calls;
+    if (g_wifi_get_result == WIFI_API_RESULT_SUCCESS && data != nullptr) {
+        *data = g_wifi_get_data;
+    }
+    return g_wifi_get_result;
 }
 
 } /* extern "C" */
@@ -112,6 +133,9 @@ static void * const g_fake_dllib = reinterpret_cast<void *>(
 static bool       g_dlopen_fail      = true;   /* safe default: dlopen fails */
 static bool       g_dlsym_fail       = false;
 static mfrError_t g_stub_hal_result  = mfrERR_NONE;
+static int         g_writeimage_calls = 0;
+static int         g_mirror_calls     = 0;
+static int         g_splash_calls     = 0;
 
 /* ---- Stub HAL implementations ----------------------------------------
  * Each function has the exact signature that mfrMgr.c casts dlsym's result
@@ -126,10 +150,10 @@ static mfrError_t stub_writeimage(const char * /*name*/,
                                    const char * /*path*/,
                                    mfrImageType_t /*type*/,
                                    mfrUpgradeStatusNotify_t /*notify*/)
-    { return g_stub_hal_result; }
+    { ++g_writeimage_calls; return g_stub_hal_result; }
 
 static mfrError_t stub_mirror(mfrUpgradeStatusNotify_t /*notify*/)
-    { return g_stub_hal_result; }
+    { ++g_mirror_calls; return g_stub_hal_result; }
 
 static mfrError_t stub_pattern(mfrBlPattern_t /*p*/)
     { return g_stub_hal_result; }
@@ -141,7 +165,7 @@ static mfrError_t stub_fsr(uint16_t *p)
     { if (p) *p = 1u; return g_stub_hal_result; }
 
 static mfrError_t stub_splash(const char * /*path*/)
-    { return g_stub_hal_result; }
+    { ++g_splash_calls; return g_stub_hal_result; }
 
 static mfrError_t stub_setconfig(unsigned int /*bl*/)
     { return g_stub_hal_result; }
@@ -228,6 +252,11 @@ protected:
         g_mfr_gsd_result  = mfrERR_NONE;
         memset(g_mfr_gsd_buf, 0, sizeof(g_mfr_gsd_buf));
         g_mfr_gsd_bufLen  = 0;
+        g_wifi_set_result = WIFI_API_RESULT_SUCCESS;
+        g_wifi_get_result = WIFI_API_RESULT_SUCCESS;
+        g_wifi_set_calls  = 0;
+        g_wifi_get_calls  = 0;
+        memset(&g_wifi_get_data, 0, sizeof(g_wifi_get_data));
 
         /* Reset dlopen/dlsym wrap controls.
          * g_dlopen_fail=true  means all RPC handlers' dlopen calls return NULL
@@ -236,6 +265,9 @@ protected:
         g_dlopen_fail     = true;
         g_dlsym_fail      = false;
         g_stub_hal_result = mfrERR_NONE;
+        g_writeimage_calls = 0;
+        g_mirror_calls     = 0;
+        g_splash_calls     = 0;
     }
 
     void TearDown() override
@@ -244,6 +276,64 @@ protected:
         IarmBus::setImpl(nullptr);
     }
 };
+
+TEST_F(MfrMgrTest, WifiCredentials_NullParam_ReturnsInvalidParam)
+{
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, mfrWifiCredentials_(nullptr));
+    EXPECT_EQ(0, g_wifi_set_calls);
+    EXPECT_EQ(0, g_wifi_get_calls);
+}
+
+TEST_F(MfrMgrTest, WifiCredentials_UnterminatedSsid_ReturnsInvalidParam)
+{
+    IARM_BUS_MFRLIB_API_WIFI_Credentials_Param_t param{};
+    param.requestType = WIFI_SET_CREDENTIALS;
+    memset(param.wifiCredentials.cSSID, 's', sizeof(param.wifiCredentials.cSSID));
+    strcpy(param.wifiCredentials.cPassword, "password");
+
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, mfrWifiCredentials_(&param));
+    EXPECT_EQ(0, g_wifi_set_calls);
+}
+
+TEST_F(MfrMgrTest, WifiCredentials_UnterminatedPassword_ReturnsInvalidParam)
+{
+    IARM_BUS_MFRLIB_API_WIFI_Credentials_Param_t param{};
+    param.requestType = WIFI_SET_CREDENTIALS;
+    strcpy(param.wifiCredentials.cSSID, "ssid");
+    memset(param.wifiCredentials.cPassword, 'p', sizeof(param.wifiCredentials.cPassword));
+
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, mfrWifiCredentials_(&param));
+    EXPECT_EQ(0, g_wifi_set_calls);
+}
+
+TEST_F(MfrMgrTest, WifiCredentials_FinalByteTermination_AllowsSet)
+{
+    IARM_BUS_MFRLIB_API_WIFI_Credentials_Param_t param{};
+    param.requestType = WIFI_SET_CREDENTIALS;
+    memset(param.wifiCredentials.cSSID, 's', sizeof(param.wifiCredentials.cSSID));
+    memset(param.wifiCredentials.cPassword, 'p', sizeof(param.wifiCredentials.cPassword));
+    param.wifiCredentials.cSSID[sizeof(param.wifiCredentials.cSSID) - 1] = '\0';
+    param.wifiCredentials.cPassword[sizeof(param.wifiCredentials.cPassword) - 1] = '\0';
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, mfrWifiCredentials_(&param));
+    EXPECT_EQ(1, g_wifi_set_calls);
+}
+
+TEST_F(MfrMgrTest, WifiCredentials_GetLeavesOutputBuffersUnvalidated)
+{
+    IARM_BUS_MFRLIB_API_WIFI_Credentials_Param_t param;
+    memset(&param, 0xA5, sizeof(param));
+    param.requestType = WIFI_GET_CREDENTIALS;
+    strcpy(g_wifi_get_data.cSSID, "saved-ssid");
+    strcpy(g_wifi_get_data.cPassword, "saved-password");
+    g_wifi_get_data.iSecurityMode = 3;
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, mfrWifiCredentials_(&param));
+    EXPECT_EQ(1, g_wifi_get_calls);
+    EXPECT_STREQ("saved-ssid", param.wifiCredentials.cSSID);
+    EXPECT_STREQ("saved-password", param.wifiCredentials.cPassword);
+    EXPECT_EQ(3, param.wifiCredentials.iSecurityMode);
+}
 
 /* ===================================================================== *
  * MFRLib_Stop
@@ -312,6 +402,36 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastFails_StillUpdatesLastStatus)
     EXPECT_EQ(mfrUPGRADE_PROGRESS_COMPLETED, lastStatus.progress);
 }
 
+TEST_F(MfrMgrTest, WriteImageCb_BroadcastEventZeroInitialized)
+{
+    notifyStruct.cbData = (char *)"test_module";
+
+    mfrUpgradeStatus_t status;
+    memset(&status, 0, sizeof(status));
+    status.progress = mfrUPGRADE_PROGRESS_STARTED;
+    status.error = mfrERR_NONE;
+    status.percentage = 5000;
+
+    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t captured;
+    memset(&captured, 0xff, sizeof(captured));
+
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        StrEq(IARM_BUS_MFRLIB_NAME),
+        IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE,
+        _, sizeof(IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t)))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            captured = *static_cast<IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t *>(data);
+            return IARM_RESULT_SUCCESS;
+        });
+
+    writeImageCb(&status);
+
+    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t expected = {};
+    expected.status = status;
+    strcpy(expected.cbData, "test_module");
+    EXPECT_EQ(0, memcmp(&expected, &captured, sizeof(expected)));
+}
+
 /* ===================================================================== *
  * writeImage_ / verifyImage_ back-to-back guard
  *
@@ -347,21 +467,9 @@ TEST_F(MfrMgrTest, VerifyImage_RejectsWhenFlashing)
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, verifyImage_(&param));
 }
 
-/* ===================================================================== *
- * RPC handlers — dlopen-fails path
- *
- * RDK_MFRLIB_NAME is now defined (see Makefile.am AM_CPPFLAGS), so every
- * handler enters its #else branch and calls dlopen(RDK_MFRLIB_NAME, ...).
- * SetUp() leaves g_dlopen_fail=true so __wrap_dlopen returns NULL, which
- * exercises the "Opening RDK_MFRLIB_NAME failed" early-return inside each
- * handler.  The expected result is still IARM_RESULT_INVALID_STATE, so
- * every test below passes unchanged.
- * ===================================================================== */
-
+/* These cases must run before any successful loader test caches a HAL symbol. */
 TEST_F(MfrMgrTest, WriteImage_NoLibName_ReturnsInvalidState)
 {
-    /* progress = NOT_STARTED so the back-to-back guard does not fire;
-     * execution reaches the #ifndef path and returns INVALID_STATE. */
     IARM_Bus_MFRLib_WriteImage_Param_t param{};
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, writeImage_(&param));
 }
@@ -371,6 +479,154 @@ TEST_F(MfrMgrTest, VerifyImage_NoLibName_ReturnsInvalidState)
     IARM_Bus_MFRLib_WriteImage_Param_t param{};
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, verifyImage_(&param));
 }
+
+TEST_F(MfrMgrTest, MirrorImage_NoLibName_ReturnsInvalidState)
+{
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, mirrorImage(nullptr));
+}
+
+TEST_F(MfrMgrTest, WriteImage_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, writeImage_(&param));
+}
+
+TEST_F(MfrMgrTest, VerifyImage_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, verifyImage_(&param));
+}
+
+TEST_F(MfrMgrTest, MirrorImage_DlsymFails_ReturnsInvalidState)
+{
+    g_dlopen_fail = false;
+    g_dlsym_fail  = true;
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, mirrorImage(nullptr));
+}
+
+TEST_F(MfrMgrTest, WriteImage_RejectsInvalidImageParameters)
+{
+    g_dlopen_fail = false;
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, writeImage_(nullptr));
+    EXPECT_EQ(0, g_writeimage_calls);
+
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    char *fields[] = { param.name, param.path, param.callerModuleName, param.cbData };
+    const size_t capacities[] = {
+        sizeof(param.name), sizeof(param.path), sizeof(param.callerModuleName), sizeof(param.cbData)
+    };
+
+    for (size_t index = 0; index < sizeof(fields) / sizeof(fields[0]); ++index) {
+        memset(fields[index], 'A', capacities[index]);
+        EXPECT_EQ(IARM_RESULT_INVALID_PARAM, writeImage_(&param));
+        EXPECT_EQ(0, g_writeimage_calls);
+        memset(fields[index], 0, capacities[index]);
+    }
+}
+
+TEST_F(MfrMgrTest, VerifyImage_RejectsInvalidImageParameters)
+{
+    g_dlopen_fail = false;
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, verifyImage_(nullptr));
+    EXPECT_EQ(0, g_writeimage_calls);
+
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    char *fields[] = { param.name, param.path, param.callerModuleName, param.cbData };
+    const size_t capacities[] = {
+        sizeof(param.name), sizeof(param.path), sizeof(param.callerModuleName), sizeof(param.cbData)
+    };
+
+    for (size_t index = 0; index < sizeof(fields) / sizeof(fields[0]); ++index) {
+        memset(fields[index], 'A', capacities[index]);
+        EXPECT_EQ(IARM_RESULT_INVALID_PARAM, verifyImage_(&param));
+        EXPECT_EQ(0, g_writeimage_calls);
+        memset(fields[index], 0, capacities[index]);
+    }
+}
+
+TEST_F(MfrMgrTest, MirrorImage_RejectsInvalidImageParameters)
+{
+    g_dlopen_fail = false;
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, mirrorImage(nullptr));
+    EXPECT_EQ(0, g_mirror_calls);
+
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    char *fields[] = { param.name, param.path, param.callerModuleName, param.cbData };
+    const size_t capacities[] = {
+        sizeof(param.name), sizeof(param.path), sizeof(param.callerModuleName), sizeof(param.cbData)
+    };
+
+    for (size_t index = 0; index < sizeof(fields) / sizeof(fields[0]); ++index) {
+        memset(fields[index], 'A', capacities[index]);
+        EXPECT_EQ(IARM_RESULT_INVALID_PARAM, mirrorImage(&param));
+        EXPECT_EQ(0, g_mirror_calls);
+        memset(fields[index], 0, capacities[index]);
+    }
+}
+
+TEST_F(MfrMgrTest, WriteImage_AcceptsTerminationAtFinalByte)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    memset(param.name, 'A', sizeof(param.name));
+    memset(param.path, 'A', sizeof(param.path));
+    memset(param.callerModuleName, 'A', sizeof(param.callerModuleName));
+    memset(param.cbData, 'A', sizeof(param.cbData));
+    param.name[sizeof(param.name) - 1] = '\0';
+    param.path[sizeof(param.path) - 1] = '\0';
+    param.callerModuleName[sizeof(param.callerModuleName) - 1] = '\0';
+    param.cbData[sizeof(param.cbData) - 1] = '\0';
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, writeImage_(&param));
+    EXPECT_EQ(1, g_writeimage_calls);
+}
+
+TEST_F(MfrMgrTest, VerifyImage_AcceptsTerminationAtFinalByte)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    memset(param.name, 'A', sizeof(param.name));
+    memset(param.path, 'A', sizeof(param.path));
+    memset(param.callerModuleName, 'A', sizeof(param.callerModuleName));
+    memset(param.cbData, 'A', sizeof(param.cbData));
+    param.name[sizeof(param.name) - 1] = '\0';
+    param.path[sizeof(param.path) - 1] = '\0';
+    param.callerModuleName[sizeof(param.callerModuleName) - 1] = '\0';
+    param.cbData[sizeof(param.cbData) - 1] = '\0';
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, verifyImage_(&param));
+    EXPECT_EQ(1, g_writeimage_calls);
+}
+
+TEST_F(MfrMgrTest, MirrorImage_AcceptsTerminationAtFinalByte)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    memset(param.name, 'A', sizeof(param.name));
+    memset(param.path, 'A', sizeof(param.path));
+    memset(param.callerModuleName, 'A', sizeof(param.callerModuleName));
+    memset(param.cbData, 'A', sizeof(param.cbData));
+    param.name[sizeof(param.name) - 1] = '\0';
+    param.path[sizeof(param.path) - 1] = '\0';
+    param.callerModuleName[sizeof(param.callerModuleName) - 1] = '\0';
+    param.cbData[sizeof(param.cbData) - 1] = '\0';
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, mirrorImage(&param));
+    EXPECT_EQ(1, g_mirror_calls);
+}
+
+/* ===================================================================== *
+ * Remaining RPC handlers — dlopen-fails path
+ *
+ * RDK_MFRLIB_NAME is now defined (see Makefile.am AM_CPPFLAGS), so each
+ * handler enters its #else branch and calls dlopen(RDK_MFRLIB_NAME, ...).
+ * SetUp() leaves g_dlopen_fail=true so __wrap_dlopen returns NULL, which
+ * exercises the "Opening RDK_MFRLIB_NAME failed" early-return.
+ * ===================================================================== */
 
 TEST_F(MfrMgrTest, SetSerializedData_NoLibName_ReturnsInvalidState)
 {
@@ -390,11 +646,6 @@ TEST_F(MfrMgrTest, ScrubAllBanks_NoLibName_ReturnsInvalidState)
 TEST_F(MfrMgrTest, SetBootloaderPattern_NoLibName_ReturnsInvalidState)
 {
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, setBootloaderPattern_(nullptr));
-}
-
-TEST_F(MfrMgrTest, MirrorImage_NoLibName_ReturnsInvalidState)
-{
-    EXPECT_EQ(IARM_RESULT_INVALID_STATE, mirrorImage(nullptr));
 }
 
 TEST_F(MfrMgrTest, SetBlSplashScreen_NoLibName_ReturnsInvalidState)
@@ -555,34 +806,32 @@ TEST_F(MfrMgrTest, ScrubAllBanks_DlsymFails_ReturnsInvalidState)
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, scrubAllBanks_(nullptr));
 }
 
-TEST_F(MfrMgrTest, WriteImage_DlsymFails_ReturnsInvalidState)
-{
-    g_dlopen_fail = false;
-    g_dlsym_fail  = true;
-    IARM_Bus_MFRLib_WriteImage_Param_t param{};
-    EXPECT_EQ(IARM_RESULT_INVALID_STATE, writeImage_(&param));
-}
-
-TEST_F(MfrMgrTest, VerifyImage_DlsymFails_ReturnsInvalidState)
-{
-    g_dlopen_fail = false;
-    g_dlsym_fail  = true;
-    IARM_Bus_MFRLib_WriteImage_Param_t param{};
-    EXPECT_EQ(IARM_RESULT_INVALID_STATE, verifyImage_(&param));
-}
-
-TEST_F(MfrMgrTest, MirrorImage_DlsymFails_ReturnsInvalidState)
-{
-    g_dlopen_fail = false;
-    g_dlsym_fail  = true;
-    EXPECT_EQ(IARM_RESULT_INVALID_STATE, mirrorImage(nullptr));
-}
-
 TEST_F(MfrMgrTest, SetBLSplashScreen_DlsymFails_ReturnsInvalidState)
 {
     g_dlopen_fail = false;
     g_dlsym_fail  = true;
     EXPECT_EQ(IARM_RESULT_INVALID_STATE, mfrSetBlSplashScreen_(nullptr));
+}
+
+TEST_F(MfrMgrTest, SetBLSplashScreen_UnterminatedPath_ReturnsInvalidParam)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_SetBLSplashScreen_Param_t param{};
+    memset(param.path, 'p', sizeof(param.path));
+
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, mfrSetBlSplashScreen_(&param));
+    EXPECT_EQ(0, g_splash_calls);
+}
+
+TEST_F(MfrMgrTest, SetBLSplashScreen_FinalByteTermination_AllowsHalCall)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_SetBLSplashScreen_Param_t param{};
+    memset(param.path, 'p', sizeof(param.path));
+    param.path[sizeof(param.path) - 1] = '\0';
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, mfrSetBlSplashScreen_(&param));
+    EXPECT_EQ(1, g_splash_calls);
 }
 
 TEST_F(MfrMgrTest, ClearBLSplashScreen_DlsymFails_ReturnsInvalidState)
