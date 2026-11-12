@@ -248,6 +248,16 @@ IARM_Result_t DSMgr_Start()
 	/* Initialize Telemetry 2 */
 	TELEMETRY_INIT(IARM_BUS_DSMGR_NAME);
 
+	if (dsMgrPluginEnabled) {
+		INT_INFO("%s: DeviceSettings plugin owns the DS HAL, skipping legacy hardware control\r\n", __FUNCTION__);
+		dsMgr_Gloop = g_main_loop_new(NULL, FALSE);
+		if (dsMgr_Gloop == NULL) {
+			return IARM_RESULT_IPCCORE_FAIL;
+		}
+		g_timeout_add_seconds(300, heartbeatMsg, dsMgr_Gloop);
+		return IARM_RESULT_SUCCESS;
+	}
+
 	iarmStatus = IARM_Bus_RegisterEvent(IARM_BUS_DSMGR_EVENT_MAX);
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
 		INT_ERROR("Failed to register IARM Bus events for [%s] \r\n", IARM_BUS_DSMGR_NAME);
@@ -377,10 +387,14 @@ IARM_Result_t DSMgr_Stop()
     {
         g_main_loop_quit(dsMgr_Gloop);
     }
-    dsMgrDeinitPwrControllerEvt();
-    PowerController_Term();
+	if (!dsMgrPluginEnabled) {
+		dsMgrDeinitPwrControllerEvt();
+		PowerController_Term();
+	}
     TELEMETRY_UNINIT();
-    stopEventWorker();
+	if (!dsMgrPluginEnabled) {
+		stopEventWorker();
+	}
     iarmStatus = IARM_Bus_Disconnect();
     if (IARM_RESULT_SUCCESS != iarmStatus) {
         INT_ERROR("DSMgr_Stop: Failed to disconnect IARM Bus\r\n");
@@ -391,8 +405,10 @@ IARM_Result_t DSMgr_Stop()
         INT_ERROR("DSMgr_Stop: Failed to terminate IARM Bus\r\n");
         return iarmStatus;
     }
-    pthread_mutex_destroy (&tdsMutexLock);
-    pthread_cond_destroy  (&tdsMutexCond);
+	if (!dsMgrPluginEnabled) {
+		pthread_mutex_destroy (&tdsMutexLock);
+		pthread_cond_destroy  (&tdsMutexCond);
+	}
 
     return IARM_RESULT_SUCCESS;
 }
