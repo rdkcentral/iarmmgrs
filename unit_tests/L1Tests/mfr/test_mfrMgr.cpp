@@ -244,6 +244,8 @@ protected:
         /* Reset file-static state in mfrMgr.c that affects test outcomes */
         memset(&lastStatus,   0, sizeof(lastStatus));   /* progress = NOT_STARTED */
         memset(&notifyStruct, 0, sizeof(notifyStruct));
+        memset(notifyCbData, 0, sizeof(notifyCbData));
+        mfrOperationActive = 0;
         profileType  = PROFILE_INVALID;
         is_connected = 0;
 
@@ -367,6 +369,7 @@ TEST_F(MfrMgrTest, Stop_Connected_DisconnectFails_ReturnsFailure)
 TEST_F(MfrMgrTest, WriteImageCb_BroadcastsEventAndUpdatesProgress)
 {
     notifyStruct.cbData = (char *)"test_module";
+    mfrOperationActive = 1;
 
     mfrUpgradeStatus_t status;
     memset(&status, 0, sizeof(status));
@@ -388,6 +391,7 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastsEventAndUpdatesProgress)
 TEST_F(MfrMgrTest, WriteImageCb_BroadcastFails_StillUpdatesLastStatus)
 {
     notifyStruct.cbData = (char *)"any_module";
+    mfrOperationActive = 1;
 
     mfrUpgradeStatus_t status;
     memset(&status, 0, sizeof(status));
@@ -405,6 +409,7 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastFails_StillUpdatesLastStatus)
 TEST_F(MfrMgrTest, WriteImageCb_BroadcastEventZeroInitialized)
 {
     notifyStruct.cbData = (char *)"test_module";
+    mfrOperationActive = 1;
 
     mfrUpgradeStatus_t status;
     memset(&status, 0, sizeof(status));
@@ -430,6 +435,35 @@ TEST_F(MfrMgrTest, WriteImageCb_BroadcastEventZeroInitialized)
     expected.status = status;
     strcpy(expected.cbData, "test_module");
     EXPECT_EQ(0, memcmp(&expected, &captured, sizeof(expected)));
+}
+
+TEST_F(MfrMgrTest, WriteImage_OwnsCallbackDataAfterRpcReturns)
+{
+    g_dlopen_fail = false;
+    IARM_Bus_MFRLib_WriteImage_Param_t param{};
+    strncpy(param.name, "test_image", sizeof(param.name) - 1);
+    strncpy(param.path, "/tmp/test.bin", sizeof(param.path) - 1);
+    strncpy(param.cbData, "original_module", sizeof(param.cbData) - 1);
+    param.type = mfrIMAGE_TYPE_CDL;
+
+    EXPECT_EQ(IARM_RESULT_SUCCESS, writeImage_(&param));
+    strcpy(param.cbData, "overwritten_module");
+
+    IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t captured = {};
+    EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
+        StrEq(IARM_BUS_MFRLIB_NAME),
+        IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE,
+        _, sizeof(IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t)))
+        .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
+            captured = *static_cast<IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t *>(data);
+            return IARM_RESULT_SUCCESS;
+        });
+
+    mfrUpgradeStatus_t status = {};
+    status.progress = mfrUPGRADE_PROGRESS_COMPLETED;
+    writeImageCb(&status);
+
+    EXPECT_STREQ("original_module", captured.cbData);
 }
 
 /* ===================================================================== *
