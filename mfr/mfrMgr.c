@@ -92,6 +92,8 @@ static mfrUpgradeStatus_t lastStatus;
 static pthread_mutex_t mfrOperationLock = PTHREAD_MUTEX_INITIALIZER;
 static char notifyCbData[MAX_BUF] = {0};
 static int mfrOperationActive = 0;
+typedef mfrError_t (*mfrWriteImage_)(const char *, const char *, mfrImageType_t, mfrUpgradeStatusNotify_t);
+static mfrWriteImage_ mfrWriteImageFunc = 0;
 
 static void writeImageCb(mfrUpgradeStatus_t *status);
 
@@ -485,7 +487,7 @@ static void writeImageCb(mfrUpgradeStatus_t * status)
 
     retVal = IARM_Bus_BroadcastEvent(IARM_BUS_MFRLIB_NAME, IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE, (void *) &param, sizeof(param));
     if (retVal != IARM_RESULT_SUCCESS) {
-           LOG("ERROR: IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE failed, cbData=%s, progress=%d, retVal=%d, error=%d, %s\n", param.cbData, param.status.progress, retVal, errno, strerror(errno));
+            LOG("WARN: IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE notification failed, cbData=%s, progress=%d, retVal=%d\n", param.cbData, param.status.progress, retVal);
      }
     LOG("In writeImage callback: cbData=%s, progress=%d, error = %d, error_str=%s, percentage = %d completed\n", param.cbData, param.status.progress, param.status.error, param.status.error_string, param.status.percentage/100);
 
@@ -493,8 +495,6 @@ static void writeImageCb(mfrUpgradeStatus_t * status)
 
 static IARM_Result_t writeImage_(void *arg)
 {
-    
-    typedef mfrError_t (*mfrWriteImage_)(const char *,  const char *, mfrImageType_t ,  mfrUpgradeStatusNotify_t );
 #ifndef RDK_MFRLIB_NAME
     LOG("Please define RDK_MFRLIB_NAME\r\n");
     LOG("Exiting writeImage_\n");
@@ -503,14 +503,13 @@ static IARM_Result_t writeImage_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
 
-    static mfrWriteImage_ func = 0;
     LOG("In writeImage_\n");
     
-    if (func == 0) {
+    if (mfrWriteImageFunc == 0) {
         void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
-            func = (mfrWriteImage_) dlsym(dllib, "mfrWriteImage");
-            if (func) {
+            mfrWriteImageFunc = (mfrWriteImage_) dlsym(dllib, "mfrWriteImage");
+            if (mfrWriteImageFunc) {
                 LOG("mfrWriteImage is defined and loaded\r\n");
             }
             else {
@@ -528,7 +527,7 @@ static IARM_Result_t writeImage_(void *arg)
         }
     }
 
-    if (func) {
+    if (mfrWriteImageFunc) {
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
 
@@ -541,7 +540,7 @@ static IARM_Result_t writeImage_(void *arg)
             return IARM_RESULT_INVALID_STATE;
         }
    
-        err = func(pParam->name, pParam->path, pParam->type, notifyStruct);
+        err = mfrWriteImageFunc(pParam->name, pParam->path, pParam->type, notifyStruct);
         
         LOG("Calling mfrWriteImage returned err %d\r\n", err);
         if(mfrERR_NONE != err) {

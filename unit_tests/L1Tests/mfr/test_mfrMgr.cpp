@@ -246,6 +246,7 @@ protected:
         memset(&notifyStruct, 0, sizeof(notifyStruct));
         memset(notifyCbData, 0, sizeof(notifyCbData));
         mfrOperationActive = 0;
+        mfrWriteImageFunc = nullptr;
         profileType  = PROFILE_INVALID;
         is_connected = 0;
 
