@@ -962,8 +962,7 @@ TEST_F(MfrMgrTest, WriteImage_FuncLoaded_HalSucceeds_ReturnsSuccess)
 
 TEST_F(MfrMgrTest, WriteImage_FuncLoaded_HalFails_ReturnsIpcCoreFail)
 {
-    /* func is already cached from the previous test; this call goes straight
-     * to the cached stub but with a HAL error result. */
+    g_dlopen_fail = false;
     g_stub_hal_result = mfrERR_GENERAL;
     IARM_Bus_MFRLib_WriteImage_Param_t param{};
     EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, writeImage_(&param));
