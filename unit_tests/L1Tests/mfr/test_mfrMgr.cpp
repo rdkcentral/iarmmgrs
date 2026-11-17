@@ -451,12 +451,15 @@ TEST_F(MfrMgrTest, WriteImage_OwnsCallbackDataAfterRpcReturns)
     strcpy(param.cbData, "overwritten_module");
 
     IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t captured = {};
+    IARM_Bus_MFRLib_WriteImage_Param_t nestedParam{};
+    IARM_Result_t nestedResult = IARM_RESULT_SUCCESS;
     EXPECT_CALL(iarmMock, IARM_Bus_BroadcastEvent(
         StrEq(IARM_BUS_MFRLIB_NAME),
         IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE,
         _, sizeof(IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t)))
         .WillOnce([&](const char *, IARM_EventId_t, void *data, size_t) {
             captured = *static_cast<IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t *>(data);
+            nestedResult = writeImage_(&nestedParam);
             return IARM_RESULT_SUCCESS;
         });
 
@@ -465,6 +468,8 @@ TEST_F(MfrMgrTest, WriteImage_OwnsCallbackDataAfterRpcReturns)
     writeImageCb(&status);
 
     EXPECT_STREQ("original_module", captured.cbData);
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, nestedResult);
+    EXPECT_EQ(0, mfrOperationActive);
 }
 
 /* ===================================================================== *

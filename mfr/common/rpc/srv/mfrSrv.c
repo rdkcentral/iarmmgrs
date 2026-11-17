@@ -64,6 +64,16 @@ static int isValidWriteImageParam(const IARM_Bus_MFRLib_WriteImage_Param_t *para
            isTerminatedString(param->path, sizeof(param->path));
 }
 
+static int isWriteImageActive(void)
+{
+    int active;
+
+    pthread_mutex_lock(&writeImageLock);
+    active = writeImageInProgress;
+    pthread_mutex_unlock(&writeImageLock);
+    return active;
+}
+
 
 #define IARM_Bus_Lock(lock) pthread_mutex_lock(&mfrLock)
 #define IARM_Bus_Unlock(lock) pthread_mutex_unlock(&mfrLock)
@@ -182,6 +192,10 @@ IARM_Result_t mfrMgr_start( )
 IARM_Result_t _mfr_init(void *arg)
 {
     IARM_Result_t retVal = IARM_RESULT_IPCCORE_FAIL;
+    if (isWriteImageActive())
+    {
+        return IARM_RESULT_INVALID_STATE;
+    }
     IARM_Bus_Lock(lock);
     errno_t safec_rc = -1;
 
@@ -271,6 +285,11 @@ IARM_Result_t _mfrGetSerializedData(void *arg)
     static mfrCrypto_Encrypt_t encrypt_func = 0;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
 
     printf("In %s\n",__func__);
 
@@ -357,6 +376,11 @@ IARM_Result_t _mfrSetSerializedData(void *arg)
     int ind = -1;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     printf("[MFR] %s: enter\n", __func__);
     if (func == 0)
     {
@@ -519,8 +543,8 @@ IARM_Result_t _mfrWriteImage(void *arg)
             printf("Calling mfrWriteImage returned err %d\r\n", err);
             retCode = IARM_RESULT_SUCCESS;
             pthread_mutex_lock(&writeImageLock);
-            while (lastStatus.progress == mfrUPGRADE_PROGRESS_NOT_STARTED ||
-                   lastStatus.progress == mfrUPGRADE_PROGRESS_STARTED)
+            while (lastStatus.progress != mfrUPGRADE_PROGRESS_COMPLETED &&
+                   lastStatus.progress != mfrUPGRADE_PROGRESS_ABORTED)
             {
                pthread_cond_wait(&writeImageCond, &writeImageLock);
             }
@@ -603,6 +627,11 @@ IARM_Result_t _mfrSetImageWriteProgress(void *arg)
 #else
     static mfrSetImageWriteProgress_t func = 0;
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     printf("In %s\n",__func__);
     if (func == 0)
     {
@@ -651,6 +680,11 @@ IARM_Result_t _mfrDeletePDRI(void *arg)
     static mfrDeletePDRI_t func = 0;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     if (func == 0)
     {
 	    func = (mfrDeletePDRI_t) find_func(RDK_MFRLIB_NAME, "mfrDeletePDRI");
@@ -691,6 +725,11 @@ IARM_Result_t _mfrScrubAllBanks(void *arg)
     static mfrScrubAllBanks_t func = 0;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     if (func == 0)
     {
 	    func = (mfrScrubAllBanks_t) find_func(RDK_MFRLIB_NAME, "mfrScrubAllBanks");
@@ -725,6 +764,10 @@ IARM_Result_t _mfrScrubAllBanks(void *arg)
 
 IARM_Result_t _mfr_shutdown(void *arg)
 {
+    if (isWriteImageActive())
+    {
+        return IARM_RESULT_INVALID_STATE;
+    }
     IARM_Bus_Lock(lock);
     IARM_Bus_Disconnect();
     IARM_Bus_Term();
@@ -777,6 +820,11 @@ IARM_Result_t _mfrReboot(void *arg)
     static mfrReboot_t func = 0;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     if (func == 0)
     {
 	func = (mfrReboot_t) find_func(RDK_MFRLIB_NAME, "mfrReboot");
@@ -826,6 +874,11 @@ IARM_Result_t _mfrSetCableCardType(void *arg)
     static mfrSetCableCardType_t func = 0;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     if (func == 0)
     {
 	func = (mfrSetCableCardType_t) find_func(RDK_MFRLIB_NAME, "mfrSetCableCardType");
@@ -869,6 +922,11 @@ IARM_Result_t _mfrSetHostFirmwareInfo(void *arg)
     errno_t safec_rc = -1;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     if (func == 0)
     {
 	func = (mfrSetHostFirmwareInfo_t) find_func(RDK_MFRLIB_NAME, "mfrSetHostFirmwareInfo");
@@ -928,6 +986,11 @@ IARM_Result_t _mfrGetBootImageName(void *arg)
     static mfrGetBootImageName_t func = 0;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     if (func == 0)
     {
 	func = (mfrGetBootImageName_t) find_func(RDK_MFRLIB_NAME, "mfrGetBootImageName");
@@ -970,6 +1033,11 @@ IARM_Result_t _mfrGetPathConfiguration(void *arg)
     static mfrGetPathConfiguration_t func = 0;
     printf("In %s \n",__func__);
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     if (func == 0)
     {
 	func = (mfrGetPathConfiguration_t) find_func(RDK_MFRLIB_NAME, "mfrGetPathConfiguration");
@@ -1013,6 +1081,11 @@ IARM_Result_t _mfrGetDFAST2Data(void *arg)
     errno_t safec_rc = -1;
 
     IARM_Bus_Lock(lock);
+    if (isWriteImageActive())
+    {
+        IARM_Bus_Unlock(lock);
+        return IARM_RESULT_INVALID_STATE;
+    }
     if (func == 0)
     {
 	func = (mfrGetDFAST2Data_t) find_func(RDK_MFRLIB_NAME, "mfrGetDFAST2Data");

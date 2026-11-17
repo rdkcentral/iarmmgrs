@@ -471,6 +471,7 @@ static void writeImageCb(mfrUpgradeStatus_t * status)
     }
 
     IARM_Result_t retVal;
+    int terminalEvent = 0;
     memcpy(&param.status, status, sizeof(mfrUpgradeStatus_t));
     strncpy(param.cbData, (const char *)notifyStruct.cbData, MAX_BUF);
     param.cbData[MAX_BUF-1] = '\0'; 
@@ -478,7 +479,7 @@ static void writeImageCb(mfrUpgradeStatus_t * status)
     if (param.status.progress == mfrUPGRADE_PROGRESS_ABORTED ||
         param.status.progress == mfrUPGRADE_PROGRESS_COMPLETED)
     {
-        mfrOperationActive = 0;
+        terminalEvent = 1;
     }
     pthread_mutex_unlock(&mfrOperationLock);
 
@@ -490,6 +491,11 @@ static void writeImageCb(mfrUpgradeStatus_t * status)
             LOG("WARN: IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE notification failed, cbData=%s, progress=%d, retVal=%d\n", param.cbData, param.status.progress, retVal);
      }
     LOG("In writeImage callback: cbData=%s, progress=%d, error = %d, error_str=%s, percentage = %d completed\n", param.cbData, param.status.progress, param.status.error, param.status.error_string, param.status.percentage/100);
+
+    if (terminalEvent)
+    {
+        endMfrOperation();
+    }
 
 }
 
