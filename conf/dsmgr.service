@@ -17,24 +17,16 @@
 # limitations under the License.
 ##########################################################################
 [Unit]
-Description=IARM Mgr Daemon DS MGR
-Requires=iarmbusd.service
-After=lighttpd.service iarmbusd.service sysmgr.service wpeframework-powermanager.service
+Description=IARM Mgr Daemon DS MGR (no-op placeholder)
+# dsMgrMain is no longer launched from this unit. The unit is retained only because
+# other services (e.g. VL) still declare a dependency on dsmgr.service.
 
 [Service]
-Type=notify
-ExecStartPre=/bin/mkdir -p /opt/persistent/ds
-ExecStartPre=/usr/bin/systemd-run --unit=dsmgr-monitor /bin/sh /usr/lib/iarm-monitor.sh dsmgr dsMgrMain
-ExecStart=/bin/sh -c '/usr/bin/dsMgrMain'
-# Runs only after READY=1 is confirmed (Type=notify guarantee).
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/bin/true
 ExecStartPost=/bin/touch /tmp/dsmgr.ready
-# dsMgrMain sent READY=1 — stop the start-phase watchdog (non-blocking).
-ExecStartPost=-/bin/systemctl stop --no-block dsmgr-monitor
-# /opt/.dsmgr_restart_count is removed after dsmgr starts.
-ExecStartPost=/bin/rm -f /opt/.dsmgr_restart_count
-# Stop the watchdog if still running (non-blocking — avoids delaying dsmgr shutdown).
-ExecStop=-/bin/systemctl stop --no-block dsmgr-monitor
-ExecStopPost=/bin/sh /usr/lib/iarm-reboot.sh dsmgr dsMgrMain
+ExecStop=/bin/rm -f /tmp/dsmgr.ready
 
 [Install]
 WantedBy=multi-user.target
