@@ -38,6 +38,31 @@ if [ "$(grep -Fc 'isValidWriteImageParam(pParam)' "$server_file")" -lt 1 ]; then
     exit 1
 fi
 
+write_image_body=$(sed -n '/^IARM_Result_t _mfrWriteImage(void \*arg)/,/^IARM_Result_t _mfrGetImageWriteProgress(void \*arg)/p' "$server_file")
+if ! printf '%s\n' "$write_image_body" | grep -Fq 'pthread_cond_wait(&writeImageCond, &writeImageLock)'; then
+    echo "WriteImage must wait on its dedicated condition variable" >&2
+    exit 1
+fi
+if ! printf '%s\n' "$write_image_body" | grep -Fq 'while (lastStatus.progress != mfrUPGRADE_PROGRESS_COMPLETED &&'; then
+    echo "WriteImage must wait until a terminal progress state" >&2
+    exit 1
+fi
+if ! printf '%s\n' "$write_image_body" | grep -Fq 'lastStatus.progress != mfrUPGRADE_PROGRESS_ABORTED'; then
+    echo "WriteImage must accept aborted as a terminal progress state" >&2
+    exit 1
+fi
+for handler in _mfrSetSerializedData _mfrScrubAllBanks; do
+    handler_body=$(sed -n "/^IARM_Result_t $handler(void \\*arg)/,/^IARM_Result_t /p" "$server_file")
+    if ! printf '%s\n' "$handler_body" | grep -Fq 'if (isWriteImageActive())'; then
+        echo "$handler must reject HAL access during an active image write" >&2
+        exit 1
+    fi
+done
+if printf '%s\n' "$write_image_body" | grep -Eq '\b(sleep|usleep|nanosleep)[[:space:]]*\('; then
+    echo "WriteImage must not hold or poll with sleep-based waits" >&2
+    exit 1
+fi
+
 for field in imageName version; do
     if ! grep -Fq "isTerminatedString(pParam->$field, sizeof(pParam->$field))" "$server_file"; then
         echo "Legacy $field termination is not validated" >&2
@@ -54,6 +79,19 @@ done
 
 if [ "$(grep -Fc 'isValidWriteImageParam(pParam)' "$manager_file")" -lt 3 ]; then
     echo "Manager write, verify, and mirror inputs are not all validated" >&2
+    exit 1
+fi
+
+if grep -Fq 'notifyStruct.cbData = pParam->cbData' "$manager_file"; then
+    echo "Manager callback data must not reference transient RPC arguments" >&2
+    exit 1
+fi
+if ! grep -Fq 'memcpy(notifyCbData, cbData, sizeof(notifyCbData))' "$manager_file"; then
+    echo "Manager callback data is not copied into owned storage" >&2
+    exit 1
+fi
+if ! grep -Fq 'pthread_mutex_lock(&mfrOperationLock)' "$manager_file"; then
+    echo "Manager callback state is not synchronized" >&2
     exit 1
 fi
 
