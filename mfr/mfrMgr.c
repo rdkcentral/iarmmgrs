@@ -31,6 +31,7 @@
 #include <dlfcn.h>
 #include <unistd.h>
 #include <errno.h>
+#include <pthread.h>
 
 #include "mfrMgrInternal.h"
 #include "mfrMgr.h"
@@ -85,12 +86,61 @@ static IARM_Result_t getCPUClockSpeed_(void *arg);
 
 static int is_connected = 0;
 
-static char writeImageCbModule[MAX_BUF] = "";
 static mfrUpgradeStatusNotify_t notifyStruct;
 
 static mfrUpgradeStatus_t lastStatus;
+static pthread_mutex_t mfrOperationLock = PTHREAD_MUTEX_INITIALIZER;
+static char notifyCbData[MAX_BUF] = {0};
+static int mfrOperationActive = 0;
+typedef mfrError_t (*mfrWriteImage_)(const char *, const char *, mfrImageType_t, mfrUpgradeStatusNotify_t);
+static mfrWriteImage_ mfrWriteImageFunc = 0;
+
+static void writeImageCb(mfrUpgradeStatus_t *status);
 
 static profile_t profileType = PROFILE_INVALID;
+
+static int isTerminatedString(const char *value, size_t capacity)
+{
+    return value != NULL && memchr(value, '\0', capacity) != NULL;
+}
+
+static int isValidWriteImageParam(const IARM_Bus_MFRLib_WriteImage_Param_t *param)
+{
+    return param != NULL &&
+           isTerminatedString(param->name, sizeof(param->name)) &&
+           isTerminatedString(param->path, sizeof(param->path)) &&
+           isTerminatedString(param->callerModuleName, sizeof(param->callerModuleName)) &&
+           isTerminatedString(param->cbData, sizeof(param->cbData));
+}
+
+static int beginMfrOperation(const char *cbData, int interval)
+{
+    int accepted = 0;
+
+    pthread_mutex_lock(&mfrOperationLock);
+    if (!mfrOperationActive &&
+        lastStatus.progress != mfrUPGRADE_PROGRESS_VERIFYING &&
+        lastStatus.progress != mfrUPGRADE_PROGRESS_FLASHING)
+    {
+        memcpy(notifyCbData, cbData, sizeof(notifyCbData));
+        notifyStruct.cbData = notifyCbData;
+        notifyStruct.interval = interval;
+        notifyStruct.cb = writeImageCb;
+        lastStatus.progress = mfrUPGRADE_PROGRESS_NOT_STARTED;
+        mfrOperationActive = 1;
+        accepted = 1;
+    }
+    pthread_mutex_unlock(&mfrOperationLock);
+
+    return accepted;
+}
+
+static void endMfrOperation(void)
+{
+    pthread_mutex_lock(&mfrOperationLock);
+    mfrOperationActive = 0;
+    pthread_mutex_unlock(&mfrOperationLock);
+}
 
 static IARM_Result_t getSerializedData_(void *arg)
 {
@@ -100,7 +150,6 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrError_t err = mfrERR_NONE;
     mfrSerializedData_t data = {0};
     errno_t safec_rc = -1;
-    int i;
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
@@ -279,7 +328,7 @@ static IARM_Result_t scrubAllBanks_(void *arg)
 #ifdef ENABLE_MFR_WIFI
 static IARM_Result_t mfrWifiEraseAllData_(void *arg)
 {
-    typedef mfrError_t (*mfrWifiEraseAllData_t)(void);
+    typedef WIFI_API_RESULT (*mfrWifiEraseAllData_t)(void);
 
 #ifndef RDK_MFRLIB_NAME
     LOG("Please define RDK_MFRLIB_NAME\r\n");
@@ -332,8 +381,19 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
     WIFI_DATA data;
     errno_t safec_rc = -1;
 
+    if (param == NULL)
+    {
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
     if (param->requestType == WIFI_SET_CREDENTIALS)
     {
+            if (!isTerminatedString(param->wifiCredentials.cSSID, sizeof(param->wifiCredentials.cSSID)) ||
+                !isTerminatedString(param->wifiCredentials.cPassword, sizeof(param->wifiCredentials.cPassword)))
+            {
+                return IARM_RESULT_INVALID_PARAM;
+            }
+
             safec_rc = strcpy_s(data.cSSID, sizeof(data.cSSID), param->wifiCredentials.cSSID);
             if(safec_rc != EOK)
             {
@@ -396,36 +456,51 @@ static IARM_Result_t mfrWifiCredentials_(void *arg)
 static void writeImageCb(mfrUpgradeStatus_t * status)
 {
     IARM_Bus_MFRLib_CommonAPI_WriteImageCb_Param_t param;
+    memset(&param, 0, sizeof(param));
+
+    if (status == NULL)
+    {
+        return;
+    }
+
+    pthread_mutex_lock(&mfrOperationLock);
+    if (!mfrOperationActive)
+    {
+        pthread_mutex_unlock(&mfrOperationLock);
+        return;
+    }
 
     IARM_Result_t retVal;
+    int terminalEvent = 0;
     memcpy(&param.status, status, sizeof(mfrUpgradeStatus_t));
-    strncpy(param.cbData, notifyStruct.cbData, MAX_BUF);
+    strncpy(param.cbData, (const char *)notifyStruct.cbData, MAX_BUF);
     param.cbData[MAX_BUF-1] = '\0'; 
+    lastStatus.progress = param.status.progress;
+    if (param.status.progress == mfrUPGRADE_PROGRESS_ABORTED ||
+        param.status.progress == mfrUPGRADE_PROGRESS_COMPLETED)
+    {
+        terminalEvent = 1;
+    }
+    pthread_mutex_unlock(&mfrOperationLock);
+
     LOG("In writeImage callback: cbData=%s, progress=%d, error = %d, error_str=%s, percentage = %d\n", param.cbData, param.status.progress, param.status.error, param.status.error_string, param.status.percentage/100);
 
 
     retVal = IARM_Bus_BroadcastEvent(IARM_BUS_MFRLIB_NAME, IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE, (void *) &param, sizeof(param));
     if (retVal != IARM_RESULT_SUCCESS) {
-           LOG("ERROR: IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE failed, cbData=%s, progress=%d, retVal=%d, error=%d, %s\n", param.cbData, param.status.progress, retVal, errno, strerror(errno));
+            LOG("WARN: IARM_BUS_MFRMGR_EVENT_STATUS_UPDATE notification failed, cbData=%s, progress=%d, retVal=%d\n", param.cbData, param.status.progress, retVal);
      }
-    /* save progress */
-    lastStatus.progress = param.status.progress;
-
     LOG("In writeImage callback: cbData=%s, progress=%d, error = %d, error_str=%s, percentage = %d completed\n", param.cbData, param.status.progress, param.status.error, param.status.error_string, param.status.percentage/100);
+
+    if (terminalEvent)
+    {
+        endMfrOperation();
+    }
 
 }
 
 static IARM_Result_t writeImage_(void *arg)
 {
-    
-    typedef mfrError_t (*mfrWriteImage_)(const char *,  const char *, mfrImageType_t ,  mfrUpgradeStatusNotify_t );
-    /* check if back to back calls are being made */
-    if (lastStatus.progress == mfrUPGRADE_PROGRESS_VERIFYING || lastStatus.progress == mfrUPGRADE_PROGRESS_FLASHING) {
-           /* return error */
-           return IARM_RESULT_INVALID_STATE;
-    }
-    /* OK flashing not in progress, so OK to start new flashing process */
-
 #ifndef RDK_MFRLIB_NAME
     LOG("Please define RDK_MFRLIB_NAME\r\n");
     LOG("Exiting writeImage_\n");
@@ -434,14 +509,13 @@ static IARM_Result_t writeImage_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_INVALID_STATE;
     mfrError_t err = mfrERR_NONE;
 
-    static mfrWriteImage_ func = 0;
     LOG("In writeImage_\n");
     
-    if (func == 0) {
+    if (mfrWriteImageFunc == 0) {
         void *dllib = dlopen(RDK_MFRLIB_NAME, RTLD_LAZY);
         if (dllib) {
-            func = (mfrWriteImage_) dlsym(dllib, "mfrWriteImage");
-            if (func) {
+            mfrWriteImageFunc = (mfrWriteImage_) dlsym(dllib, "mfrWriteImage");
+            if (mfrWriteImageFunc) {
                 LOG("mfrWriteImage is defined and loaded\r\n");
             }
             else {
@@ -459,23 +533,25 @@ static IARM_Result_t writeImage_(void *arg)
         }
     }
 
-    if (func) {
+    if (mfrWriteImageFunc) {
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
-        
 
-        notifyStruct.cbData = pParam->cbData;
-        notifyStruct.interval = pParam->interval;
-        notifyStruct.cb = writeImageCb;
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
 
-
-        lastStatus.progress = mfrUPGRADE_PROGRESS_NOT_STARTED;
+        if (!beginMfrOperation(pParam->cbData, pParam->interval))
+        {
+            return IARM_RESULT_INVALID_STATE;
+        }
    
-        err = func(pParam->name, pParam->path, pParam->type, notifyStruct);
+        err = mfrWriteImageFunc(pParam->name, pParam->path, pParam->type, notifyStruct);
         
         LOG("Calling mfrWriteImage returned err %d\r\n", err);
         if(mfrERR_NONE != err) {
 		retCode = IARM_RESULT_IPCCORE_FAIL;
+        endMfrOperation();
 	} else {
 		retCode = IARM_RESULT_SUCCESS;
 
@@ -490,12 +566,6 @@ static IARM_Result_t writeImage_(void *arg)
 static IARM_Result_t verifyImage_(void *arg)
 {
 	typedef mfrError_t (*mfrVerifyImage)(const char *,  const char *, mfrImageType_t ,  mfrUpgradeStatusNotify_t );
-	/* check if back to back calls are being made */
-	if (lastStatus.progress == mfrUPGRADE_PROGRESS_VERIFYING || lastStatus.progress == mfrUPGRADE_PROGRESS_FLASHING) {
-		/* return error */
-		return IARM_RESULT_INVALID_STATE;
-	}
-
 #ifndef RDK_MFRLIB_NAME
 	LOG("Please define RDK_MFRLIB_NAME\r\n");
 	LOG("Exiting verifyImage_\n");
@@ -527,18 +597,22 @@ static IARM_Result_t verifyImage_(void *arg)
 	if (func) {
 		mfrError_t err;
 		IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
-		/* init callback struct */
-		notifyStruct.cbData = pParam->cbData;
-		notifyStruct.interval = pParam->interval;
-		notifyStruct.cb = writeImageCb;
 
-		lastStatus.progress = mfrUPGRADE_PROGRESS_NOT_STARTED;
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
+        if (!beginMfrOperation(pParam->cbData, pParam->interval))
+        {
+            return IARM_RESULT_INVALID_STATE;
+        }
 		/* invoke asynchronous hal function */
 		LOG("Calling mfrVerifyImage>>\n");
 		err = func(pParam->name, pParam->path, pParam->type, notifyStruct);
 		LOG("Calling mfrVerifyImage returned err %d\r\n", err);
 		if(mfrERR_NONE != err) {
 			retCode = IARM_RESULT_IPCCORE_FAIL;
+            endMfrOperation();
 		} else {
 			retCode = IARM_RESULT_SUCCESS;
 		}
@@ -727,14 +801,20 @@ static IARM_Result_t mirrorImage(void *arg)
 
         IARM_Bus_MFRLib_WriteImage_Param_t *pParam = (IARM_Bus_MFRLib_WriteImage_Param_t *) arg;
 
-        notifyStruct.cbData = pParam->cbData;
-        notifyStruct.interval = pParam->interval;
-        notifyStruct.cb = writeImageCb;
+        if (!isValidWriteImageParam(pParam)) {
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
+        if (!beginMfrOperation(pParam->cbData, pParam->interval))
+        {
+            return IARM_RESULT_INVALID_STATE;
+        }
 
         err = func(notifyStruct);
         LOG("Calling mfrMirrorImage returned err %d\r\n", err);
         if(mfrERR_NONE != err) {
            retCode = IARM_RESULT_IPCCORE_FAIL;
+              endMfrOperation();
         } else {
             retCode = IARM_RESULT_SUCCESS;
         }
@@ -788,6 +868,10 @@ static IARM_Result_t mfrSetBlSplashScreen_(void *arg)
          IARM_Bus_MFRLib_SetBLSplashScreen_Param_t *param = (IARM_Bus_MFRLib_SetBLSplashScreen_Param_t *) arg;
          if (func)
          {
+             if (!isTerminatedString(param->path, sizeof(param->path)))
+             {
+                 return IARM_RESULT_INVALID_PARAM;
+             }
              err = func(param->path);
              if(mfrERR_NONE == err)
              {
@@ -1277,16 +1361,16 @@ IARM_Result_t getConfigData_(void *arg)
     IARM_Result_t retCode = IARM_RESULT_SUCCESS;
     mfrError_t err = mfrERR_NONE;
     IARM_Bus_MFRLib_Platformblockdata_Param_t *bl_rt_blocklist = (IARM_Bus_MFRLib_Platformblockdata_Param_t*) arg;
-    IARM_Bus_MFRLib_Platformblockdata_Param_t bl = {0} ;
+    unsigned int blocklist = 0;
 
-    err = func(&bl);
+    err = func(&blocklist);
     if(mfrERR_NONE != err)
     {
         LOG("Calling mfr_getConfigData returned error 0x%x\n", err);
         retCode = IARM_RESULT_INVALID_PARAM;
     }
     else {
-        memcpy(bl_rt_blocklist, &bl,sizeof(IARM_Bus_MFRLib_Platformblockdata_Param_t));
+        bl_rt_blocklist->blocklist = blocklist;
         LOG(" BL runtime blocklist value is 0x%x\n",(unsigned int) bl_rt_blocklist->blocklist);
 	// handle the blocklist version set
     }
