@@ -173,7 +173,7 @@ typedef enum _mfrSerializedType_t
     mfrSERIALIZED_TYPE_FIRSTUSEDATE,                 ///< first use date field. String value
     mfrSERIALIZED_TYPE_DEVICEMAC,                    ///< device mac field. HEX string MAC value separated with colon
     mfrSERIALIZED_TYPE_MOCAMAC,                      ///< MOCA mac field. HEX string MAC value separated with colon
-    mfrSERIALIZED_TYPE_HDMIHDCP,                     ///< HDMI HDCP field. String value
+    mfrSERIALIZED_TYPE_HDMIHDCP,                     ///< HDMI HDCP2x field. String value
 
     mfrSERIALIZED_TYPE_PDRIVERSION,                  ///< PDRI version field. It provide the primary Disaster Recovery Image version information
     mfrSERIALIZED_TYPE_WIFIMAC,                      ///< wifi mac field. HEX string MAC value separated with colon
@@ -201,6 +201,17 @@ typedef enum _mfrSerializedType_t
     /* led data */
     mfrSERIALIZED_TYPE_LED_WHITE_LEVEL,              ///< led white level field. String value
     mfrSERIALIZED_TYPE_LED_PATTERN,                  ///< led pattern field. String value
+
+    /* LGI-Infosys Upstream */
+    mfrSERIALIZED_TYPE_HDMIHDCP1X,                   ///< HDCP 1.X key. binary blob
+    mfrSERIALIZED_TYPE_SOC_REV,                      ///< Revision of the main SoC. String value
+    mfrSERIALIZED_TYPE_SOC_LICENSE,                  ///< List of SoC feature licenses. binary blob
+    mfrSERIALIZED_TYPE_SOC_FW_VERSIONS,              ///< Firmware versions of the SoC processor. Stinrg value
+    mfrSERIALIZED_TYPE_ETHUSBADAPTER_PRODUCT,        ///< Modelname and version of the USB Ethernet/Power adapter. Stinrg value
+    mfrSERIALIZED_TYPE_ETHUSBADAPTER_MANUFACTURER,   ///< Manufacturer of the Ethernet chip inside the USB Ethernet/Power adapter. String value
+    mfrSERIALIZED_TYPE_ETHUSBADAPTER_SERIALNUMBER,   ///< MAC address of the Ethernet interface of the adapter. String value
+    mfrSERIALIZED_TYPE_SECONDWIFIMAC,                ///< Second WiFi MAC address. HEX string MAC value separated with colon
+
     mfrSERIALIZED_TYPE_MAX,                          ///< Out of range - required to be the last item of the enum
 #ifdef PANEL_SERIALIZATION_TYPES
     //As MFR HAL is a precompiled binary across all existing platforms, a distinct region is allocated for panel-based enums, beginning at 0x51. 
