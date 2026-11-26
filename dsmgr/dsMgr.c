@@ -231,9 +231,9 @@ IARM_Result_t DSMgr_Start()
 	IARM_Result_t iarmStatus;
 
 	setvbuf(stdout, NULL, _IOLBF, 0);
-    INT_INFO("Entering [%s] - [%s] - disabling io redirect buf \r\n", __FUNCTION__, IARM_BUS_DSMGR_NAME);
-
-    if (dsMgrPluginEnabled) {
+	INT_INFO("Entering [%s] - [%s] - disabling io redirect buf \r\n", __FUNCTION__, IARM_BUS_DSMGR_NAME);
+	
+	if (dsMgrPluginEnabled) {
 		INT_INFO("%s: DeviceSettings plugin owns the DS HAL, skipping legacy hardware control\r\n", __FUNCTION__);
 		dsMgr_Gloop = g_main_loop_new(NULL, FALSE);
 		if (dsMgr_Gloop == NULL) {
@@ -242,7 +242,7 @@ IARM_Result_t DSMgr_Start()
 		g_timeout_add_seconds(300, heartbeatMsg, dsMgr_Gloop);
 		return IARM_RESULT_SUCCESS;
 	}
-	
+
 	/* Register with IARM Libs and Connect */
 	iarmStatus = IARM_Bus_Init(IARM_BUS_DSMGR_NAME);
 	if (IARM_RESULT_SUCCESS != iarmStatus) {
