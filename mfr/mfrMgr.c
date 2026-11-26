@@ -150,25 +150,54 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrError_t err = mfrERR_NONE;
     mfrSerializedData_t data = {0};
     errno_t safec_rc = -1;
+
+    if (param == NULL)
+    {
+        LOG("getSerializedData_: rejected NULL request parameter\n");
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
+    LOG("getSerializedData_: request type=%d profile=%d\n", param->type, profileType);
+
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
     if((param->type == mfrSERIALIZED_TYPE_PROVISIONED_MODELNAME) &&
           (PROFILE_STB == profileType)){
-        LOG(" Querying for sky model name ");
+        LOG("getSerializedData_: querying HAL type=%d for requested type=%d\n",
+            mfrSERIALIZED_TYPE_SKYMODELNAME, param->type);
         err = mfrGetSerializedData((mfrSerializedType_t)(mfrSERIALIZED_TYPE_SKYMODELNAME), &(data));
     } else {
-         err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
+        LOG("getSerializedData_: querying HAL type=%d\n", param->type);
+        err = mfrGetSerializedData((mfrSerializedType_t)(param->type), &(data));
     }
+    LOG("getSerializedData_: HAL returned err=%d buffer=%p length=%zu freeBuf=%s\n",
+        err, (void *)data.buf, data.bufLen, data.freeBuf ? "yes" : "no");
     if(mfrERR_NONE == err)
     {
+        if (data.buf == NULL || data.bufLen > sizeof(param->buffer))
+        {
+            LOG("getSerializedData_: invalid HAL buffer type=%d null=%s length=%zu max=%zu\n",
+                param->type, data.buf == NULL ? "yes" : "no", data.bufLen,
+                sizeof(param->buffer));
+            if (data.freeBuf && data.buf)
+            {
+                data.freeBuf(data.buf);
+                LOG("getSerializedData_: released invalid HAL buffer\n");
+            }
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);
     	if(safec_rc != EOK)
         {
+                LOG("getSerializedData_: buffer copy failed type=%d length=%zu rc=%d\n",
+                    param->type, data.bufLen, safec_rc);
                 ERR_CHK(safec_rc);
                 if(data.freeBuf)
                 {
                     data.freeBuf(data.buf);
+                    LOG("getSerializedData_: released HAL buffer after copy failure\n");
                 }
                 return IARM_RESULT_INVALID_PARAM;
          }
@@ -177,8 +206,14 @@ static IARM_Result_t getSerializedData_(void *arg)
 	if(data.freeBuf)
         {
              data.freeBuf(data.buf);
+             LOG("getSerializedData_: released HAL buffer after successful copy\n");
         }
 	retCode=IARM_RESULT_SUCCESS;
+        LOG("getSerializedData_: success type=%d length=%zu\n", param->type, param->bufLen);
+    }
+    else
+    {
+        LOG("getSerializedData_: HAL request failed type=%d err=%d\n", param->type, err);
     }
     return retCode;
 }
