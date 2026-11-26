@@ -156,6 +156,12 @@ static IARM_Result_t getSerializedData_(void *arg)
         return IARM_RESULT_INVALID_PARAM;
     }
 
+    if (param->type == mfrSERIALIZED_TYPE_WIFIMAC)
+    {
+        LOG("WIFIMAC serialized data is not supported on this platform\n");
+        return IARM_RESULT_INVALID_STATE;
+    }
+
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }

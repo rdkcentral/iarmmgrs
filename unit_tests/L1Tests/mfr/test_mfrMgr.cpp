@@ -780,6 +780,17 @@ TEST_F(MfrMgrTest, GetSerializedData_InvalidHalBuffer_ReturnsInvalidParam)
     EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getSerializedData_(&param));
 }
 
+TEST_F(MfrMgrTest, GetSerializedData_WifiMac_ReturnsInvalidStateWithoutCallingHal)
+{
+    profileType = PROFILE_TV;
+
+    IARM_Bus_MFRLib_GetSerializedData_Param_t param{};
+    param.type = mfrSERIALIZED_TYPE_WIFIMAC;
+    g_mfr_gsd_result = mfrERR_GENERAL;
+
+    EXPECT_EQ(IARM_RESULT_INVALID_STATE, getSerializedData_(&param));
+}
+
 TEST_F(MfrMgrTest, GetSerializedData_StbProfile_ProvisionedModelNameUsesSkymodeQuery)
 {
     /* When profileType == PROFILE_STB and the requested type is
