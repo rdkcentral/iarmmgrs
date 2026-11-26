@@ -47,6 +47,7 @@
 
 #include <gtest/gtest.h>
 #include <gmock/gmock.h>
+#include <cstdlib>
 #include <cstring>
 #include <cstdio>
 
@@ -66,12 +67,21 @@
 static mfrError_t g_mfr_init_result            = mfrERR_NONE;
 static mfrError_t g_mfr_gsd_result             = mfrERR_NONE;
 static char       g_mfr_gsd_buf[MAX_SERIALIZED_BUF];
+static char      *g_mfr_gsd_buf_ptr            = g_mfr_gsd_buf;
 static int        g_mfr_gsd_bufLen              = 0;
+static void     (*g_mfr_gsd_freeBuf)(char *)    = nullptr;
+static int        g_mfr_gsd_free_calls          = 0;
 static WIFI_API_RESULT g_wifi_set_result        = WIFI_API_RESULT_SUCCESS;
 static WIFI_API_RESULT g_wifi_get_result        = WIFI_API_RESULT_SUCCESS;
 static int        g_wifi_set_calls              = 0;
 static int        g_wifi_get_calls              = 0;
 static WIFI_DATA  g_wifi_get_data              = {};
+
+static void testFreeSerializedData(char *buf)
+{
+    ++g_mfr_gsd_free_calls;
+    std::free(buf);
+}
 
 /* __wrap_ functions intercept the real HAL symbols at link time. */
 extern "C" {
@@ -85,9 +95,9 @@ mfrError_t __wrap_mfrGetSerializedData(mfrSerializedType_t /*type*/,
                                        mfrSerializedData_t *data)
 {
     if (g_mfr_gsd_result == mfrERR_NONE && data != nullptr) {
-        data->buf     = g_mfr_gsd_buf;
+        data->buf     = g_mfr_gsd_buf_ptr;
         data->bufLen  = (size_t)g_mfr_gsd_bufLen;
-        data->freeBuf = nullptr; /* no dynamic allocation in the stub */
+        data->freeBuf = g_mfr_gsd_freeBuf;
     }
     return g_mfr_gsd_result;
 }
@@ -254,7 +264,10 @@ protected:
         g_mfr_init_result = mfrERR_NONE;
         g_mfr_gsd_result  = mfrERR_NONE;
         memset(g_mfr_gsd_buf, 0, sizeof(g_mfr_gsd_buf));
+        g_mfr_gsd_buf_ptr = g_mfr_gsd_buf;
         g_mfr_gsd_bufLen  = 0;
+        g_mfr_gsd_freeBuf = nullptr;
+        g_mfr_gsd_free_calls = 0;
         g_wifi_set_result = WIFI_API_RESULT_SUCCESS;
         g_wifi_get_result = WIFI_API_RESULT_SUCCESS;
         g_wifi_set_calls  = 0;
@@ -761,6 +774,53 @@ TEST_F(MfrMgrTest, GetSerializedData_HalFails_ReturnsIpcCoreFail)
     g_mfr_gsd_result = mfrERR_GENERAL;
 
     EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, getSerializedData_(&param));
+}
+
+TEST_F(MfrMgrTest, GetSerializedData_NullParam_ReturnsInvalidParam)
+{
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getSerializedData_(nullptr));
+}
+
+TEST_F(MfrMgrTest, GetSerializedData_InvalidHalBuffer_ReturnsInvalidParam)
+{
+    profileType = PROFILE_TV;
+
+    IARM_Bus_MFRLib_GetSerializedData_Param_t param{};
+    param.type = mfrSERIALIZED_TYPE_ETHERNETMAC;
+    g_mfr_gsd_bufLen = MAX_SERIALIZED_BUF + 1;
+    g_mfr_gsd_result = mfrERR_NONE;
+
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getSerializedData_(&param));
+}
+
+TEST_F(MfrMgrTest, GetSerializedData_NullHalBuffer_ReturnsInvalidParam)
+{
+    profileType = PROFILE_TV;
+
+    IARM_Bus_MFRLib_GetSerializedData_Param_t param{};
+    param.type = mfrSERIALIZED_TYPE_ETHERNETMAC;
+    g_mfr_gsd_buf_ptr = nullptr;
+    g_mfr_gsd_bufLen = 1;
+    g_mfr_gsd_result = mfrERR_NONE;
+
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getSerializedData_(&param));
+    EXPECT_EQ(0, g_mfr_gsd_free_calls);
+}
+
+TEST_F(MfrMgrTest, GetSerializedData_OversizedHalBuffer_CleansUpAndReturnsInvalidParam)
+{
+    profileType = PROFILE_TV;
+
+    IARM_Bus_MFRLib_GetSerializedData_Param_t param{};
+    param.type = mfrSERIALIZED_TYPE_ETHERNETMAC;
+    g_mfr_gsd_buf_ptr = static_cast<char *>(std::malloc(MAX_SERIALIZED_BUF + 1));
+    ASSERT_NE(nullptr, g_mfr_gsd_buf_ptr);
+    g_mfr_gsd_bufLen = MAX_SERIALIZED_BUF + 1;
+    g_mfr_gsd_freeBuf = testFreeSerializedData;
+    g_mfr_gsd_result = mfrERR_NONE;
+
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getSerializedData_(&param));
+    EXPECT_EQ(1, g_mfr_gsd_free_calls);
 }
 
 TEST_F(MfrMgrTest, GetSerializedData_StbProfile_ProvisionedModelNameUsesSkymodeQuery)
