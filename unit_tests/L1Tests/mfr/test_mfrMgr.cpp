@@ -763,6 +763,23 @@ TEST_F(MfrMgrTest, GetSerializedData_HalFails_ReturnsIpcCoreFail)
     EXPECT_EQ(IARM_RESULT_IPCCORE_FAIL, getSerializedData_(&param));
 }
 
+TEST_F(MfrMgrTest, GetSerializedData_NullParam_ReturnsInvalidParam)
+{
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getSerializedData_(nullptr));
+}
+
+TEST_F(MfrMgrTest, GetSerializedData_InvalidHalBuffer_ReturnsInvalidParam)
+{
+    profileType = PROFILE_TV;
+
+    IARM_Bus_MFRLib_GetSerializedData_Param_t param{};
+    param.type = mfrSERIALIZED_TYPE_ETHERNETMAC;
+    g_mfr_gsd_bufLen = MAX_SERIALIZED_BUF + 1;
+    g_mfr_gsd_result = mfrERR_NONE;
+
+    EXPECT_EQ(IARM_RESULT_INVALID_PARAM, getSerializedData_(&param));
+}
+
 TEST_F(MfrMgrTest, GetSerializedData_StbProfile_ProvisionedModelNameUsesSkymodeQuery)
 {
     /* When profileType == PROFILE_STB and the requested type is

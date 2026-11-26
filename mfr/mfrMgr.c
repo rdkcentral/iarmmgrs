@@ -150,6 +150,12 @@ static IARM_Result_t getSerializedData_(void *arg)
     mfrError_t err = mfrERR_NONE;
     mfrSerializedData_t data = {0};
     errno_t safec_rc = -1;
+
+    if (param == NULL)
+    {
+        return IARM_RESULT_INVALID_PARAM;
+    }
+
     if (PROFILE_INVALID == profileType){
         profileType = searchRdkProfile();
     }
@@ -162,6 +168,15 @@ static IARM_Result_t getSerializedData_(void *arg)
     }
     if(mfrERR_NONE == err)
     {
+        if (data.buf == NULL || data.bufLen > sizeof(param->buffer))
+        {
+            if (data.freeBuf && data.buf)
+            {
+                data.freeBuf(data.buf);
+            }
+            return IARM_RESULT_INVALID_PARAM;
+        }
+
 	safec_rc = memcpy_s(param->buffer, sizeof(param->buffer), data.buf, data.bufLen);
     	if(safec_rc != EOK)
         {
